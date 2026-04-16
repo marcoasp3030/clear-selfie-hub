@@ -489,6 +489,9 @@ function CameraFullscreen({
           ref={videoRef}
           playsInline
           muted
+          autoPlay
+          // @ts-expect-error iOS Safari legacy attribute
+          webkit-playsinline="true"
           className="absolute inset-0 h-full w-full object-cover [transform:scaleX(-1)]"
         />
 
