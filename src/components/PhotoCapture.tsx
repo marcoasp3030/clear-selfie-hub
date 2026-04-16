@@ -292,7 +292,9 @@ function CameraFullscreen({
     };
   }, [videoRef]);
 
-  // Capture function reads current frame
+  // Capture function reads current frame.
+  // We mirror the saved image to match what the user saw on screen
+  // (the video is displayed mirrored like a selfie/mirror).
   const doCapture = () => {
     const video = videoRef.current;
     if (!video) return;
@@ -304,6 +306,9 @@ function CameraFullscreen({
     if (!ctx) return;
     const sx = (video.videoWidth - size) / 2;
     const sy = (video.videoHeight - size) / 2;
+    // Mirror horizontally so output matches the on-screen preview
+    ctx.translate(size, 0);
+    ctx.scale(-1, 1);
     ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
     canvas.toBlob(
       (blob) => {
