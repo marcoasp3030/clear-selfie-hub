@@ -233,7 +233,7 @@ interface CameraFullscreenProps {
   onCancel: () => void;
 }
 
-const TARGET = { cx: 0.5, cy: 0.48, rx: 0.28, ry: 0.36 };
+const TARGET = { cx: 0.5, cy: 0.52, rx: 0.3, ry: 0.4 };
 
 function CameraFullscreen({
   videoRef,
@@ -292,7 +292,9 @@ function CameraFullscreen({
     };
   }, [videoRef]);
 
-  // Capture function reads current frame
+  // Capture function reads current frame.
+  // We mirror the saved image to match what the user saw on screen
+  // (the video is displayed mirrored like a selfie/mirror).
   const doCapture = () => {
     const video = videoRef.current;
     if (!video) return;
@@ -304,6 +306,9 @@ function CameraFullscreen({
     if (!ctx) return;
     const sx = (video.videoWidth - size) / 2;
     const sy = (video.videoHeight - size) / 2;
+    // Mirror horizontally so output matches the on-screen preview
+    ctx.translate(size, 0);
+    ctx.scale(-1, 1);
     ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
     canvas.toBlob(
       (blob) => {
@@ -511,7 +516,7 @@ function CameraFullscreen({
           className="absolute inset-0 h-full w-full object-cover [transform:scaleX(-1)]"
         />
 
-        {/* Pending preview overlay */}
+        {/* Pending preview overlay (image is already mirrored at capture time) */}
         {showReview && (
           <img
             src={previewUrl!}
@@ -530,7 +535,7 @@ function CameraFullscreen({
             <defs>
               <mask id="face-mask">
                 <rect width="100" height="100" fill="white" />
-                <ellipse cx="50" cy="48" rx="28" ry="36" fill="black" />
+                <ellipse cx="50" cy="52" rx="30" ry="40" fill="black" />
               </mask>
             </defs>
             <rect width="100" height="100" fill="rgba(0,0,0,0.55)" mask="url(#face-mask)" />
@@ -544,7 +549,7 @@ function CameraFullscreen({
               className={`relative rounded-[50%] border-[3px] transition-all duration-200 ${ovalColorClass} ${
                 isPerfect || countdown !== null ? "" : "animate-pulse"
               }`}
-              style={{ width: "56vw", maxWidth: "320px", aspectRatio: "0.78 / 1" }}
+              style={{ width: "60vw", maxWidth: "340px", aspectRatio: "0.75 / 1" }}
             >
               {/* Direction icon arrow inside oval */}
               {directionIcon && countdown === null && (() => {
