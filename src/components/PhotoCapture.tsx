@@ -516,12 +516,12 @@ function CameraFullscreen({
           className="absolute inset-0 h-full w-full object-cover [transform:scaleX(-1)]"
         />
 
-        {/* Pending preview overlay (mirrored to match what user saw) */}
+        {/* Pending preview overlay (image is already mirrored at capture time) */}
         {showReview && (
           <img
             src={previewUrl!}
             alt="Foto capturada"
-            className="absolute inset-0 h-full w-full object-cover [transform:scaleX(-1)]"
+            className="absolute inset-0 h-full w-full object-cover"
           />
         )}
 
