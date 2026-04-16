@@ -1,7 +1,41 @@
 import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Database } from "@/integrations/supabase/types";
+
+const accessTokenSchema = z.string().trim().min(1);
+
+function createAuthClient() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabasePublishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+
+  if (!supabaseUrl || !supabasePublishableKey) {
+    throw new Response("Internal error", { status: 500 });
+  }
+
+  return createClient<Database>(supabaseUrl, supabasePublishableKey, {
+    auth: {
+      storage: undefined,
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+}
+
+let authClient: ReturnType<typeof createAuthClient> | undefined;
+
+async function getUserIdFromAccessToken(accessToken: string) {
+  if (!authClient) authClient = createAuthClient();
+
+  const { data, error } = await authClient.auth.getClaims(accessToken);
+
+  if (error || !data?.claims?.sub) {
+    throw new Response("Unauthorized", { status: 401 });
+  }
+
+  return data.claims.sub;
+}
 
 // Helper: throws Response 403 if the user isn't an admin.
 async function assertAdmin(userId: string) {
@@ -21,17 +55,34 @@ async function assertAdmin(userId: string) {
   }
 }
 
+async function assertAdminAccess(accessToken: string) {
+  const userId = await getUserIdFromAccessToken(accessToken);
+  await assertAdmin(userId);
+  return userId;
+}
+
 export const listRegistrations = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { search?: string; limit?: number; offset?: number }) =>
-    ({
-      search: input?.search?.trim() || "",
-      limit: Math.min(Math.max(input?.limit ?? 50, 1), 200),
-      offset: Math.max(input?.offset ?? 0, 0),
-    })
+  .inputValidator(
+    (input: { accessToken: string; search?: string; limit?: number; offset?: number }) => {
+      const parsed = z
+        .object({
+          accessToken: accessTokenSchema,
+          search: z.string().optional(),
+          limit: z.number().optional(),
+          offset: z.number().optional(),
+        })
+        .parse(input);
+
+      return {
+        accessToken: parsed.accessToken,
+        search: parsed.search?.trim() || "",
+        limit: Math.min(Math.max(parsed.limit ?? 50, 1), 200),
+        offset: Math.max(parsed.offset ?? 0, 0),
+      };
+    }
   )
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+  .handler(async ({ data }) => {
+    await assertAdminAccess(data.accessToken);
 
     let query = supabaseAdmin
       .from("registrations")
@@ -56,9 +107,11 @@ export const listRegistrations = createServerFn({ method: "POST" })
   });
 
 export const getRegistrationStats = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await assertAdmin(context.userId);
+  .inputValidator((input: { accessToken: string }) =>
+    z.object({ accessToken: accessTokenSchema }).parse(input)
+  )
+  .handler(async ({ data }) => {
+    await assertAdminAccess(data.accessToken);
 
     const now = new Date();
     const startOfDay = new Date(now);
@@ -88,12 +141,16 @@ export const getRegistrationStats = createServerFn({ method: "POST" })
   });
 
 export const getPhotoSignedUrl = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { path: string }) =>
-    z.object({ path: z.string().trim().min(1).max(512) }).parse(input)
+  .inputValidator((input: { accessToken: string; path: string }) =>
+    z
+      .object({
+        accessToken: accessTokenSchema,
+        path: z.string().trim().min(1).max(512),
+      })
+      .parse(input)
   )
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+  .handler(async ({ data }) => {
+    await assertAdminAccess(data.accessToken);
 
     const { data: signed, error } = await supabaseAdmin.storage
       .from("registration-photos")
@@ -108,12 +165,16 @@ export const getPhotoSignedUrl = createServerFn({ method: "POST" })
   });
 
 export const deleteRegistration = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { id: string }) =>
-    z.object({ id: z.string().uuid() }).parse(input)
+  .inputValidator((input: { accessToken: string; id: string }) =>
+    z
+      .object({
+        accessToken: accessTokenSchema,
+        id: z.string().uuid(),
+      })
+      .parse(input)
   )
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+  .handler(async ({ data }) => {
+    await assertAdminAccess(data.accessToken);
 
     // Fetch photo path first so we can clean up storage
     const { data: row, error: fetchError } = await supabaseAdmin
@@ -150,12 +211,22 @@ export const deleteRegistration = createServerFn({ method: "POST" })
   });
 
 export const checkAdminAccess = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await supabaseAdmin
+  .inputValidator((input: { accessToken: string }) =>
+    z.object({ accessToken: accessTokenSchema }).parse(input)
+  )
+  .handler(async ({ data: payload }) => {
+    let userId: string;
+
+    try {
+      userId = await getUserIdFromAccessToken(payload.accessToken);
+    } catch {
+      return { isAdmin: false };
+    }
+
+    const { data: roleRow, error } = await supabaseAdmin
       .from("user_roles")
       .select("role")
-      .eq("user_id", context.userId)
+      .eq("user_id", userId)
       .eq("role", "admin")
       .limit(1)
       .maybeSingle();
@@ -163,5 +234,5 @@ export const checkAdminAccess = createServerFn({ method: "POST" })
       console.error("Admin check failed:", error);
       return { isAdmin: false };
     }
-    return { isAdmin: !!data };
+    return { isAdmin: !!roleRow };
   });
