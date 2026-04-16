@@ -1,11 +1,31 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Camera, RefreshCw, X, Loader2 } from "lucide-react";
+import { getFaceDetector } from "@/lib/faceDetector";
 
 interface PhotoCaptureProps {
   value: File | null;
   onChange: (file: File | null) => void;
 }
+
+type DetectionStatus =
+  | "loading"
+  | "searching"
+  | "multiple"
+  | "too_small"
+  | "too_big"
+  | "off_center"
+  | "perfect";
+
+const STATUS_MESSAGES: Record<DetectionStatus, string> = {
+  loading: "Carregando detector...",
+  searching: "Procurando seu rosto...",
+  multiple: "Apenas uma pessoa por foto",
+  too_small: "Aproxime-se um pouco",
+  too_big: "Afaste-se um pouco",
+  off_center: "Centralize seu rosto no oval",
+  perfect: "Perfeito! Pode capturar",
+};
 
 export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -31,7 +51,6 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
     };
   }, [stream]);
 
-  // Lock body scroll when camera fullscreen is open
   useEffect(() => {
     if (cameraOn) {
       const prev = document.body.style.overflow;
@@ -181,7 +200,124 @@ interface CameraFullscreenProps {
   onCapture: () => void;
 }
 
+// Oval target in normalized coords (0-1) of the video frame.
+// Matches the visual oval: roughly centered, ~56% width / 72% height of square area.
+const TARGET = {
+  cx: 0.5,
+  cy: 0.48,
+  rx: 0.28,
+  ry: 0.36,
+};
+
 function CameraFullscreen({ videoRef, onCancel, onCapture }: CameraFullscreenProps) {
+  const [status, setStatus] = useState<DetectionStatus>("loading");
+  const statusRef = useRef<DetectionStatus>("loading");
+  const rafRef = useRef<number | null>(null);
+  const lastTimestampRef = useRef<number>(-1);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let detector: Awaited<ReturnType<typeof getFaceDetector>> | null = null;
+
+    const tick = () => {
+      const video = videoRef.current;
+      if (cancelled) return;
+      if (!detector || !video || video.readyState < 2 || video.videoWidth === 0) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      const ts = performance.now();
+      if (ts === lastTimestampRef.current) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+      lastTimestampRef.current = ts;
+
+      try {
+        const result = detector.detectForVideo(video, ts);
+        const detections = result.detections ?? [];
+
+        let next: DetectionStatus = "searching";
+        if (detections.length > 1) {
+          next = "multiple";
+        } else if (detections.length === 1) {
+          const box = detections[0].boundingBox;
+          if (box) {
+            const vw = video.videoWidth;
+            const vh = video.videoHeight;
+            // Use the shortest side to derive the on-screen square area
+            const side = Math.min(vw, vh);
+            const offsetX = (vw - side) / 2;
+            const offsetY = (vh - side) / 2;
+
+            // Face center in video pixel coords
+            const fcx = box.originX + box.width / 2;
+            const fcy = box.originY + box.height / 2;
+            // Normalize relative to the visible square area
+            const ncx = (fcx - offsetX) / side;
+            const ncy = (fcy - offsetY) / side;
+            const faceWidthRatio = box.width / side;
+
+            const dx = (ncx - TARGET.cx) / TARGET.rx;
+            const dy = (ncy - TARGET.cy) / TARGET.ry;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            const idealWidth = TARGET.rx * 2 * 0.95;
+            const minWidth = idealWidth * 0.7;
+            const maxWidth = idealWidth * 1.35;
+
+            if (faceWidthRatio < minWidth) next = "too_small";
+            else if (faceWidthRatio > maxWidth) next = "too_big";
+            else if (distance > 0.55) next = "off_center";
+            else next = "perfect";
+          }
+        }
+
+        if (next !== statusRef.current) setStatus(next);
+      } catch {
+        // ignore single-frame errors
+      }
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    getFaceDetector()
+      .then((d) => {
+        if (cancelled) return;
+        detector = d;
+        setStatus("searching");
+        rafRef.current = requestAnimationFrame(tick);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // If detector fails, allow capture anyway
+        setStatus("perfect");
+      });
+
+    return () => {
+      cancelled = true;
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [videoRef]);
+
+  const isPerfect = status === "perfect";
+  const ovalColorClass = isPerfect
+    ? "border-primary shadow-[0_0_0_2px_rgba(0,0,0,0.25),0_0_24px_4px_rgba(146,182,27,0.55)]"
+    : status === "loading" || status === "searching"
+      ? "border-white/70"
+      : "border-destructive shadow-[0_0_0_2px_rgba(0,0,0,0.25),0_0_24px_4px_rgba(220,60,60,0.45)]";
+
+  const hintBg = isPerfect
+    ? "bg-primary text-primary-foreground"
+    : status === "loading" || status === "searching"
+      ? "bg-black/60 text-white"
+      : "bg-destructive text-destructive-foreground";
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
       {/* Top bar */}
@@ -222,17 +358,22 @@ function CameraFullscreen({ videoRef, onCancel, onCapture }: CameraFullscreenPro
           <rect width="100" height="100" fill="rgba(0,0,0,0.55)" mask="url(#face-mask)" />
         </svg>
 
-        {/* Animated oval border */}
+        {/* Animated oval border (color reflects detection) */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div
-            className="animate-pulse rounded-[50%] border-[3px] border-primary shadow-[0_0_0_2px_rgba(0,0,0,0.25)]"
+            className={`rounded-[50%] border-[3px] transition-all duration-200 ${ovalColorClass} ${
+              isPerfect ? "" : "animate-pulse"
+            }`}
             style={{ width: "56vw", maxWidth: "320px", aspectRatio: "0.78 / 1" }}
           />
         </div>
 
         {/* Hint */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-4 py-2 text-center text-xs text-white backdrop-blur">
-          Encaixe seu rosto dentro do oval
+        <div
+          className={`absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-center text-xs font-medium backdrop-blur transition-colors ${hintBg}`}
+        >
+          {status === "loading" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          {STATUS_MESSAGES[status]}
         </div>
       </div>
 
@@ -241,11 +382,20 @@ function CameraFullscreen({ videoRef, onCancel, onCapture }: CameraFullscreenPro
         <button
           type="button"
           onClick={onCapture}
-          className="group relative flex h-20 w-20 items-center justify-center rounded-full bg-white/20 backdrop-blur transition active:scale-95"
+          disabled={!isPerfect}
+          className="group relative flex h-20 w-20 items-center justify-center rounded-full bg-white/20 backdrop-blur transition active:scale-95 disabled:opacity-40"
           aria-label="Capturar foto"
         >
-          <span className="absolute inset-1 rounded-full border-[3px] border-white" />
-          <span className="block h-14 w-14 rounded-full bg-white transition group-active:bg-white/80" />
+          <span
+            className={`absolute inset-1 rounded-full border-[3px] transition-colors ${
+              isPerfect ? "border-primary" : "border-white"
+            }`}
+          />
+          <span
+            className={`block h-14 w-14 rounded-full transition ${
+              isPerfect ? "bg-primary group-active:bg-primary/80" : "bg-white group-active:bg-white/80"
+            }`}
+          />
         </button>
       </div>
     </div>
