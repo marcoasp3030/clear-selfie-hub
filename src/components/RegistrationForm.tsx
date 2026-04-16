@@ -4,7 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, CheckCircle2, ArrowLeft, ArrowRight } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle2,
+  ArrowLeft,
+  ArrowRight,
+  Camera,
+  UserRound,
+  Sparkles,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { createRegistration } from "@/server/registrations.functions";
@@ -37,6 +45,11 @@ function formatPhone(value: string) {
 }
 
 type Step = 0 | 1 | 2;
+
+const STEPS = [
+  { label: "Foto", icon: Camera },
+  { label: "Dados", icon: UserRound },
+] as const;
 
 export function RegistrationForm() {
   const [step, setStep] = useState<Step>(0);
@@ -129,15 +142,33 @@ export function RegistrationForm() {
 
   if (step === 2) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-[var(--shadow-card)]">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 text-primary">
-          <CheckCircle2 className="h-9 w-9" />
+      <div
+        className="overflow-hidden rounded-3xl border border-border/60 bg-card p-8 text-center"
+        style={{ boxShadow: "var(--shadow-elevated)" }}
+      >
+        <div className="relative mx-auto mb-5 flex h-20 w-20 items-center justify-center">
+          <div className="absolute inset-0 animate-ping rounded-full bg-primary/30" />
+          <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg">
+            <CheckCircle2 className="h-10 w-10" strokeWidth={2.5} />
+          </div>
         </div>
-        <h2 className="text-xl font-semibold text-foreground">Cadastro recebido!</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Obrigado, {firstName}. Entraremos em contato pelo celular informado.
+        <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-[11px] font-medium text-primary">
+          <Sparkles className="h-3 w-3" />
+          Tudo certo
+        </div>
+        <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
+          Cadastro recebido!
+        </h2>
+        <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
+          Obrigado, <span className="font-medium text-foreground">{firstName}</span>.
+          Entraremos em contato pelo celular informado em breve.
         </p>
-        <Button onClick={reset} size="lg" className="mt-6 w-full">
+        <Button
+          onClick={reset}
+          size="lg"
+          variant="outline"
+          className="mt-7 h-12 w-full text-base"
+        >
           Fazer novo cadastro
         </Button>
       </div>
@@ -146,125 +177,197 @@ export function RegistrationForm() {
 
   return (
     <div className="space-y-5">
-      {/* Stepper */}
-      <div className="flex items-center gap-2">
-        {[0, 1].map((i) => (
-          <div
-            key={i}
-            className={`h-1.5 flex-1 rounded-full transition-colors ${
-              step >= i ? "bg-primary" : "bg-border"
-            }`}
-          />
-        ))}
-      </div>
-
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Passo {step + 1} de 2
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {step === 0 ? "Foto do rosto" : "Seus dados"}
-        </p>
+      {/* Modern stepper with icons */}
+      <div className="rounded-2xl border border-border/60 bg-card/60 p-3 backdrop-blur-sm">
+        <div className="flex items-center gap-2">
+          {STEPS.map((s, i) => {
+            const Icon = s.icon;
+            const isActive = step === i;
+            const isDone = step > i;
+            return (
+              <div key={s.label} className="flex flex-1 items-center gap-2">
+                <div
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 ${
+                    isDone
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : isActive
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background text-muted-foreground"
+                  }`}
+                >
+                  {isDone ? (
+                    <CheckCircle2 className="h-4 w-4" strokeWidth={2.5} />
+                  ) : (
+                    <Icon className="h-4 w-4" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={`text-[10px] font-medium uppercase tracking-wider transition-colors ${
+                      isActive || isDone ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
+                    Passo {i + 1}
+                  </p>
+                  <p
+                    className={`truncate text-sm font-semibold transition-colors ${
+                      isActive || isDone ? "text-foreground" : "text-muted-foreground"
+                    }`}
+                  >
+                    {s.label}
+                  </p>
+                </div>
+                {i < STEPS.length - 1 && (
+                  <div
+                    className={`h-0.5 w-4 rounded-full transition-colors ${
+                      isDone ? "bg-primary" : "bg-border"
+                    }`}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {step === 0 && (
-        <div className="space-y-5">
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-            <h2 className="text-lg font-semibold text-foreground">Tire uma foto do rosto</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Use a câmera frontal e encaixe o rosto no oval.
-            </p>
-            <div className="mt-4">
-              <PhotoCapture value={photo} onChange={setPhoto} />
+        <div className="space-y-4 duration-300 animate-in fade-in slide-in-from-bottom-2">
+          <div
+            className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6"
+            style={{ boxShadow: "var(--shadow-card)" }}
+          >
+            <div className="mb-4 flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Camera className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg font-bold text-foreground">
+                  Tire uma foto do rosto
+                </h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Use a câmera frontal e encaixe o rosto no oval.
+                </p>
+              </div>
             </div>
+            <PhotoCapture value={photo} onChange={setPhoto} />
             {errors.photo && (
-              <p className="mt-2 text-sm text-destructive">{errors.photo}</p>
+              <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+                {errors.photo}
+              </p>
             )}
           </div>
 
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-            <h3 className="text-base font-semibold text-foreground">
-              Como tirar a foto perfeita
-            </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Siga as recomendações para a foto ser aceita.
-            </p>
-            <div className="mt-4">
-              <PhotoGuidelines />
+          <div
+            className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6"
+            style={{ boxShadow: "var(--shadow-card)" }}
+          >
+            <div className="mb-4 flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-bold text-foreground">
+                  Como tirar a foto perfeita
+                </h3>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Siga as recomendações para a foto ser aceita.
+                </p>
+              </div>
             </div>
+            <PhotoGuidelines />
           </div>
 
           <Button
             onClick={goPhoto}
             size="lg"
-            className="h-14 w-full text-base"
+            className="h-14 w-full text-base font-semibold shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98]"
             disabled={!photo}
           >
             Continuar
-            <ArrowRight className="ml-2 h-5 w-5" />
+            <ArrowRight className="ml-1 h-5 w-5" />
           </Button>
         </div>
       )}
 
       {step === 1 && (
-        <div className="space-y-5">
-          <div className="space-y-4 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Seus dados</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Preencha para finalizar o cadastro.
-              </p>
+        <div className="space-y-4 duration-300 animate-in fade-in slide-in-from-bottom-2">
+          <div
+            className="space-y-5 rounded-2xl border border-border/60 bg-card p-5 sm:p-6"
+            style={{ boxShadow: "var(--shadow-card)" }}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <UserRound className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg font-bold text-foreground">Seus dados</h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Preencha para finalizar o cadastro.
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="firstName">Nome</Label>
-              <Input
-                id="firstName"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="João"
-                maxLength={100}
-                autoComplete="given-name"
-                disabled={submitting}
-                className="h-12 text-base"
-              />
-              {errors.firstName && (
-                <p className="text-xs text-destructive">{errors.firstName}</p>
-              )}
-            </div>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="firstName" className="text-sm font-medium">
+                  Nome
+                </Label>
+                <Input
+                  id="firstName"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="João"
+                  maxLength={100}
+                  autoComplete="given-name"
+                  disabled={submitting}
+                  className="h-12 rounded-xl border-border/70 text-base transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0"
+                />
+                {errors.firstName && (
+                  <p className="text-xs font-medium text-destructive">
+                    {errors.firstName}
+                  </p>
+                )}
+              </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="lastName">Sobrenome</Label>
-              <Input
-                id="lastName"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Silva"
-                maxLength={100}
-                autoComplete="family-name"
-                disabled={submitting}
-                className="h-12 text-base"
-              />
-              {errors.lastName && (
-                <p className="text-xs text-destructive">{errors.lastName}</p>
-              )}
-            </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="lastName" className="text-sm font-medium">
+                  Sobrenome
+                </Label>
+                <Input
+                  id="lastName"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Silva"
+                  maxLength={100}
+                  autoComplete="family-name"
+                  disabled={submitting}
+                  className="h-12 rounded-xl border-border/70 text-base transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0"
+                />
+                {errors.lastName && (
+                  <p className="text-xs font-medium text-destructive">
+                    {errors.lastName}
+                  </p>
+                )}
+              </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="phone">Celular</Label>
-              <Input
-                id="phone"
-                inputMode="tel"
-                value={phone}
-                onChange={(e) => setPhone(formatPhone(e.target.value))}
-                placeholder="(11) 91234-5678"
-                autoComplete="tel"
-                disabled={submitting}
-                className="h-12 text-base"
-              />
-              {errors.phone && (
-                <p className="text-xs text-destructive">{errors.phone}</p>
-              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="phone" className="text-sm font-medium">
+                  Celular
+                </Label>
+                <Input
+                  id="phone"
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(formatPhone(e.target.value))}
+                  placeholder="(11) 91234-5678"
+                  autoComplete="tel"
+                  disabled={submitting}
+                  className="h-12 rounded-xl border-border/70 text-base transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0"
+                />
+                {errors.phone && (
+                  <p className="text-xs font-medium text-destructive">{errors.phone}</p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -275,14 +378,15 @@ export function RegistrationForm() {
               size="lg"
               onClick={() => setStep(0)}
               disabled={submitting}
-              className="h-14"
+              className="h-14 w-14 shrink-0 rounded-xl border-border/70"
+              aria-label="Voltar"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <Button
               onClick={submit}
               size="lg"
-              className="h-14 flex-1 text-base"
+              className="h-14 flex-1 rounded-xl text-base font-semibold shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98]"
               disabled={submitting}
             >
               {submitting ? (
@@ -290,7 +394,10 @@ export function RegistrationForm() {
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Enviando...
                 </>
               ) : (
-                "Enviar cadastro"
+                <>
+                  Finalizar cadastro
+                  <CheckCircle2 className="ml-1 h-5 w-5" />
+                </>
               )}
             </Button>
           </div>
