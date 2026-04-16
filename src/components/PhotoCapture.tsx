@@ -508,15 +508,15 @@ function CameraFullscreen({
           muted
           autoPlay
           {...({ "webkit-playsinline": "true" } as Record<string, string>)}
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover [transform:scaleX(-1)]"
         />
 
-        {/* Pending preview overlay */}
+        {/* Pending preview overlay (mirrored to match what user saw) */}
         {showReview && (
           <img
             src={previewUrl!}
             alt="Foto capturada"
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-cover [transform:scaleX(-1)]"
           />
         )}
 
