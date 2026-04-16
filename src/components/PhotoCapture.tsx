@@ -771,3 +771,25 @@ function CameraFullscreen({
     </div>
   );
 }
+
+// ---- Geometry helpers ----
+type Pt = { x: number; y: number; z?: number };
+
+function avgPoint(landmarks: Pt[], indices: number[]): Pt {
+  let sx = 0, sy = 0;
+  for (const i of indices) {
+    sx += landmarks[i].x;
+    sy += landmarks[i].y;
+  }
+  return { x: sx / indices.length, y: sy / indices.length };
+}
+
+function dist(a: Pt, b: Pt): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function midPoint(a: Pt, b: Pt): Pt {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
