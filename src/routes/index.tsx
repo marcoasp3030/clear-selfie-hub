@@ -82,6 +82,12 @@ function Index() {
         <p className="text-xs text-muted-foreground">
           © {new Date().getFullYear()} Nutricar Brasil · Todos os direitos reservados
         </p>
+        <a
+          href="/admin"
+          className="mt-1 inline-block text-[10px] text-muted-foreground/60 hover:text-muted-foreground"
+        >
+          Admin
+        </a>
       </footer>
     </div>
   );
