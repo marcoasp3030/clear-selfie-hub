@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { ShieldCheck, Lock, Clock } from "lucide-react";
 import { RegistrationForm } from "@/components/RegistrationForm";
