@@ -360,7 +360,7 @@ function CameraFullscreen({
   // Detection loop
   useEffect(() => {
     let cancelled = false;
-    let detector: Awaited<ReturnType<typeof getFaceDetector>> | null = null;
+    let detector: Awaited<ReturnType<typeof getFaceLandmarker>> | null = null;
 
     const tick = () => {
       if (cancelled) return;
@@ -386,49 +386,119 @@ function CameraFullscreen({
 
       try {
         const result = detector.detectForVideo(video, ts);
-        const detections = result.detections ?? [];
+        const faces = result.faceLandmarks ?? [];
+        const blendshapes = result.faceBlendshapes ?? [];
+        const matrices = result.facialTransformationMatrixes ?? [];
 
         let next: DetectionStatus = "searching";
-        if (detections.length > 1) {
+
+        if (faces.length > 1) {
           next = "multiple";
-        } else if (detections.length === 1) {
-          const box = detections[0].boundingBox;
-          if (box) {
-            const vw = video.videoWidth;
-            const vh = video.videoHeight;
-            const side = Math.min(vw, vh);
-            const offsetX = (vw - side) / 2;
-            const offsetY = (vh - side) / 2;
+        } else if (faces.length === 1) {
+          const landmarks = faces[0];
+          const vw = video.videoWidth;
+          const vh = video.videoHeight;
+          const side = Math.min(vw, vh);
+          const offsetX = (vw - side) / 2;
+          const offsetY = (vh - side) / 2;
 
-            const fcx = box.originX + box.width / 2;
-            const fcy = box.originY + box.height / 2;
-            const ncx = (fcx - offsetX) / side;
-            const ncy = (fcy - offsetY) / side;
-            const faceWidthRatio = box.width / side;
+          // Compute face bounding box from face oval landmarks
+          let minX = 1, maxX = 0, minY = 1, maxY = 0;
+          for (const i of KEY_LANDMARKS.faceOval) {
+            const p = landmarks[i];
+            if (p.x < minX) minX = p.x;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.y > maxY) maxY = p.y;
+          }
+          // Normalized landmarks are in 0-1 of full video frame
+          const faceW = (maxX - minX) * vw;
+          const faceH = (maxY - minY) * vh;
+          const fcx = ((minX + maxX) / 2) * vw;
+          const fcy = ((minY + maxY) / 2) * vh;
 
-            // Mirror X because video is displayed mirrored
-            const dxScreen = (TARGET.cx - ncx) / TARGET.rx;
-            const dyNorm = (ncy - TARGET.cy) / TARGET.ry;
-            const distance = Math.sqrt(dxScreen * dxScreen + dyNorm * dyNorm);
+          const ncx = (fcx - offsetX) / side;
+          const ncy = (fcy - offsetY) / side;
+          const faceWidthRatio = faceW / side;
 
-            const idealWidth = TARGET.rx * 2 * 0.95;
-            const minWidth = idealWidth * 0.7;
-            const maxWidth = idealWidth * 1.35;
+          // Mirror X because video is displayed mirrored
+          const dxScreen = (TARGET.cx - ncx) / TARGET.rx;
+          const dyNorm = (ncy - TARGET.cy) / TARGET.ry;
+          const distance = Math.sqrt(dxScreen * dxScreen + dyNorm * dyNorm);
 
-            if (faceWidthRatio < minWidth) next = "too_small";
-            else if (faceWidthRatio > maxWidth) next = "too_big";
-            else if (distance > 0.55) {
-              // Direction with the larger absolute offset wins
-              if (Math.abs(dyNorm) > Math.abs(dxScreen)) {
-                next = dyNorm > 0 ? "move_up" : "move_down";
-              } else {
-                // dxScreen > 0 means face is to the LEFT of target on screen,
-                // so user should move RIGHT (their POV)
-                next = dxScreen > 0 ? "move_right" : "move_left";
-              }
+          const idealWidth = TARGET.rx * 2 * 0.95;
+          const minWidth = idealWidth * 0.6;
+          const maxWidth = idealWidth * 1.4;
+
+          // ---- Anti-fraud / quality checks ----
+          // 1. Head pose from transformation matrix (column-major 4x4)
+          //    Extract yaw/pitch/roll from rotation part.
+          let yawDeg = 0, pitchDeg = 0, rollDeg = 0;
+          if (matrices[0]) {
+            const m = matrices[0].data;
+            // Standard rotation extraction (Y-X-Z order)
+            // m[0..2]=col0, m[4..6]=col1, m[8..10]=col2
+            const r00 = m[0], r10 = m[1], r20 = m[2];
+            const r21 = m[6];
+            const r22 = m[10];
+            yawDeg = Math.atan2(-r20, Math.sqrt(r21 * r21 + r22 * r22)) * (180 / Math.PI);
+            pitchDeg = Math.atan2(r21, r22) * (180 / Math.PI);
+            rollDeg = Math.atan2(r10, r00) * (180 / Math.PI);
+          }
+
+          // 2. Occlusion check: count face landmarks far from face center.
+          //    If many key landmarks (eyes/nose/mouth/cheeks) collapse together,
+          //    a hand or object is likely covering them.
+          //    More robust: compare face-oval area vs eye-to-mouth area ratio.
+          const lEye = avgPoint(landmarks, KEY_LANDMARKS.leftEye);
+          const rEye = avgPoint(landmarks, KEY_LANDMARKS.rightEye);
+          const noseTip = landmarks[KEY_LANDMARKS.nose[0]];
+          const mouthCenter = avgPoint(landmarks, KEY_LANDMARKS.mouth);
+          const lCheek = avgPoint(landmarks, KEY_LANDMARKS.leftCheek);
+          const rCheek = avgPoint(landmarks, KEY_LANDMARKS.rightCheek);
+
+          // Distances normalized by face width
+          const eyeDist = dist(lEye, rEye) / (maxX - minX);
+          const eyeToMouth = dist(midPoint(lEye, rEye), mouthCenter) / (maxY - minY);
+          const cheekDist = dist(lCheek, rCheek) / (maxX - minX);
+
+          // Healthy frontal face: eyeDist ~0.35-0.5, eyeToMouth ~0.4-0.6, cheekDist ~0.55-0.8
+          const occluded =
+            eyeDist < 0.22 ||
+            eyeToMouth < 0.25 ||
+            cheekDist < 0.4 ||
+            // sanity: nose tip should be roughly between eyes vertically
+            noseTip.y < Math.min(lEye.y, rEye.y) - 0.05 ||
+            noseTip.y > mouthCenter.y + 0.05;
+
+          // 3. Eyes closed via blendshapes
+          let eyesClosed = false;
+          if (blendshapes[0]) {
+            const cats = blendshapes[0].categories;
+            const blinkL = cats.find((c) => c.categoryName === "eyeBlinkLeft")?.score ?? 0;
+            const blinkR = cats.find((c) => c.categoryName === "eyeBlinkRight")?.score ?? 0;
+            eyesClosed = blinkL > 0.6 && blinkR > 0.6;
+          }
+
+          // ---- Status priority ----
+          if (faceWidthRatio < minWidth) next = "too_small";
+          else if (faceWidthRatio > maxWidth) next = "too_big";
+          else if (distance > 0.55) {
+            if (Math.abs(dyNorm) > Math.abs(dxScreen)) {
+              next = dyNorm > 0 ? "move_up" : "move_down";
             } else {
-              next = "perfect";
+              next = dxScreen > 0 ? "move_right" : "move_left";
             }
+          } else if (occluded) {
+            next = "covered";
+          } else if (Math.abs(yawDeg) > 18 || Math.abs(pitchDeg) > 18) {
+            next = "turned";
+          } else if (Math.abs(rollDeg) > 15) {
+            next = "tilted";
+          } else if (eyesClosed) {
+            next = "eyes_closed";
+          } else {
+            next = "perfect";
           }
         }
 
@@ -459,7 +529,7 @@ function CameraFullscreen({
       rafRef.current = requestAnimationFrame(tick);
     };
 
-    getFaceDetector()
+    getFaceLandmarker()
       .then((d) => {
         if (cancelled) return;
         detector = d;
