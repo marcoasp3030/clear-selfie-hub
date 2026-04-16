@@ -7,6 +7,7 @@ import {
   deleteRegistration,
 } from "@/server/admin.functions";
 import type { Tables } from "@/integrations/supabase/types";
+import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -60,23 +61,29 @@ function RegistrationDetail() {
 
   useEffect(() => {
     let mounted = true;
+
     (async () => {
-      // Reuse list endpoint with broad fetch — simpler than a dedicated getOne route.
-      // For thousands of records, replace with a dedicated server fn.
-      const res = await fetchList({ data: { limit: 200, offset: 0 } });
-      if (!mounted) return;
-      const found = (res.rows as Registration[]).find((r) => r.id === id) || null;
-      setReg(found);
-      setLoading(false);
-      if (found?.photo_path) {
-        try {
-          const signed = await fetchSignedUrl({ data: { path: found.photo_path } });
-          if (mounted) setPhotoUrl(signed.url);
-        } catch {
-          /* ignore */
+      try {
+        const accessToken = await requireAdminAccessToken();
+        const res = await fetchList({ data: { accessToken, limit: 200, offset: 0 } });
+        if (!mounted) return;
+        const found = (res.rows as Registration[]).find((r) => r.id === id) || null;
+        setReg(found);
+        if (found?.photo_path) {
+          try {
+            const signed = await fetchSignedUrl({
+              data: { accessToken, path: found.photo_path },
+            });
+            if (mounted) setPhotoUrl(signed.url);
+          } catch {
+            /* ignore */
+          }
         }
+      } finally {
+        if (mounted) setLoading(false);
       }
     })();
+
     return () => {
       mounted = false;
     };
@@ -85,7 +92,8 @@ function RegistrationDetail() {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      await removeRegistration({ data: { id } });
+      const accessToken = await requireAdminAccessToken();
+      await removeRegistration({ data: { accessToken, id } });
       toast.success("Cadastro excluído");
       navigate({ to: "/admin/registrations" });
     } catch {

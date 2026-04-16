@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getRegistrationStats } from "@/server/admin.functions";
+import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { Users, Calendar, TrendingUp, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
@@ -20,13 +21,17 @@ function AdminDashboard() {
 
   useEffect(() => {
     let mounted = true;
-    fetchStats({ data: undefined as never })
-      .then((s) => {
+
+    (async () => {
+      try {
+        const accessToken = await requireAdminAccessToken();
+        const s = await fetchStats({ data: { accessToken } });
         if (mounted) setStats(s);
-      })
-      .finally(() => {
+      } finally {
         if (mounted) setLoading(false);
-      });
+      }
+    })();
+
     return () => {
       mounted = false;
     };

@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { listRegistrations } from "@/server/admin.functions";
 import type { Tables } from "@/integrations/supabase/types";
+import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,11 +48,15 @@ function RegistrationsList() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      const accessToken = await requireAdminAccessToken();
       const res = await fetchList({
-        data: { search: debounced, limit: PAGE_SIZE, offset },
+        data: { accessToken, search: debounced, limit: PAGE_SIZE, offset },
       });
       setRows(res.rows as Registration[]);
       setTotal(res.total);
+    } catch {
+      setRows([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }

@@ -12,6 +12,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { checkAdminAccess } from "@/server/admin.functions";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
+import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { LayoutDashboard, Users, LogOut, Loader2, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import nutricarLogo from "@/assets/nutricar-logo.png";
@@ -47,14 +48,18 @@ function AdminLayout() {
     }
 
     let mounted = true;
-    checkAccess({ data: undefined as never })
-      .then((res) => {
+
+    (async () => {
+      try {
+        const accessToken = await requireAdminAccessToken();
+        const res = await checkAccess({ data: { accessToken } });
         if (!mounted) return;
         setStatus(res.isAdmin ? "ok" : "denied");
-      })
-      .catch(() => {
+      } catch {
         if (mounted) setStatus("denied");
-      });
+      }
+    })();
+
     return () => {
       mounted = false;
     };
