@@ -6,6 +6,9 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2, ArrowLeft, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { createRegistration } from "@/server/registrations.functions";
+import { getDeviceFingerprint } from "@/lib/fingerprint";
 import { PhotoCapture } from "./PhotoCapture";
 import { PhotoGuidelines } from "./PhotoGuidelines";
 
@@ -43,6 +46,7 @@ export function RegistrationForm() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const submitRegistration = useServerFn(createRegistration);
 
   const goPhoto = () => {
     if (!photo) {
@@ -73,6 +77,8 @@ export function RegistrationForm() {
 
     setSubmitting(true);
     try {
+      const fingerprint = await getDeviceFingerprint();
+
       const ext = photo.name.split(".").pop()?.toLowerCase() || "jpg";
       const path = `${crypto.randomUUID()}.${ext}`;
 
@@ -81,13 +87,26 @@ export function RegistrationForm() {
         .upload(path, photo, { contentType: photo.type, upsert: false });
       if (uploadError) throw uploadError;
 
-      const { error: insertError } = await supabase.from("registrations").insert({
-        first_name: result.data.firstName,
-        last_name: result.data.lastName,
-        phone: result.data.phone,
-        photo_path: path,
+      const response = await submitRegistration({
+        data: {
+          firstName: result.data.firstName,
+          lastName: result.data.lastName,
+          phone: result.data.phone,
+          photoPath: path,
+          deviceFingerprint: fingerprint,
+        },
       });
-      if (insertError) throw insertError;
+
+      if (!response.success) {
+        if (response.error === "duplicate_device") {
+          toast.error(
+            "Este dispositivo já realizou um cadastro. Apenas um cadastro por aparelho é permitido."
+          );
+        } else {
+          toast.error("Não foi possível enviar. Tente novamente.");
+        }
+        return;
+      }
 
       setStep(2);
       toast.success("Cadastro enviado!");
