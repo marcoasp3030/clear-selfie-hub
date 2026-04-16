@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { createRegistration } from "@/server/registrations.functions";
 import { getDeviceFingerprint } from "@/lib/fingerprint";
+import { collectClientDeviceInfo } from "@/lib/deviceInfo";
 import { PhotoCapture } from "./PhotoCapture";
 import { PhotoGuidelines } from "./PhotoGuidelines";
 
