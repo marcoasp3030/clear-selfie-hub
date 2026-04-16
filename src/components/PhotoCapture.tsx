@@ -168,6 +168,7 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          capture="user"
           className="hidden"
           onChange={handleFileChange}
         />
