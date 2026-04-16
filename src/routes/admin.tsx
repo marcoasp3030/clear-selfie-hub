@@ -37,9 +37,15 @@ function AdminLayout() {
   const navigate = useNavigate();
   const routerState = useRouterState();
   const checkAccess = useServerFn(checkAdminAccess);
+  const path = routerState.location.pathname;
   const [status, setStatus] = useState<"checking" | "ok" | "denied">("checking");
 
   useEffect(() => {
+    if (path === "/admin/login") {
+      setStatus("ok");
+      return;
+    }
+
     let mounted = true;
     checkAccess({ data: undefined as never })
       .then((res) => {
@@ -52,7 +58,7 @@ function AdminLayout() {
     return () => {
       mounted = false;
     };
-  }, [checkAccess]);
+  }, [checkAccess, path]);
 
   // Listen for sign-out from any tab
   useEffect(() => {
@@ -67,6 +73,10 @@ function AdminLayout() {
     toast.success("Sessão encerrada");
     navigate({ to: "/admin/login" });
   };
+
+  if (path === "/admin/login") {
+    return <Outlet />;
+  }
 
   if (status === "checking") {
     return (
@@ -96,8 +106,6 @@ function AdminLayout() {
       </div>
     );
   }
-
-  const path = routerState.location.pathname;
 
   return (
     <div className="min-h-screen bg-muted/30">
