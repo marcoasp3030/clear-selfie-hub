@@ -275,6 +275,23 @@ function CameraFullscreen({
     return () => URL.revokeObjectURL(url);
   }, [pendingFile]);
 
+  // iOS Safari: replay video when tab regains focus or video gets paused
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const replay = () => {
+      if (v.paused && v.srcObject) {
+        v.play().catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", replay);
+    v.addEventListener("pause", replay);
+    return () => {
+      document.removeEventListener("visibilitychange", replay);
+      v.removeEventListener("pause", replay);
+    };
+  }, [videoRef]);
+
   // Capture function reads current frame
   const doCapture = () => {
     const video = videoRef.current;
