@@ -72,6 +72,15 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
     setError(null);
     setStarting(true);
     setPendingFile(null);
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError(
+        "Seu navegador não suporta acesso à câmera. Use o Safari (iPhone) ou Chrome (Android) atualizado.",
+      );
+      setStarting(false);
+      return;
+    }
+
     try {
       const s = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -84,15 +93,32 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
       setStream(s);
       setCameraOn(true);
       setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = s;
-          videoRef.current.play().catch(() => {});
+        const v = videoRef.current;
+        if (v) {
+          v.srcObject = s;
+          // iOS Safari requires these attributes set BEFORE play()
+          v.setAttribute("playsinline", "true");
+          v.setAttribute("webkit-playsinline", "true");
+          v.muted = true;
+          v.play().catch(() => {
+            // Some iOS versions need a tiny delay
+            setTimeout(() => v.play().catch(() => {}), 100);
+          });
         }
       }, 50);
-    } catch {
-      setError(
-        "Não foi possível acessar a câmera. Verifique as permissões nas configurações do navegador.",
-      );
+    } catch (err) {
+      const e = err as DOMException;
+      let msg =
+        "Não foi possível acessar a câmera. Verifique as permissões nas configurações do navegador.";
+      if (e?.name === "NotAllowedError" || e?.name === "PermissionDeniedError") {
+        msg =
+          "Permissão da câmera negada. Toque no ícone de cadeado/câmera na barra de endereço para permitir o acesso.";
+      } else if (e?.name === "NotFoundError" || e?.name === "DevicesNotFoundError") {
+        msg = "Nenhuma câmera encontrada no dispositivo.";
+      } else if (e?.name === "NotReadableError") {
+        msg = "A câmera está sendo usada por outro aplicativo. Feche-o e tente novamente.";
+      }
+      setError(msg);
     } finally {
       setStarting(false);
     }
