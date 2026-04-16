@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Camera, RefreshCw, X, Loader2, Check, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ZoomIn, ZoomOut, Users } from "lucide-react";
-import { getFaceDetector } from "@/lib/faceDetector";
+import {
+  Camera, RefreshCw, X, Loader2, Check,
+  ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
+  ZoomIn, ZoomOut, Users, EyeOff, AlertTriangle,
+} from "lucide-react";
+import { getFaceLandmarker, KEY_LANDMARKS } from "@/lib/faceDetector";
 
 interface PhotoCaptureProps {
   value: File | null;
@@ -18,6 +22,10 @@ type DetectionStatus =
   | "move_down"
   | "move_left"
   | "move_right"
+  | "covered"
+  | "turned"
+  | "tilted"
+  | "eyes_closed"
   | "perfect";
 
 const STATUS_COPY: Record<DetectionStatus, { msg: string; sub?: string }> = {
@@ -30,6 +38,10 @@ const STATUS_COPY: Record<DetectionStatus, { msg: string; sub?: string }> = {
   move_down: { msg: "Abaixe o celular", sub: "Coloque o rosto no oval" },
   move_left: { msg: "Mova para a esquerda", sub: "Coloque o rosto no oval" },
   move_right: { msg: "Mova para a direita", sub: "Coloque o rosto no oval" },
+  covered: { msg: "Mostre o rosto inteiro", sub: "Tire as mãos ou objetos do rosto" },
+  turned: { msg: "Olhe para a câmera", sub: "Vire o rosto para frente" },
+  tilted: { msg: "Endireite a cabeça", sub: "Mantenha o rosto na vertical" },
+  eyes_closed: { msg: "Mantenha os olhos abertos", sub: "Olhe para a câmera" },
   perfect: { msg: "Perfeito!", sub: "Mantenha-se assim" },
 };
 
