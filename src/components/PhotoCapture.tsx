@@ -567,6 +567,9 @@ function CameraFullscreen({
     status === "too_small" ? ZoomIn :
     status === "too_big" ? ZoomOut :
     status === "multiple" ? Users :
+    status === "covered" ? AlertTriangle :
+    status === "turned" || status === "tilted" ? AlertTriangle :
+    status === "eyes_closed" ? EyeOff :
     null;
 
   return (
