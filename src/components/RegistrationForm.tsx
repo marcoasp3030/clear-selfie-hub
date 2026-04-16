@@ -153,7 +153,7 @@ export function RegistrationForm() {
           <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
             <h2 className="text-lg font-semibold text-foreground">Tire uma foto do rosto</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Use a câmera frontal ou envie uma foto.
+              Use a câmera frontal e encaixe o rosto no oval.
             </p>
             <div className="mt-4">
               <PhotoCapture value={photo} onChange={setPhoto} />
@@ -163,17 +163,17 @@ export function RegistrationForm() {
             )}
           </div>
 
-          <details className="group rounded-2xl border border-border bg-card shadow-sm">
-            <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3.5 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
-              <span>Como tirar a foto perfeita</span>
-              <span className="text-xs text-muted-foreground transition group-open:rotate-180">
-                ▼
-              </span>
-            </summary>
-            <div className="border-t border-border px-4 py-4">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] sm:p-5">
+            <h3 className="text-base font-semibold text-foreground">
+              Como tirar a foto perfeita
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Siga as recomendações para a foto ser aceita.
+            </p>
+            <div className="mt-4">
               <PhotoGuidelines />
             </div>
-          </details>
+          </div>
 
           <Button
             onClick={goPhoto}
