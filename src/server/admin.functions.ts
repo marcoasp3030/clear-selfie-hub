@@ -214,11 +214,11 @@ export const checkAdminAccess = createServerFn({ method: "POST" })
   .inputValidator((input: { accessToken: string }) =>
     z.object({ accessToken: accessTokenSchema }).parse(input)
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data: payload }) => {
     let userId: string;
 
     try {
-      userId = await getUserIdFromAccessToken(data.accessToken);
+      userId = await getUserIdFromAccessToken(payload.accessToken);
     } catch {
       return { isAdmin: false };
     }
