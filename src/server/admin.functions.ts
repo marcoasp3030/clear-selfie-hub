@@ -223,7 +223,7 @@ export const checkAdminAccess = createServerFn({ method: "POST" })
       return { isAdmin: false };
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data: roleRow, error } = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
@@ -234,5 +234,5 @@ export const checkAdminAccess = createServerFn({ method: "POST" })
       console.error("Admin check failed:", error);
       return { isAdmin: false };
     }
-    return { isAdmin: !!data };
+    return { isAdmin: !!roleRow };
   });
