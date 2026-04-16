@@ -233,7 +233,7 @@ interface CameraFullscreenProps {
   onCancel: () => void;
 }
 
-const TARGET = { cx: 0.5, cy: 0.48, rx: 0.28, ry: 0.36 };
+const TARGET = { cx: 0.5, cy: 0.52, rx: 0.3, ry: 0.4 };
 
 function CameraFullscreen({
   videoRef,
@@ -530,7 +530,7 @@ function CameraFullscreen({
             <defs>
               <mask id="face-mask">
                 <rect width="100" height="100" fill="white" />
-                <ellipse cx="50" cy="48" rx="28" ry="36" fill="black" />
+                <ellipse cx="50" cy="52" rx="30" ry="40" fill="black" />
               </mask>
             </defs>
             <rect width="100" height="100" fill="rgba(0,0,0,0.55)" mask="url(#face-mask)" />
