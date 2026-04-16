@@ -92,6 +92,7 @@ export function RegistrationForm() {
     setSubmitting(true);
     try {
       const fingerprint = await getDeviceFingerprint();
+      const deviceInfo = collectClientDeviceInfo();
 
       const ext = photo.name.split(".").pop()?.toLowerCase() || "jpg";
       const path = `${crypto.randomUUID()}.${ext}`;
@@ -108,6 +109,11 @@ export function RegistrationForm() {
           phone: result.data.phone,
           photoPath: path,
           deviceFingerprint: fingerprint,
+          userAgent: deviceInfo.userAgent,
+          screenResolution: deviceInfo.screenResolution,
+          language: deviceInfo.language,
+          timezone: deviceInfo.timezone,
+          platform: deviceInfo.platform,
         },
       });
 
