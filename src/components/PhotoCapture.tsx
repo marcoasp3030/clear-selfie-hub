@@ -544,7 +544,7 @@ function CameraFullscreen({
               className={`relative rounded-[50%] border-[3px] transition-all duration-200 ${ovalColorClass} ${
                 isPerfect || countdown !== null ? "" : "animate-pulse"
               }`}
-              style={{ width: "56vw", maxWidth: "320px", aspectRatio: "0.78 / 1" }}
+              style={{ width: "60vw", maxWidth: "340px", aspectRatio: "0.75 / 1" }}
             >
               {/* Direction icon arrow inside oval */}
               {directionIcon && countdown === null && (() => {
