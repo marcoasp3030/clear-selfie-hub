@@ -508,7 +508,7 @@ function CameraFullscreen({
           muted
           autoPlay
           {...({ "webkit-playsinline": "true" } as Record<string, string>)}
-          className="absolute inset-0 h-full w-full object-cover [transform:scaleX(-1)]"
+          className="absolute inset-0 h-full w-full object-cover"
         />
 
         {/* Pending preview overlay */}
