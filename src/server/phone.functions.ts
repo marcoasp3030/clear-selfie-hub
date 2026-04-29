@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeader, getRequestIP } from "@tanstack/react-start/server";
 import { z } from "zod";
-import { createHash, randomInt, timingSafeEqual } from "crypto";
+import { createHash, randomInt, randomBytes, timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { uazFetch } from "./uazapi.server";
 
@@ -55,6 +55,12 @@ async function getActiveInstanceToken(): Promise<string> {
   return data.instance_token;
 }
 
+/** Short URL-safe token used as the interactive button id (verify:<token>). */
+function makeVerifyToken(): string {
+  // 12 bytes -> 16 chars base64url (no padding) — short, unique, hard to guess
+  return randomBytes(12).toString("base64url");
+}
+
 // ------------------------------------------------------------------
 // sendPhoneVerification
 // ------------------------------------------------------------------
@@ -97,6 +103,7 @@ export const sendPhoneVerification = createServerFn({ method: "POST" })
     // Generate a 6-digit numeric code
     const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
     const expiresAt = new Date(Date.now() + CODE_TTL_SECONDS * 1000);
+    const verifyToken = makeVerifyToken();
 
     // Invalidate previous unverified codes for this phone
     await supabaseAdmin
@@ -112,31 +119,70 @@ export const sendPhoneVerification = createServerFn({ method: "POST" })
         code_hash: hashCode(code, phone),
         expires_at: expiresAt.toISOString(),
         ip_address: clientIp(),
+        verify_token: verifyToken,
       });
     if (insertError) {
       console.error("phone_verifications insert failed:", insertError);
       throw new Response("Não foi possível gerar o código.", { status: 500 });
     }
 
-    // Send WhatsApp message via uazapi
+    // Send WhatsApp message via uazapi.
+    // We try the interactive menu (button) endpoint first — it gives the user
+    // a "Copiar código" button and a "Já verifiquei" reply button that the
+    // server will detect via webhook. If the server / WhatsApp client doesn't
+    // accept it, we gracefully fall back to a plain text message.
     const token = await getActiveInstanceToken();
-    const text =
+    const headline =
       `🔐 *Confirme seu cadastro*\n\n` +
       `Seu código de verificação é: *${code}*\n\n` +
-      `Ele expira em 5 minutos. Não compartilhe com ninguém.`;
+      `_Toque em *Copiar código* para colar no formulário, ou em *✅ Já verifiquei* para confirmar automaticamente._\n\n` +
+      `O código expira em 5 minutos. Nunca compartilhe com terceiros.`;
 
+    let sent = false;
     try {
-      await uazFetch("/send/text", {
+      await uazFetch("/send/menu", {
         method: "POST",
         instanceToken: token,
         body: {
           number: phone,
-          text,
-          linkPreview: false,
+          type: "button",
+          text: headline,
+          choices: [
+            `📋 Copiar código|copy:${code}`,
+            `✅ Já verifiquei|verify:${verifyToken}`,
+          ],
+          footerText: "Verificação de cadastro",
         },
       });
+      sent = true;
     } catch (err) {
-      console.error("uazapi send/text failed:", err);
+      console.warn(
+        "uazapi /send/menu failed, falling back to /send/text:",
+        err
+      );
+    }
+
+    if (!sent) {
+      try {
+        await uazFetch("/send/text", {
+          method: "POST",
+          instanceToken: token,
+          body: {
+            number: phone,
+            text:
+              `🔐 *Confirme seu cadastro*\n\n` +
+              `Seu código de verificação é: *${code}*\n\n` +
+              `Ele expira em 5 minutos. Não compartilhe com ninguém.`,
+            linkPreview: false,
+          },
+        });
+        sent = true;
+      } catch (err) {
+        console.error("uazapi send/text failed:", err);
+      }
+    }
+
+    if (!sent) {
       // Best-effort cleanup so the user can retry quickly
       await supabaseAdmin
         .from("phone_verifications")
@@ -236,6 +282,30 @@ export const verifyPhoneCode = createServerFn({ method: "POST" })
       .eq("id", row.id);
 
     return { success: true as const };
+  });
+
+// ------------------------------------------------------------------
+// pollPhoneVerification — used by the client to detect when the user
+// clicked the "✅ Já verifiquei" button on WhatsApp (verified via webhook).
+// ------------------------------------------------------------------
+export const pollPhoneVerification = createServerFn({ method: "POST" })
+  .inputValidator((input: { phone: string }) =>
+    z.object({ phone: z.string().trim().min(10).max(20) }).parse(input)
+  )
+  .handler(async ({ data }) => {
+    const phone = normalizePhone(data.phone);
+    const { data: row, error } = await supabaseAdmin
+      .from("phone_verifications")
+      .select("verified_at")
+      .eq("phone", phone)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      console.error("pollPhoneVerification db error:", error);
+      return { verified: false as const };
+    }
+    return { verified: Boolean(row?.verified_at) };
   });
 
 /** Server-side check used by createRegistration to ensure the phone is verified. */
