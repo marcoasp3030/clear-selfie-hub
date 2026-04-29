@@ -289,6 +289,12 @@ function CameraFullscreen({
   const [countdown, setCountdown] = useState<number | null>(null);
   const [flash, setFlash] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // Quality bars — UI state, throttled updates from the detection loop
+  const [qualityUI, setQualityUI] = useState<{
+    sharpness: number;
+    brightness: number;
+    lightUneven: number;
+  } | null>(null);
 
   const statusRef = useRef<DetectionStatus>("loading");
   const rafRef = useRef<number | null>(null);
@@ -615,7 +621,10 @@ function CameraFullscreen({
             lastQualityTsRef.current = ts;
             try {
               const q = analyzeFaceQuality(video, minX, minY, maxX, maxY, qualityCanvasRef);
-              if (q) qualityRef.current = q;
+              if (q) {
+                qualityRef.current = q;
+                setQualityUI(q);
+              }
             } catch {
               /* noop */
             }
@@ -655,6 +664,8 @@ function CameraFullscreen({
           smoothRef.current = null;
           blinkHistoryRef.current = [];
           eyesClosedConfirmedRef.current = false;
+          qualityRef.current = null;
+          if (qualityUI !== null) setQualityUI(null);
         }
 
         // ---- Status hysteresis: require the candidate status to persist
@@ -815,6 +826,11 @@ function CameraFullscreen({
         <div className="h-10 w-10" />
       </div>
 
+      {/* Quality bars (sharpness + lighting) */}
+      {!showReview && (
+        <QualityBars quality={qualityUI} />
+      )}
+
       {/* Video + guides */}
       <div className="relative flex-1 overflow-hidden">
         <video
@@ -849,6 +865,24 @@ function CameraFullscreen({
               </mask>
             </defs>
             <rect width="100" height="100" fill="rgba(0,0,0,0.55)" mask="url(#face-mask)" />
+            {/* Safe-margin frame: shows the recommended outer bounds */}
+            <rect
+              x="10"
+              y="6"
+              width="80"
+              height="88"
+              fill="none"
+              stroke="rgba(255,255,255,0.25)"
+              strokeWidth="0.3"
+              strokeDasharray="2 2"
+              rx="4"
+            />
+            {/* Center crosshair guides */}
+            <line x1="50" y1="46" x2="50" y2="58" stroke="rgba(255,255,255,0.55)" strokeWidth="0.3" />
+            <line x1="44" y1="52" x2="56" y2="52" stroke="rgba(255,255,255,0.55)" strokeWidth="0.3" />
+            {/* Rule-of-thirds light hints inside oval */}
+            <line x1="50" y1="36" x2="50" y2="40" stroke="rgba(255,255,255,0.4)" strokeWidth="0.25" />
+            <line x1="50" y1="64" x2="50" y2="68" stroke="rgba(255,255,255,0.4)" strokeWidth="0.25" />
           </svg>
         )}
 
@@ -1137,6 +1171,64 @@ function analyzeFaceQuality(
 }
 
 // ---- Camera permission helper UI ----
+
+interface QualityBarsProps {
+  quality: { sharpness: number; brightness: number; lightUneven: number } | null;
+}
+
+function QualityBars({ quality }: QualityBarsProps) {
+  // Map raw signals to 0..1 "good" scores
+  // Sharpness: ~3 (blurry) to ~15+ (sharp). Clamp.
+  const sharp = quality ? clamp01((quality.sharpness - 3) / 10) : 0;
+  // Brightness: ideal 90..180. Penalize extremes.
+  const b = quality?.brightness ?? 0;
+  const bright = quality
+    ? b < 55 || b > 220
+      ? 0
+      : 1 - Math.min(1, Math.abs(b - 135) / 90)
+    : 0;
+  // Lighting uniformity: lower lightUneven is better. 0 = perfect, 0.3+ = bad.
+  const even = quality ? clamp01(1 - quality.lightUneven / 0.3) : 0;
+
+  return (
+    <div className="pointer-events-none absolute left-0 right-0 top-[env(safe-area-inset-top,1rem)] z-10 mt-14 flex justify-center px-4">
+      <div className="flex w-full max-w-sm items-center gap-3 rounded-full bg-black/55 px-4 py-2 backdrop-blur">
+        <QualityBar label="Nitidez" score={sharp} />
+        <QualityBar label="Luz" score={bright} />
+        <QualityBar label="Equilíbrio" score={even} />
+      </div>
+    </div>
+  );
+}
+
+function QualityBar({ label, score }: { label: string; score: number }) {
+  const pct = Math.round(score * 100);
+  const color =
+    score >= 0.7
+      ? "bg-primary"
+      : score >= 0.4
+        ? "bg-warning"
+        : "bg-destructive";
+  return (
+    <div className="flex flex-1 flex-col gap-1">
+      <div className="flex items-center justify-between text-[10px] font-medium uppercase tracking-wide text-white/80">
+        <span>{label}</span>
+        <span className="tabular-nums">{pct}%</span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/15">
+        <div
+          className={`h-full ${color} transition-all duration-200`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function clamp01(n: number): number {
+  return Math.max(0, Math.min(1, n));
+}
+
 function detectPlatform(): "ios" | "android" | "desktop" {
   if (typeof navigator === "undefined") return "desktop";
   const ua = navigator.userAgent || "";
