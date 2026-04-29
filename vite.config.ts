@@ -6,4 +6,12 @@
 // You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-export default defineConfig();
+// When DEPLOY_TARGET=node (used in the Docker image for VPS deploys) we
+// disable the Cloudflare Workers plugin so the build emits a standard
+// Node.js server bundle that can run with `node .output/server/index.mjs`.
+// Default behavior (Lovable preview / publish) keeps Cloudflare enabled.
+const isNodeTarget = process.env.DEPLOY_TARGET === "node";
+
+export default defineConfig({
+  cloudflare: isNodeTarget ? false : undefined,
+});
