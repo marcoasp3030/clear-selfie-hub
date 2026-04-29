@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { maskPhone, maskCpf, isValidCpf, isValidMobile, onlyDigits } from "@/lib/brMasks";
 import { Button } from "@/components/ui/button";
