@@ -402,7 +402,11 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
       return;
     }
 
-    // 2. Fire getUserMedia FIRST (preserves the user gesture on iOS)
+    // 2. Fire getUserMedia FIRST (preserves the user gesture on iOS).
+    //    NOTE: we intentionally do NOT await navigator.permissions.query()
+    //    here — that would lose the user activation on iOS Safari and the
+    //    permission prompt would never appear. We check permissions only on
+    //    failure, to render better recovery UI.
     const mediaPromise = navigator.mediaDevices
       .getUserMedia({
         video: { facingMode: "user" },
@@ -508,7 +512,34 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
         name: e?.name || "UnknownError",
         message: e?.message || String(err),
       });
-      setErrorOpen(true);
+      // Only auto-open the technical modal for unusual errors. For the
+      // common "denied / in-use / not-found" cases the inline help block
+      // (CameraPermissionHelp) already shows clearer, platform-specific
+      // instructions and a retry button — opening the modal on top of it
+      // is redundant and noisy.
+      if (kind === "generic") {
+        setErrorOpen(true);
+      }
+      // Watch the Permissions API: if the user goes to settings and
+      // flips Camera back to "Allow", auto-retry without them having to
+      // tap the button again. Supported on Chromium (Android/desktop);
+      // silently no-op on Safari/iOS where the API is missing.
+      if (kind === "denied" && typeof navigator !== "undefined" && navigator.permissions) {
+        try {
+          const status = await navigator.permissions.query({
+            name: "camera" as PermissionName,
+          });
+          const handler = () => {
+            if (status.state === "granted") {
+              status.removeEventListener("change", handler);
+              startCamera();
+            }
+          };
+          status.addEventListener("change", handler);
+        } catch {
+          /* permission name not supported — ignore */
+        }
+      }
     } finally {
       setStarting(false);
     }
