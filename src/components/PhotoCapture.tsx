@@ -1429,8 +1429,7 @@ function CameraFullscreen({
           </div>
           <h2 className="text-2xl font-bold">Vamos tirar sua foto</h2>
           <p className="mt-3 max-w-xs text-sm text-white/80">
-            Encaixe seu rosto no oval. Quando ficar verde, a foto será tirada automaticamente em 3
-            segundos.
+            Encaixe seu rosto no oval. Quando ficar verde, a foto será tirada automaticamente.
           </p>
 
           <div className="mt-8 grid w-full max-w-xs gap-3 text-left text-sm">
