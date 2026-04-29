@@ -55,7 +55,7 @@ async function assertAdmin(userId: string) {
   }
 }
 
-async function assertAdminAccess(accessToken: string) {
+export async function assertAdminAccess(accessToken: string) {
   const userId = await getUserIdFromAccessToken(accessToken);
   await assertAdmin(userId);
   return userId;
