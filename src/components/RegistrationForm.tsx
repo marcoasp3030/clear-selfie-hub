@@ -16,6 +16,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { createRegistration } from "@/server/registrations.functions";
+import { syncRegistration } from "@/server/controlid.functions";
 import { getDeviceFingerprint } from "@/lib/fingerprint";
 import { collectClientDeviceInfo } from "@/lib/deviceInfo";
 import { PhotoCapture } from "./PhotoCapture";
@@ -65,6 +66,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const submitRegistration = useServerFn(createRegistration);
+  const triggerSync = useServerFn(syncRegistration);
 
   const goPhoto = () => {
     if (!photo) {
@@ -135,6 +137,14 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
 
       setStep(2);
       toast.success("Cadastro enviado!");
+
+      // Fire-and-forget sync to the Control iD device. Errors are recorded on the
+      // registration row and an admin can retry from the admin panel.
+      if (deviceId && response.registrationId) {
+        triggerSync({ data: { registrationId: response.registrationId } }).catch(
+          (err) => console.warn("Control iD sync failed:", err),
+        );
+      }
     } catch (err) {
       console.error(err);
       toast.error("Não foi possível enviar. Tente novamente.");

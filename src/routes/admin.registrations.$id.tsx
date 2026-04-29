@@ -6,6 +6,7 @@ import {
   getPhotoSignedUrl,
   deleteRegistration,
 } from "@/server/admin.functions";
+import { retrySyncRegistration } from "@/server/controlid.functions";
 import type { Tables } from "@/integrations/supabase/types";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,11 @@ import {
   Calendar,
   Wifi,
   Download,
+  Cpu,
+  CheckCircle2,
+  XCircle,
+  Clock3,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -52,12 +58,14 @@ function RegistrationDetail() {
   const fetchList = useServerFn(listRegistrations);
   const fetchSignedUrl = useServerFn(getPhotoSignedUrl);
   const removeRegistration = useServerFn(deleteRegistration);
+  const retrySync = useServerFn(retrySyncRegistration);
 
   const [reg, setReg] = useState<Registration | null>(null);
   const [loading, setLoading] = useState(true);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -101,6 +109,39 @@ function RegistrationDetail() {
     } finally {
       setDeleting(false);
       setConfirmOpen(false);
+    }
+  };
+
+  const handleRetrySync = async () => {
+    if (!reg) return;
+    setSyncing(true);
+    try {
+      const accessToken = await requireAdminAccessToken();
+      const res = await retrySync({
+        data: { accessToken, registrationId: reg.id },
+      });
+      if (res.success) {
+        toast.success("Cadastro enviado ao equipamento");
+        setReg({
+          ...reg,
+          device_sync_status: "success",
+          device_sync_user_id: res.deviceUserId,
+          device_sync_error: null,
+          device_sync_attempted_at: new Date().toISOString(),
+        });
+      } else {
+        toast.error(res.error);
+        setReg({
+          ...reg,
+          device_sync_status: "error",
+          device_sync_error: res.error,
+          device_sync_attempted_at: new Date().toISOString(),
+        });
+      }
+    } catch {
+      toast.error("Falha ao sincronizar com o equipamento");
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -197,6 +238,53 @@ function RegistrationDetail() {
         <div className="space-y-5">
           <Section title="Quando">
             <Field icon={Calendar} label="Data do cadastro" value={formatFullDate(reg.created_at)} />
+          </Section>
+
+          <Section title="Equipamento (Control iD)">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <SyncBadge status={reg.device_sync_status} />
+                {reg.device_sync_user_id != null && (
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <Cpu className="h-3.5 w-3.5" />
+                    ID no equipamento: <span className="font-mono">{reg.device_sync_user_id}</span>
+                  </span>
+                )}
+                {reg.device_sync_attempted_at && (
+                  <span className="text-xs text-muted-foreground">
+                    Última tentativa: {formatFullDate(reg.device_sync_attempted_at)}
+                  </span>
+                )}
+              </div>
+              {reg.device_sync_error && (
+                <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {reg.device_sync_error}
+                </p>
+              )}
+              {!reg.device_id && (
+                <p className="text-xs text-muted-foreground">
+                  Este cadastro não está vinculado a um equipamento.
+                </p>
+              )}
+              {reg.device_id && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleRetrySync}
+                  disabled={syncing}
+                >
+                  {syncing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  {reg.device_sync_status === "success"
+                    ? "Reenviar ao equipamento"
+                    : "Enviar ao equipamento"}
+                </Button>
+              )}
+            </div>
           </Section>
 
           <Section title="Localização">
@@ -310,4 +398,26 @@ function formatFullDate(iso: string): string {
     minute: "2-digit",
     second: "2-digit",
   });
+}
+
+function SyncBadge({ status }: { status: string | null }) {
+  if (status === "success") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+        <CheckCircle2 className="h-3.5 w-3.5" /> Sincronizado
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+        <XCircle className="h-3.5 w-3.5" /> Falhou
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+      <Clock3 className="h-3.5 w-3.5" /> Pendente
+    </span>
+  );
 }
