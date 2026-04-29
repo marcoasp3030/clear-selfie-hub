@@ -430,7 +430,15 @@ function CameraFullscreen({
   // Countdown effect
   useEffect(() => {
     if (countdown === null) return;
-    if (countdown === 0) {
+    // Capture immediately when reaching the last tick.
+    if (countdown <= 1) {
+      if ("vibrate" in navigator) {
+        try {
+          navigator.vibrate(30);
+        } catch {
+          /* noop */
+        }
+      }
       // Final safety check: only capture if the face is still perfectly framed.
       if (statusRef.current === "perfect") {
         doCapture();
@@ -440,7 +448,6 @@ function CameraFullscreen({
       perfectSinceRef.current = null;
       return;
     }
-    // light vibration tick
     if ("vibrate" in navigator) {
       try {
         navigator.vibrate(20);
@@ -448,7 +455,7 @@ function CameraFullscreen({
         /* noop */
       }
     }
-    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
+    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countdown]);
@@ -733,9 +740,9 @@ function CameraFullscreen({
           setCountdown(null);
         } else if (committed === "perfect") {
           if (perfectSinceRef.current === null) perfectSinceRef.current = now;
-          if (!countdownStartedRef.current && now - perfectSinceRef.current > 700) {
+          if (!countdownStartedRef.current && now - perfectSinceRef.current > 500) {
             countdownStartedRef.current = true;
-            setCountdown(3);
+            setCountdown(1);
           }
         } else {
           perfectSinceRef.current = null;
