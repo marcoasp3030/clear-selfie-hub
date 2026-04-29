@@ -38,6 +38,10 @@ type DetectionStatus =
   | "turned"
   | "tilted"
   | "eyes_closed"
+  | "blurry"
+  | "too_dark"
+  | "too_bright"
+  | "uneven_light"
   | "perfect";
 
 const STATUS_COPY: Record<DetectionStatus, { msg: string; sub?: string }> = {
@@ -54,6 +58,10 @@ const STATUS_COPY: Record<DetectionStatus, { msg: string; sub?: string }> = {
   turned: { msg: "Olhe para a câmera", sub: "Vire o rosto para frente" },
   tilted: { msg: "Endireite a cabeça", sub: "Mantenha o rosto na vertical" },
   eyes_closed: { msg: "Mantenha os olhos abertos", sub: "Olhe para a câmera" },
+  blurry: { msg: "Imagem sem nitidez", sub: "Segure firme e limpe a lente" },
+  too_dark: { msg: "Ambiente muito escuro", sub: "Procure um local mais iluminado" },
+  too_bright: { msg: "Luz muito forte", sub: "Evite contraluz e luz direta no rosto" },
+  uneven_light: { msg: "Iluminação irregular", sub: "Posicione-se em luz uniforme" },
   perfect: { msg: "Perfeito!", sub: "Mantenha-se assim" },
 };
 
