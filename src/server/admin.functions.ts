@@ -11,6 +11,8 @@ import {
 
 const accessTokenSchema = z.string().trim().min(1);
 
+export { assertAdminAccess } from "./admin.server";
+
 export const listRegistrations = createServerFn({ method: "POST" })
   .inputValidator(
     (input: { accessToken: string; search?: string; limit?: number; offset?: number }) => {
@@ -32,28 +34,7 @@ export const listRegistrations = createServerFn({ method: "POST" })
     }
   )
   .handler(async ({ data }) => {
-    await assertAdminAccess(data.accessToken);
-
-    let query = supabaseAdmin
-      .from("registrations")
-      .select("*", { count: "exact" })
-      .order("created_at", { ascending: false })
-      .range(data.offset, data.offset + data.limit - 1);
-
-    if (data.search) {
-      const term = `%${data.search}%`;
-      query = query.or(
-        `first_name.ilike.${term},last_name.ilike.${term},phone.ilike.${term}`
-      );
-    }
-
-    const { data: rows, error, count } = await query;
-    if (error) {
-      console.error("List failed:", error);
-      throw new Response("Internal error", { status: 500 });
-    }
-
-    return { rows: rows ?? [], total: count ?? 0 };
+    return listRegistrationRows(data);
   });
 
 export const getRegistrationStats = createServerFn({ method: "POST" })
@@ -61,33 +42,7 @@ export const getRegistrationStats = createServerFn({ method: "POST" })
     z.object({ accessToken: accessTokenSchema }).parse(input)
   )
   .handler(async ({ data }) => {
-    await assertAdminAccess(data.accessToken);
-
-    const now = new Date();
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
-    const sevenDaysAgo = new Date(now);
-    sevenDaysAgo.setDate(now.getDate() - 7);
-
-    const [totalRes, todayRes, weekRes] = await Promise.all([
-      supabaseAdmin
-        .from("registrations")
-        .select("id", { count: "exact", head: true }),
-      supabaseAdmin
-        .from("registrations")
-        .select("id", { count: "exact", head: true })
-        .gte("created_at", startOfDay.toISOString()),
-      supabaseAdmin
-        .from("registrations")
-        .select("id", { count: "exact", head: true })
-        .gte("created_at", sevenDaysAgo.toISOString()),
-    ]);
-
-    return {
-      total: totalRes.count ?? 0,
-      today: todayRes.count ?? 0,
-      week: weekRes.count ?? 0,
-    };
+    return getRegistrationStatsData(data.accessToken);
   });
 
 export const getPhotoSignedUrl = createServerFn({ method: "POST" })
