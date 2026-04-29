@@ -1709,6 +1709,13 @@ function CameraPermissionHelp({ kind, message, onRetry, retrying }: CameraPermis
         <div className="flex-1">
           <p className="text-sm font-semibold text-foreground">{title}</p>
           <p className="mt-1 text-xs text-muted-foreground">{message}</p>
+          {isDenied && (
+            <p className="mt-2 rounded-lg bg-background/60 px-2 py-1.5 text-[11px] leading-snug text-muted-foreground">
+              Por segurança, o navegador exige que <strong>você mesmo</strong>{" "}
+              libere a câmera nas configurações. Siga os passos abaixo — leva
+              menos de 30 segundos.
+            </p>
+          )}
         </div>
       </div>
 
@@ -1724,23 +1731,38 @@ function CameraPermissionHelp({ kind, message, onRetry, retrying }: CameraPermis
       </ol>
 
       {!isUnsupported && !isNotFound && (
-        <Button
-          type="button"
-          onClick={onRetry}
-          disabled={retrying}
-          className="mt-4 h-12 w-full text-base"
-          size="lg"
-        >
-          {retrying ? (
-            <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Abrindo câmera...
-            </>
-          ) : (
-            <>
-              <Camera className="mr-2 h-5 w-5" /> Ativar câmera
-            </>
+        <div className="mt-4 flex flex-col gap-2">
+          <Button
+            type="button"
+            onClick={onRetry}
+            disabled={retrying}
+            className="h-12 w-full text-base"
+            size="lg"
+          >
+            {retrying ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Abrindo câmera...
+              </>
+            ) : (
+              <>
+                <Camera className="mr-2 h-5 w-5" /> Tentar novamente
+              </>
+            )}
+          </Button>
+          {isDenied && (
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="h-12 w-full text-base"
+              onClick={() => {
+                if (typeof window !== "undefined") window.location.reload();
+              }}
+            >
+              <RefreshCw className="mr-2 h-5 w-5" /> Recarregar página
+            </Button>
           )}
-        </Button>
+        </div>
       )}
     </div>
   );
