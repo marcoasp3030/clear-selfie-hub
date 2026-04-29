@@ -621,7 +621,10 @@ function CameraFullscreen({
             lastQualityTsRef.current = ts;
             try {
               const q = analyzeFaceQuality(video, minX, minY, maxX, maxY, qualityCanvasRef);
-              if (q) qualityRef.current = q;
+              if (q) {
+                qualityRef.current = q;
+                setQualityUI(q);
+              }
             } catch {
               /* noop */
             }
