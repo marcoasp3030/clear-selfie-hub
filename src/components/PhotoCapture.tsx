@@ -36,6 +36,8 @@ type DetectionStatus =
   | "move_right"
   | "covered"
   | "turned"
+  | "look_down"
+  | "look_up"
   | "tilted"
   | "eyes_closed"
   | "blurry"
@@ -56,6 +58,8 @@ const STATUS_COPY: Record<DetectionStatus, { msg: string; sub?: string }> = {
   move_right: { msg: "Mova para a direita", sub: "Coloque o rosto no oval" },
   covered: { msg: "Mostre o rosto inteiro", sub: "Tire as mãos ou objetos do rosto" },
   turned: { msg: "Olhe para a câmera", sub: "Vire o rosto para frente" },
+  look_down: { msg: "Levante o queixo", sub: "Olhe direto para a câmera" },
+  look_up: { msg: "Abaixe o queixo", sub: "Olhe direto para a câmera" },
   tilted: { msg: "Endireite a cabeça", sub: "Mantenha o rosto na vertical" },
   eyes_closed: { msg: "Mantenha os olhos abertos", sub: "Olhe para a câmera" },
   blurry: { msg: "Imagem sem nitidez", sub: "Segure firme e limpe a lente" },
