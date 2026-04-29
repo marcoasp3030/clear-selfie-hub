@@ -55,6 +55,76 @@ async function getActiveInstanceToken(): Promise<string> {
   return data.instance_token;
 }
 
+/**
+ * Best-effort: ensure the uazapi instance is configured to deliver button
+ * click events to our public webhook endpoint. Runs at most once per worker
+ * lifetime per instance token, and silently ignores failures (the polling
+ * fallback in the UI still works).
+ */
+const _webhookConfiguredFor = new Set<string>();
+async function ensureWebhookConfigured(instanceToken: string): Promise<void> {
+  if (_webhookConfiguredFor.has(instanceToken)) return;
+  _webhookConfiguredFor.add(instanceToken);
+
+  // Build the public URL of our webhook. Prefer the request host when present,
+  // otherwise fall back to the published Lovable URL.
+  let host = "";
+  try {
+    host = getRequestHeader("host") ?? "";
+  } catch {
+    host = "";
+  }
+  const proto =
+    (() => {
+      try {
+        return getRequestHeader("x-forwarded-proto") ?? "https";
+      } catch {
+        return "https";
+      }
+    })();
+  const webhookUrl = host
+    ? `${proto}://${host}/api/public/uazapi-webhook`
+    : `https://clear-selfie-hub.lovable.app/api/public/uazapi-webhook`;
+
+  // uazapi v2 webhook config endpoint
+  const payloads: Array<{ path: string; body: unknown }> = [
+    {
+      path: "/webhook",
+      body: {
+        url: webhookUrl,
+        enabled: true,
+        events: {
+          messages: true,
+          messages_update: true,
+          connection: false,
+          contacts: false,
+          presence: false,
+          chats: false,
+          groups: false,
+          labels: false,
+          calls: false,
+        },
+        excludeMessages: ["fromMe"],
+        addUrlEvents: false,
+        addUrlTypesMessages: false,
+      },
+    },
+  ];
+  for (const p of payloads) {
+    try {
+      await uazFetch(p.path, {
+        method: "POST",
+        instanceToken,
+        body: p.body,
+      });
+      console.log("[uazapi] webhook configured ->", webhookUrl);
+      return;
+    } catch (err) {
+      console.warn(`[uazapi] failed to configure webhook via ${p.path}:`, err);
+    }
+  }
+}
+
 /** Short URL-safe token used as the interactive button id (verify:<token>). */
 function makeVerifyToken(): string {
   // 12 bytes -> 16 chars base64url (no padding) — short, unique, hard to guess
@@ -132,6 +202,8 @@ export const sendPhoneVerification = createServerFn({ method: "POST" })
     // server will detect via webhook. If the server / WhatsApp client doesn't
     // accept it, we gracefully fall back to a plain text message.
     const token = await getActiveInstanceToken();
+    // Make sure uazapi will deliver button clicks to our webhook.
+    await ensureWebhookConfigured(token);
     const headline =
       `🔐 *Confirme seu cadastro*\n\n` +
       `Seu código de verificação é: *${code}*\n\n` +
