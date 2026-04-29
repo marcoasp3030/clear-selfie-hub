@@ -772,7 +772,10 @@ function CameraFullscreen({
   // Keep detection running during countdown so we can abort if the face
   // leaves the frame. Only pause for onboarding/preview screens.
   useEffect(() => {
-    detectingRef.current = !showOnboarding && !pendingFile;
+    // Start detection as soon as the camera is up — even while the onboarding
+    // overlay is visible — so the face landmarker model warms up and the
+    // capture flow feels instant the moment the user dismisses the overlay.
+    detectingRef.current = !pendingFile;
   }, [showOnboarding, pendingFile]);
 
   // Build preview URL for pending file
