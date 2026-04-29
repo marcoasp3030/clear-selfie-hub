@@ -1045,6 +1045,97 @@ function midPoint(a: Pt, b: Pt): Pt {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 
+// Sample the face region into a small canvas, then compute
+// brightness, light-uniformity (left vs right) and a Sobel-based
+// sharpness estimate. All cheap enough to run a few times per second.
+function analyzeFaceQuality(
+  video: HTMLVideoElement,
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+  canvasRef: React.MutableRefObject<HTMLCanvasElement | null>,
+): { sharpness: number; brightness: number; lightUneven: number } | null {
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  if (!vw || !vh) return null;
+  const sx = Math.max(0, Math.floor(minX * vw));
+  const sy = Math.max(0, Math.floor(minY * vh));
+  const sw = Math.min(vw - sx, Math.floor((maxX - minX) * vw));
+  const sh = Math.min(vh - sy, Math.floor((maxY - minY) * vh));
+  if (sw < 20 || sh < 20) return null;
+
+  // Downsample face to ~64px on the long side
+  const target = 64;
+  const scale = target / Math.max(sw, sh);
+  const dw = Math.max(16, Math.round(sw * scale));
+  const dh = Math.max(16, Math.round(sh * scale));
+
+  if (!canvasRef.current) canvasRef.current = document.createElement("canvas");
+  const c = canvasRef.current;
+  c.width = dw;
+  c.height = dh;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, dw, dh);
+  const img = ctx.getImageData(0, 0, dw, dh);
+  const data = img.data;
+
+  // Convert to luma (Rec.601)
+  const luma = new Float32Array(dw * dh);
+  let sum = 0;
+  let leftSum = 0,
+    leftCount = 0,
+    rightSum = 0,
+    rightCount = 0;
+  for (let y = 0; y < dh; y++) {
+    for (let x = 0; x < dw; x++) {
+      const i = (y * dw + x) * 4;
+      const l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      luma[y * dw + x] = l;
+      sum += l;
+      if (x < dw / 2) {
+        leftSum += l;
+        leftCount++;
+      } else {
+        rightSum += l;
+        rightCount++;
+      }
+    }
+  }
+  const brightness = sum / (dw * dh);
+  const leftMean = leftSum / Math.max(1, leftCount);
+  const rightMean = rightSum / Math.max(1, rightCount);
+  const lightUneven = Math.abs(leftMean - rightMean) / 255;
+
+  // Sobel magnitude (interior pixels only)
+  let sobelSum = 0;
+  let sobelCount = 0;
+  for (let y = 1; y < dh - 1; y++) {
+    for (let x = 1; x < dw - 1; x++) {
+      const gx =
+        -luma[(y - 1) * dw + (x - 1)] +
+        luma[(y - 1) * dw + (x + 1)] +
+        -2 * luma[y * dw + (x - 1)] +
+        2 * luma[y * dw + (x + 1)] +
+        -luma[(y + 1) * dw + (x - 1)] +
+        luma[(y + 1) * dw + (x + 1)];
+      const gy =
+        -luma[(y - 1) * dw + (x - 1)] -
+        2 * luma[(y - 1) * dw + x] -
+        luma[(y - 1) * dw + (x + 1)] +
+        luma[(y + 1) * dw + (x - 1)] +
+        2 * luma[(y + 1) * dw + x] +
+        luma[(y + 1) * dw + (x + 1)];
+      sobelSum += Math.sqrt(gx * gx + gy * gy);
+      sobelCount++;
+    }
+  }
+  const sharpness = sobelCount > 0 ? sobelSum / sobelCount / 10 : 0;
+
+  return { sharpness, brightness, lightUneven };
+}
+
 // ---- Camera permission helper UI ----
 function detectPlatform(): "ios" | "android" | "desktop" {
   if (typeof navigator === "undefined") return "desktop";
