@@ -17,6 +17,8 @@ export type Database = {
       devices: {
         Row: {
           api_base_url: string
+          api_login: string | null
+          api_password: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -25,6 +27,8 @@ export type Database = {
         }
         Insert: {
           api_base_url: string
+          api_login?: string | null
+          api_password?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -33,6 +37,8 @@ export type Database = {
         }
         Update: {
           api_base_url?: string
+          api_login?: string | null
+          api_password?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -51,6 +57,10 @@ export type Database = {
           device_model: string | null
           device_os: string | null
           device_platform: string | null
+          device_sync_attempted_at: string | null
+          device_sync_error: string | null
+          device_sync_status: string
+          device_sync_user_id: number | null
           device_timezone: string | null
           first_name: string
           geo_city: string | null
@@ -73,6 +83,10 @@ export type Database = {
           device_model?: string | null
           device_os?: string | null
           device_platform?: string | null
+          device_sync_attempted_at?: string | null
+          device_sync_error?: string | null
+          device_sync_status?: string
+          device_sync_user_id?: number | null
           device_timezone?: string | null
           first_name: string
           geo_city?: string | null
@@ -95,6 +109,10 @@ export type Database = {
           device_model?: string | null
           device_os?: string | null
           device_platform?: string | null
+          device_sync_attempted_at?: string | null
+          device_sync_error?: string | null
+          device_sync_status?: string
+          device_sync_user_id?: number | null
           device_timezone?: string | null
           first_name?: string
           geo_city?: string | null
