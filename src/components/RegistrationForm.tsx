@@ -662,6 +662,19 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                     {(verificationStatus === "sent" ||
                       verificationStatus === "verifying") && (
                       <div className="mt-3 space-y-2">
+                        <div className="rounded-lg border border-emerald-500/30 bg-white/70 p-2.5 text-[11px] leading-relaxed text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+                          <div className="flex items-start gap-1.5">
+                            <Loader2 className="mt-0.5 h-3 w-3 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
+                            <p>
+                              Mensagem enviada! Toque em{" "}
+                              <span className="font-semibold">✅ Já verifiquei</span>{" "}
+                              dentro do WhatsApp para confirmar automaticamente — ou
+                              use{" "}
+                              <span className="font-semibold">📋 Copiar código</span>{" "}
+                              e cole abaixo.
+                            </p>
+                          </div>
+                        </div>
                         <Label htmlFor="otp" className="text-xs font-medium">
                           Código recebido no WhatsApp
                         </Label>
