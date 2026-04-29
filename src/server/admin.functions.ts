@@ -55,18 +55,7 @@ export const getPhotoSignedUrl = createServerFn({ method: "POST" })
       .parse(input)
   )
   .handler(async ({ data }) => {
-    await assertAdminAccess(data.accessToken);
-
-    const { data: signed, error } = await supabaseAdmin.storage
-      .from("registration-photos")
-      .createSignedUrl(data.path, 60 * 60); // 1 hour
-
-    if (error || !signed) {
-      console.error("Signed URL failed:", error);
-      throw new Response("Internal error", { status: 500 });
-    }
-
-    return { url: signed.signedUrl };
+    return getPhotoSignedUrlForPath(data.accessToken, data.path);
   });
 
 export const deleteRegistration = createServerFn({ method: "POST" })
@@ -79,40 +68,7 @@ export const deleteRegistration = createServerFn({ method: "POST" })
       .parse(input)
   )
   .handler(async ({ data }) => {
-    await assertAdminAccess(data.accessToken);
-
-    // Fetch photo path first so we can clean up storage
-    const { data: row, error: fetchError } = await supabaseAdmin
-      .from("registrations")
-      .select("photo_path")
-      .eq("id", data.id)
-      .maybeSingle();
-
-    if (fetchError) {
-      console.error("Fetch before delete failed:", fetchError);
-      throw new Response("Internal error", { status: 500 });
-    }
-    if (!row) {
-      return { success: true as const };
-    }
-
-    const { error: deleteError } = await supabaseAdmin
-      .from("registrations")
-      .delete()
-      .eq("id", data.id);
-
-    if (deleteError) {
-      console.error("Delete failed:", deleteError);
-      throw new Response("Internal error", { status: 500 });
-    }
-
-    if (row.photo_path) {
-      await supabaseAdmin.storage
-        .from("registration-photos")
-        .remove([row.photo_path]);
-    }
-
-    return { success: true as const };
+    return deleteRegistrationById(data.accessToken, data.id);
   });
 
 export const checkAdminAccess = createServerFn({ method: "POST" })
@@ -120,24 +76,5 @@ export const checkAdminAccess = createServerFn({ method: "POST" })
     z.object({ accessToken: accessTokenSchema }).parse(input)
   )
   .handler(async ({ data: payload }) => {
-    let userId: string;
-
-    try {
-      userId = await getUserIdFromAccessToken(payload.accessToken);
-    } catch {
-      return { isAdmin: false };
-    }
-
-    const { data: roleRow, error } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .limit(1)
-      .maybeSingle();
-    if (error) {
-      console.error("Admin check failed:", error);
-      return { isAdmin: false };
-    }
-    return { isAdmin: !!roleRow };
+    return { isAdmin: await checkIsAdminByAccessToken(payload.accessToken) };
   });
