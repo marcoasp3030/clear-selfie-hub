@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { maskPhone, maskCpf, isValidCpf, isValidMobile, onlyDigits } from "@/lib/brMasks";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import {
   Camera,
   UserRound,
   Sparkles,
+  MessageCircle,
+  ShieldCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
@@ -20,6 +22,10 @@ import {
   createRegistration,
   checkExistingRegistration,
 } from "@/server/registrations.functions";
+import {
+  sendPhoneVerification,
+  verifyPhoneCode,
+} from "@/server/phone.functions";
 import { syncRegistration } from "@/server/controlid.functions";
 import { getDeviceFingerprint } from "@/lib/fingerprint";
 import { collectClientDeviceInfo } from "@/lib/deviceInfo";
@@ -77,6 +83,83 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
   const submitRegistration = useServerFn(createRegistration);
   const triggerSync = useServerFn(syncRegistration);
   const checkExisting = useServerFn(checkExistingRegistration);
+  const sendVerification = useServerFn(sendPhoneVerification);
+  const verifyCode = useServerFn(verifyPhoneCode);
+
+  // WhatsApp verification state
+  const [verificationStatus, setVerificationStatus] = useState<
+    "idle" | "sending" | "sent" | "verifying" | "verified"
+  >("idle");
+  const [verifiedPhone, setVerifiedPhone] = useState<string>("");
+  const [code, setCode] = useState("");
+  const [resendIn, setResendIn] = useState(0);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  const isPhoneVerified =
+    verificationStatus === "verified" && verifiedPhone === phone;
+
+  // Resend cooldown ticker
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setInterval(() => setResendIn((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [resendIn]);
+
+  // Reset verification when phone changes
+  useEffect(() => {
+    if (verifiedPhone && phone !== verifiedPhone) {
+      setVerificationStatus("idle");
+      setVerifiedPhone("");
+      setCode("");
+      setVerifyError(null);
+    }
+  }, [phone, verifiedPhone]);
+
+  const handleSendCode = async () => {
+    setVerifyError(null);
+    if (!isValidMobile(phone)) {
+      setErrors((prev) => ({ ...prev, phone: "Informe um celular válido com DDD" }));
+      return;
+    }
+    setVerificationStatus("sending");
+    try {
+      const res = await sendVerification({ data: { phone } });
+      setVerificationStatus("sent");
+      setResendIn(res.cooldownSeconds ?? 30);
+      toast.success("Código enviado no WhatsApp.");
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Não foi possível enviar o código.";
+      setVerificationStatus("idle");
+      setVerifyError(msg);
+      toast.error(msg);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    setVerifyError(null);
+    if (!/^\d{6}$/.test(code)) {
+      setVerifyError("Informe os 6 dígitos do código.");
+      return;
+    }
+    setVerificationStatus("verifying");
+    try {
+      const res = await verifyCode({ data: { phone, code } });
+      if (res.success) {
+        setVerificationStatus("verified");
+        setVerifiedPhone(phone);
+        toast.success("WhatsApp verificado!");
+      } else {
+        setVerificationStatus("sent");
+        setVerifyError(res.message || "Código inválido.");
+      }
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Não foi possível validar o código.";
+      setVerificationStatus("sent");
+      setVerifyError(msg);
+    }
+  };
 
   const goPhoto = () => {
     if (!photo) {
@@ -98,6 +181,10 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
         if (key) fieldErrors[key] = issue.message;
       }
       setErrors(fieldErrors);
+      return;
+    }
+    if (!isPhoneVerified) {
+      toast.error("Verifique seu WhatsApp antes de finalizar.");
       return;
     }
     if (!photo) {
@@ -504,6 +591,112 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                 {errors.phone && (
                   <p className="text-xs font-medium text-destructive">{errors.phone}</p>
                 )}
+
+                {/* WhatsApp verification */}
+                {!isPhoneVerified ? (
+                  <div className="mt-2 rounded-xl border border-emerald-500/30 bg-emerald-50/60 p-3 dark:border-emerald-400/30 dark:bg-emerald-950/20">
+                    <div className="flex items-start gap-2">
+                      <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">
+                          Verifique seu WhatsApp
+                        </p>
+                        <p className="mt-0.5 text-[11px] leading-relaxed text-emerald-900/80 dark:text-emerald-200/80">
+                          Enviaremos um código de 6 dígitos no número informado.
+                        </p>
+                      </div>
+                    </div>
+
+                    {verificationStatus === "idle" && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleSendCode}
+                        disabled={!isValidMobile(phone) || submitting}
+                        className="mt-3 h-10 w-full rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
+                      >
+                        <MessageCircle className="mr-1.5 h-4 w-4" />
+                        Enviar código no WhatsApp
+                      </Button>
+                    )}
+
+                    {verificationStatus === "sending" && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled
+                        className="mt-3 h-10 w-full rounded-lg bg-emerald-600 text-white"
+                      >
+                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                        Enviando...
+                      </Button>
+                    )}
+
+                    {(verificationStatus === "sent" ||
+                      verificationStatus === "verifying") && (
+                      <div className="mt-3 space-y-2">
+                        <Label htmlFor="otp" className="text-xs font-medium">
+                          Código recebido no WhatsApp
+                        </Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="otp"
+                            inputMode="numeric"
+                            value={code}
+                            onChange={(e) =>
+                              setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                            }
+                            placeholder="000000"
+                            maxLength={6}
+                            disabled={
+                              verificationStatus === "verifying" || submitting
+                            }
+                            className="h-11 flex-1 rounded-lg text-center font-mono text-lg tracking-[0.4em]"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleVerifyCode}
+                            disabled={
+                              code.length !== 6 ||
+                              verificationStatus === "verifying" ||
+                              submitting
+                            }
+                            className="h-11 rounded-lg bg-emerald-600 px-4 text-white hover:bg-emerald-700"
+                          >
+                            {verificationStatus === "verifying" ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              "Verificar"
+                            )}
+                          </Button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleSendCode}
+                          disabled={resendIn > 0 || submitting}
+                          className="text-[11px] font-medium text-emerald-700 hover:underline disabled:cursor-not-allowed disabled:text-emerald-700/50 dark:text-emerald-300"
+                        >
+                          {resendIn > 0
+                            ? `Reenviar em ${resendIn}s`
+                            : "Reenviar código"}
+                        </button>
+                        {verifyError && (
+                          <p className="text-xs font-medium text-destructive">
+                            {verifyError}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-2 flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-50 px-3 py-2 text-emerald-900 dark:border-emerald-400/30 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    <ShieldCheck className="h-4 w-4 shrink-0" />
+                    <p className="text-xs font-semibold">
+                      WhatsApp verificado com sucesso
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -565,7 +758,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
               onClick={submit}
               size="lg"
               className="h-14 flex-1 rounded-xl text-base font-semibold shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98]"
-              disabled={submitting || !!duplicateInfo}
+              disabled={submitting || !!duplicateInfo || !isPhoneVerified}
             >
               {submitting ? (
                 <>
