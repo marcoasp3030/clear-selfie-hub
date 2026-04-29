@@ -38,6 +38,10 @@ type DetectionStatus =
   | "turned"
   | "tilted"
   | "eyes_closed"
+  | "blurry"
+  | "too_dark"
+  | "too_bright"
+  | "uneven_light"
   | "perfect";
 
 const STATUS_COPY: Record<DetectionStatus, { msg: string; sub?: string }> = {
@@ -54,6 +58,10 @@ const STATUS_COPY: Record<DetectionStatus, { msg: string; sub?: string }> = {
   turned: { msg: "Olhe para a câmera", sub: "Vire o rosto para frente" },
   tilted: { msg: "Endireite a cabeça", sub: "Mantenha o rosto na vertical" },
   eyes_closed: { msg: "Mantenha os olhos abertos", sub: "Olhe para a câmera" },
+  blurry: { msg: "Imagem sem nitidez", sub: "Segure firme e limpe a lente" },
+  too_dark: { msg: "Ambiente muito escuro", sub: "Procure um local mais iluminado" },
+  too_bright: { msg: "Luz muito forte", sub: "Evite contraluz e luz direta no rosto" },
+  uneven_light: { msg: "Iluminação irregular", sub: "Posicione-se em luz uniforme" },
   perfect: { msg: "Perfeito!", sub: "Mantenha-se assim" },
 };
 
@@ -295,6 +303,14 @@ function CameraFullscreen({
   const candidateRef = useRef<{ status: DetectionStatus; since: number } | null>(null);
   const blinkHistoryRef = useRef<number[]>([]); // recent blink scores (max eye)
   const eyesClosedConfirmedRef = useRef(false);
+  // Image quality (sharpness + lighting) sampled at low frequency
+  const qualityCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lastQualityTsRef = useRef(0);
+  const qualityRef = useRef<{
+    sharpness: number; // higher = sharper (Sobel mean magnitude)
+    brightness: number; // 0..255 mean luma over face region
+    lightUneven: number; // 0..1, |left_mean - right_mean| / 255
+  } | null>(null);
   // Smoothed geometry (EMA) to absorb landmark jitter
   const smoothRef = useRef<{
     faceWidthRatio: number;
@@ -356,7 +372,10 @@ function CameraFullscreen({
       return;
     }
     const canvas = document.createElement("canvas");
-    const size = Math.min(video.videoWidth, video.videoHeight);
+    const rawSize = Math.min(video.videoWidth, video.videoHeight);
+    // Engine spec: min 160x160, max area 1920*1080 = 2_073_600 px.
+    // Square output: clamp side between 480 (safety margin) and 1080.
+    const size = Math.max(480, Math.min(1080, rawSize));
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext("2d");
@@ -364,12 +383,12 @@ function CameraFullscreen({
       captureTakenRef.current = false;
       return;
     }
-    const sx = (video.videoWidth - size) / 2;
-    const sy = (video.videoHeight - size) / 2;
+    const sx = (video.videoWidth - rawSize) / 2;
+    const sy = (video.videoHeight - rawSize) / 2;
     // Mirror horizontally so output matches the on-screen preview
     ctx.translate(size, 0);
     ctx.scale(-1, 1);
-    ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
+    ctx.drawImage(video, sx, sy, rawSize, rawSize, 0, 0, size, size);
     canvas.toBlob(
       (blob) => {
         if (!blob) {
@@ -493,8 +512,10 @@ function CameraFullscreen({
           const distance = Math.sqrt(dxScreen * dxScreen + dyNorm * dyNorm);
 
           const idealWidth = TARGET.rx * 2 * 0.95;
-          const minWidth = idealWidth * 0.6;
-          const maxWidth = idealWidth * 1.4;
+          // Tighter so face occupies a healthy share of the frame
+          // (engine recommends face well-centered with margins).
+          const minWidth = idealWidth * 0.7;
+          const maxWidth = idealWidth * 1.25;
 
           // ---- Anti-fraud / quality checks ----
           // 1. Head pose from transformation matrix (column-major 4x4)
@@ -589,10 +610,22 @@ function CameraFullscreen({
           }
           const sm = smoothRef.current!;
 
+          // ---- Sample image quality every ~250ms over the face bbox ----
+          if (ts - lastQualityTsRef.current > 250) {
+            lastQualityTsRef.current = ts;
+            try {
+              const q = analyzeFaceQuality(video, minX, minY, maxX, maxY, qualityCanvasRef);
+              if (q) qualityRef.current = q;
+            } catch {
+              /* noop */
+            }
+          }
+          const q = qualityRef.current;
+
           // ---- Status priority ----
           if (sm.faceWidthRatio < minWidth) next = "too_small";
           else if (sm.faceWidthRatio > maxWidth) next = "too_big";
-          else if (sm.distance > 0.55) {
+          else if (sm.distance > 0.4) {
             if (Math.abs(dyNorm) > Math.abs(dxScreen)) {
               next = dyNorm > 0 ? "move_up" : "move_down";
             } else {
@@ -600,12 +633,20 @@ function CameraFullscreen({
             }
           } else if (occluded) {
             next = "covered";
-          } else if (Math.abs(sm.yawDeg) > 18 || Math.abs(sm.pitchDeg) > 18) {
+          } else if (Math.abs(sm.yawDeg) > 12 || Math.abs(sm.pitchDeg) > 12) {
             next = "turned";
-          } else if (Math.abs(sm.rollDeg) > 15) {
+          } else if (Math.abs(sm.rollDeg) > 10) {
             next = "tilted";
           } else if (eyesClosed) {
             next = "eyes_closed";
+          } else if (q && q.brightness < 55) {
+            next = "too_dark";
+          } else if (q && q.brightness > 220) {
+            next = "too_bright";
+          } else if (q && q.lightUneven > 0.28) {
+            next = "uneven_light";
+          } else if (q && q.sharpness < 6) {
+            next = "blurry";
           } else {
             next = "perfect";
           }
@@ -1002,6 +1043,97 @@ function dist(a: Pt, b: Pt): number {
 
 function midPoint(a: Pt, b: Pt): Pt {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+// Sample the face region into a small canvas, then compute
+// brightness, light-uniformity (left vs right) and a Sobel-based
+// sharpness estimate. All cheap enough to run a few times per second.
+function analyzeFaceQuality(
+  video: HTMLVideoElement,
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+  canvasRef: React.MutableRefObject<HTMLCanvasElement | null>,
+): { sharpness: number; brightness: number; lightUneven: number } | null {
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  if (!vw || !vh) return null;
+  const sx = Math.max(0, Math.floor(minX * vw));
+  const sy = Math.max(0, Math.floor(minY * vh));
+  const sw = Math.min(vw - sx, Math.floor((maxX - minX) * vw));
+  const sh = Math.min(vh - sy, Math.floor((maxY - minY) * vh));
+  if (sw < 20 || sh < 20) return null;
+
+  // Downsample face to ~64px on the long side
+  const target = 64;
+  const scale = target / Math.max(sw, sh);
+  const dw = Math.max(16, Math.round(sw * scale));
+  const dh = Math.max(16, Math.round(sh * scale));
+
+  if (!canvasRef.current) canvasRef.current = document.createElement("canvas");
+  const c = canvasRef.current;
+  c.width = dw;
+  c.height = dh;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, dw, dh);
+  const img = ctx.getImageData(0, 0, dw, dh);
+  const data = img.data;
+
+  // Convert to luma (Rec.601)
+  const luma = new Float32Array(dw * dh);
+  let sum = 0;
+  let leftSum = 0,
+    leftCount = 0,
+    rightSum = 0,
+    rightCount = 0;
+  for (let y = 0; y < dh; y++) {
+    for (let x = 0; x < dw; x++) {
+      const i = (y * dw + x) * 4;
+      const l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      luma[y * dw + x] = l;
+      sum += l;
+      if (x < dw / 2) {
+        leftSum += l;
+        leftCount++;
+      } else {
+        rightSum += l;
+        rightCount++;
+      }
+    }
+  }
+  const brightness = sum / (dw * dh);
+  const leftMean = leftSum / Math.max(1, leftCount);
+  const rightMean = rightSum / Math.max(1, rightCount);
+  const lightUneven = Math.abs(leftMean - rightMean) / 255;
+
+  // Sobel magnitude (interior pixels only)
+  let sobelSum = 0;
+  let sobelCount = 0;
+  for (let y = 1; y < dh - 1; y++) {
+    for (let x = 1; x < dw - 1; x++) {
+      const gx =
+        -luma[(y - 1) * dw + (x - 1)] +
+        luma[(y - 1) * dw + (x + 1)] +
+        -2 * luma[y * dw + (x - 1)] +
+        2 * luma[y * dw + (x + 1)] +
+        -luma[(y + 1) * dw + (x - 1)] +
+        luma[(y + 1) * dw + (x + 1)];
+      const gy =
+        -luma[(y - 1) * dw + (x - 1)] -
+        2 * luma[(y - 1) * dw + x] -
+        luma[(y - 1) * dw + (x + 1)] +
+        luma[(y + 1) * dw + (x - 1)] +
+        2 * luma[(y + 1) * dw + x] +
+        luma[(y + 1) * dw + (x + 1)];
+      sobelSum += Math.sqrt(gx * gx + gy * gy);
+      sobelCount++;
+    }
+  }
+  const sharpness = sobelCount > 0 ? sobelSum / sobelCount / 10 : 0;
+
+  return { sharpness, brightness, lightUneven };
 }
 
 // ---- Camera permission helper UI ----
