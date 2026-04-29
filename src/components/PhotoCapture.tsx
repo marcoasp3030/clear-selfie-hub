@@ -342,6 +342,24 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
     );
   }, []);
 
+  // iOS Safari workaround: when the user goes to Settings to flip the
+  // camera permission, the page is hidden. When they come back
+  // (visibilitychange -> visible) and we're in a denied state, silently
+  // re-attempt getUserMedia. If the permission is now granted, the
+  // camera opens; if still denied, the same help UI stays put.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (errorKind === "denied" && !cameraOn && !starting) {
+        startCamera();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [errorKind, cameraOn, starting]);
+
   useEffect(() => {
     if (!value) {
       setPreviewUrl(null);
