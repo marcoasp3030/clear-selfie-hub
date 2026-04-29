@@ -1242,6 +1242,52 @@ function detectPlatform(): "ios" | "android" | "desktop" {
   return "desktop";
 }
 
+function IframeWarning({ insecure }: { insecure: boolean }) {
+  const openInNewTab = () => {
+    if (typeof window !== "undefined") {
+      window.open(window.location.href, "_blank", "noopener,noreferrer");
+    }
+  };
+  return (
+    <div className="rounded-2xl border border-amber-500/40 bg-amber-50 p-4 dark:bg-amber-950/30">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
+          <AlertTriangle className="h-5 w-5" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-foreground">
+            {insecure ? "Conexão não segura" : "Abra esta página em uma aba nova"}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {insecure
+              ? "A câmera só funciona em conexões HTTPS. Acesse o link com https:// no início."
+              : "A câmera não abre quando a página está dentro de outro app/visualizador. Toque no botão abaixo para abrir em uma aba nova do navegador."}
+          </p>
+          {!insecure && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="mt-3"
+              onClick={openInNewTab}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" /> Abrir em nova aba
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function _detectPlatformDup(): "ios" | "android" | "desktop" {
+  if (typeof navigator === "undefined") return "desktop";
+  const ua = navigator.userAgent || "";
+  if (/iPhone|iPad|iPod/i.test(ua)) return "ios";
+  if (/Android/i.test(ua)) return "android";
+  return "desktop";
+}
+
 interface CameraPermissionHelpProps {
   kind: "denied" | "not_found" | "in_use" | "unsupported" | "generic" | null;
   message: string;
