@@ -119,6 +119,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
           cpf: cpfDigits,
           phone: phoneDigits,
           deviceFingerprint: fingerprint,
+          deviceId: deviceId ?? null,
         },
       });
 
@@ -130,10 +131,10 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
         });
         const reasonMsg =
           existing.matchedBy === "cpf"
-            ? "Este CPF já está cadastrado."
+            ? "Este CPF já está cadastrado neste equipamento."
             : existing.matchedBy === "phone"
-              ? "Este celular já está cadastrado."
-              : "Este dispositivo já realizou um cadastro.";
+              ? "Este celular já está cadastrado neste equipamento."
+              : "Este dispositivo já realizou um cadastro neste equipamento.";
         toast.error(reasonMsg);
         return;
       }
@@ -171,7 +172,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
             lastName: result.data.lastName,
           });
           toast.error(
-            "Este dispositivo já realizou um cadastro. Apenas um cadastro por aparelho é permitido."
+            "Este dispositivo já realizou um cadastro neste equipamento."
           );
         } else {
           toast.error("Não foi possível enviar. Tente novamente.");
