@@ -591,6 +591,112 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                 {errors.phone && (
                   <p className="text-xs font-medium text-destructive">{errors.phone}</p>
                 )}
+
+                {/* WhatsApp verification */}
+                {!isPhoneVerified ? (
+                  <div className="mt-2 rounded-xl border border-emerald-500/30 bg-emerald-50/60 p-3 dark:border-emerald-400/30 dark:bg-emerald-950/20">
+                    <div className="flex items-start gap-2">
+                      <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">
+                          Verifique seu WhatsApp
+                        </p>
+                        <p className="mt-0.5 text-[11px] leading-relaxed text-emerald-900/80 dark:text-emerald-200/80">
+                          Enviaremos um código de 6 dígitos no número informado.
+                        </p>
+                      </div>
+                    </div>
+
+                    {verificationStatus === "idle" && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleSendCode}
+                        disabled={!isValidMobile(phone) || submitting}
+                        className="mt-3 h-10 w-full rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
+                      >
+                        <MessageCircle className="mr-1.5 h-4 w-4" />
+                        Enviar código no WhatsApp
+                      </Button>
+                    )}
+
+                    {verificationStatus === "sending" && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled
+                        className="mt-3 h-10 w-full rounded-lg bg-emerald-600 text-white"
+                      >
+                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                        Enviando...
+                      </Button>
+                    )}
+
+                    {(verificationStatus === "sent" ||
+                      verificationStatus === "verifying") && (
+                      <div className="mt-3 space-y-2">
+                        <Label htmlFor="otp" className="text-xs font-medium">
+                          Código recebido no WhatsApp
+                        </Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="otp"
+                            inputMode="numeric"
+                            value={code}
+                            onChange={(e) =>
+                              setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                            }
+                            placeholder="000000"
+                            maxLength={6}
+                            disabled={
+                              verificationStatus === "verifying" || submitting
+                            }
+                            className="h-11 flex-1 rounded-lg text-center font-mono text-lg tracking-[0.4em]"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleVerifyCode}
+                            disabled={
+                              code.length !== 6 ||
+                              verificationStatus === "verifying" ||
+                              submitting
+                            }
+                            className="h-11 rounded-lg bg-emerald-600 px-4 text-white hover:bg-emerald-700"
+                          >
+                            {verificationStatus === "verifying" ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              "Verificar"
+                            )}
+                          </Button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleSendCode}
+                          disabled={resendIn > 0 || submitting}
+                          className="text-[11px] font-medium text-emerald-700 hover:underline disabled:cursor-not-allowed disabled:text-emerald-700/50 dark:text-emerald-300"
+                        >
+                          {resendIn > 0
+                            ? `Reenviar em ${resendIn}s`
+                            : "Reenviar código"}
+                        </button>
+                        {verifyError && (
+                          <p className="text-xs font-medium text-destructive">
+                            {verifyError}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-2 flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-50 px-3 py-2 text-emerald-900 dark:border-emerald-400/30 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    <ShieldCheck className="h-4 w-4 shrink-0" />
+                    <p className="text-xs font-semibold">
+                      WhatsApp verificado com sucesso
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">
