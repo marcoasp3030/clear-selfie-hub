@@ -1,0 +1,33 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: clear-selfie-hub:latest
+    container_name: clear-selfie-hub
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      # ----- Backend (Lovable Cloud / Supabase) -----
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      # Vite injects these at build time; also passed at runtime for SSR fallback
+      VITE_SUPABASE_URL: ${SUPABASE_URL}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
+      VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
+      # ----- WhatsApp (uazapi) -----
+      UAZAPI_BASE_URL: ${UAZAPI_BASE_URL}
+      UAZAPI_ADMIN_TOKEN: ${UAZAPI_ADMIN_TOKEN}
+      # ----- Lovable AI (opcional) -----
+      LOVABLE_API_KEY: ${LOVABLE_API_KEY}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
