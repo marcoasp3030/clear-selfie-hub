@@ -54,6 +54,8 @@ function DevicesPage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [apiBaseUrl, setApiBaseUrl] = useState("");
+  const [apiLogin, setApiLogin] = useState("");
+  const [apiPassword, setApiPassword] = useState("");
 
   async function reload() {
     try {
@@ -85,6 +87,8 @@ function DevicesPage() {
           name: name.trim(),
           slug: slug.trim() || undefined,
           apiBaseUrl: apiBaseUrl.trim(),
+          apiLogin: apiLogin.trim(),
+          apiPassword: apiPassword,
         },
       });
       if (!res.success) {
@@ -97,6 +101,8 @@ function DevicesPage() {
       setName("");
       setSlug("");
       setApiBaseUrl("");
+      setApiLogin("");
+      setApiPassword("");
       setOpenCreate(false);
       reload();
     } catch (err) {
@@ -212,9 +218,33 @@ function DevicesPage() {
                     required
                   />
                   <p className="text-xs text-muted-foreground">
-                    O endpoint chamado será{" "}
-                    <span className="font-mono">{apiBaseUrl || "https://..."}/user_test_image.fcgi</span>
+                    Ex: <span className="font-mono">http://177.67.71.26:8186</span>
                   </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="dev-login">Login (admin)</Label>
+                    <Input
+                      id="dev-login"
+                      placeholder="admin"
+                      value={apiLogin}
+                      onChange={(e) => setApiLogin(e.target.value)}
+                      required
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="dev-password">Senha</Label>
+                    <Input
+                      id="dev-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={apiPassword}
+                      onChange={(e) => setApiPassword(e.target.value)}
+                      required
+                      autoComplete="new-password"
+                    />
+                  </div>
                 </div>
               </div>
 
