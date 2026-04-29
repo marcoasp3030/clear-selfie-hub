@@ -183,6 +183,10 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
       setErrors(fieldErrors);
       return;
     }
+    if (!isPhoneVerified) {
+      toast.error("Verifique seu WhatsApp antes de finalizar.");
+      return;
+    }
     if (!photo) {
       setStep(0);
       setErrors({ photo: "Adicione uma foto para continuar." });
