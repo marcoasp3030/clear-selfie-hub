@@ -18,6 +18,7 @@ import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminDiagnosticsRouteImport } from './routes/admin.diagnostics'
 import { Route as AdminDevicesRouteImport } from './routes/admin.devices'
 import { Route as AdminRegistrationsIndexRouteImport } from './routes/admin.registrations.index'
+import { Route as ApiPublicUazapiWebhookRouteImport } from './routes/api/public/uazapi-webhook'
 import { Route as AdminRegistrationsIdRouteImport } from './routes/admin.registrations.$id'
 
 const AdminRoute = AdminRouteImport.update({
@@ -65,6 +66,11 @@ const AdminRegistrationsIndexRoute = AdminRegistrationsIndexRouteImport.update({
   path: '/registrations/',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiPublicUazapiWebhookRoute = ApiPublicUazapiWebhookRouteImport.update({
+  id: '/api/public/uazapi-webhook',
+  path: '/api/public/uazapi-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRegistrationsIdRoute = AdminRegistrationsIdRouteImport.update({
   id: '/registrations/$id',
   path: '/registrations/$id',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/r/$slug': typeof RSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
+  '/api/public/uazapi-webhook': typeof ApiPublicUazapiWebhookRoute
   '/admin/registrations/': typeof AdminRegistrationsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/r/$slug': typeof RSlugRoute
   '/admin': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
+  '/api/public/uazapi-webhook': typeof ApiPublicUazapiWebhookRoute
   '/admin/registrations': typeof AdminRegistrationsIndexRoute
 }
 export interface FileRoutesById {
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/r/$slug': typeof RSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
+  '/api/public/uazapi-webhook': typeof ApiPublicUazapiWebhookRoute
   '/admin/registrations/': typeof AdminRegistrationsIndexRoute
 }
 export interface FileRouteTypes {
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/r/$slug'
     | '/admin/'
     | '/admin/registrations/$id'
+    | '/api/public/uazapi-webhook'
     | '/admin/registrations/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/r/$slug'
     | '/admin'
     | '/admin/registrations/$id'
+    | '/api/public/uazapi-webhook'
     | '/admin/registrations'
   id:
     | '__root__'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/r/$slug'
     | '/admin/'
     | '/admin/registrations/$id'
+    | '/api/public/uazapi-webhook'
     | '/admin/registrations/'
   fileRoutesById: FileRoutesById
 }
@@ -149,6 +161,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   RSlugRoute: typeof RSlugRoute
+  ApiPublicUazapiWebhookRoute: typeof ApiPublicUazapiWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -216,6 +229,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRegistrationsIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/public/uazapi-webhook': {
+      id: '/api/public/uazapi-webhook'
+      path: '/api/public/uazapi-webhook'
+      fullPath: '/api/public/uazapi-webhook'
+      preLoaderRoute: typeof ApiPublicUazapiWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/registrations/$id': {
       id: '/admin/registrations/$id'
       path: '/registrations/$id'
@@ -252,6 +272,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   RSlugRoute: RSlugRoute,
+  ApiPublicUazapiWebhookRoute: ApiPublicUazapiWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
