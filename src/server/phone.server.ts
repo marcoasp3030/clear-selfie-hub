@@ -191,7 +191,7 @@ export async function sendPhoneVerificationData(input: { phone: string }) {
   const headline =
     `🔐 *Confirme seu cadastro*\n\n` +
     `Seu código de verificação é: *${code}*\n\n` +
-    `_Toque em *Copiar código* para colar no formulário, ou em *✅ Já verifiquei* para confirmar automaticamente._\n\n` +
+    `_Toque em *Copiar código* para colar no formulário._\n\n` +
     `O código expira em 5 minutos. Nunca compartilhe com terceiros.`;
 
   let sent = false;
@@ -203,7 +203,7 @@ export async function sendPhoneVerificationData(input: { phone: string }) {
         number: phone,
         type: "button",
         text: headline,
-        choices: [`📋 Copiar código|copy:${code}`, `✅ Já verifiquei|verify:${verifyToken}`],
+        choices: [`📋 Copiar código|copy:${code}`],
         footerText: "Verificação de cadastro",
       },
     });
