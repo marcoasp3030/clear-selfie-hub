@@ -289,6 +289,12 @@ function CameraFullscreen({
   const [countdown, setCountdown] = useState<number | null>(null);
   const [flash, setFlash] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // Quality bars — UI state, throttled updates from the detection loop
+  const [qualityUI, setQualityUI] = useState<{
+    sharpness: number;
+    brightness: number;
+    lightUneven: number;
+  } | null>(null);
 
   const statusRef = useRef<DetectionStatus>("loading");
   const rafRef = useRef<number | null>(null);
