@@ -1148,63 +1148,6 @@ function analyzeFaceQuality(
 
 // ---- Camera permission helper UI ----
 
-interface QualityBarsProps {
-  quality: { sharpness: number; brightness: number; lightUneven: number } | null;
-}
-
-function QualityBars({ quality }: QualityBarsProps) {
-  // Map raw signals to 0..1 "good" scores
-  // Sharpness: ~3 (blurry) to ~15+ (sharp). Clamp.
-  const sharp = quality ? clamp01((quality.sharpness - 3) / 10) : 0;
-  // Brightness: ideal 90..180. Penalize extremes.
-  const b = quality?.brightness ?? 0;
-  const bright = quality
-    ? b < 55 || b > 220
-      ? 0
-      : 1 - Math.min(1, Math.abs(b - 135) / 90)
-    : 0;
-  // Lighting uniformity: lower lightUneven is better. 0 = perfect, 0.3+ = bad.
-  const even = quality ? clamp01(1 - quality.lightUneven / 0.3) : 0;
-
-  return (
-    <div className="pointer-events-none absolute left-0 right-0 top-[env(safe-area-inset-top,1rem)] z-10 mt-14 flex justify-center px-4">
-      <div className="flex w-full max-w-sm items-center gap-3 rounded-full bg-black/55 px-4 py-2 backdrop-blur">
-        <QualityBar label="Nitidez" score={sharp} />
-        <QualityBar label="Luz" score={bright} />
-        <QualityBar label="Equilíbrio" score={even} />
-      </div>
-    </div>
-  );
-}
-
-function QualityBar({ label, score }: { label: string; score: number }) {
-  const pct = Math.round(score * 100);
-  const color =
-    score >= 0.7
-      ? "bg-primary"
-      : score >= 0.4
-        ? "bg-warning"
-        : "bg-destructive";
-  return (
-    <div className="flex flex-1 flex-col gap-1">
-      <div className="flex items-center justify-between text-[10px] font-medium uppercase tracking-wide text-white/80">
-        <span>{label}</span>
-        <span className="tabular-nums">{pct}%</span>
-      </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/15">
-        <div
-          className={`h-full ${color} transition-all duration-200`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function clamp01(n: number): number {
-  return Math.max(0, Math.min(1, n));
-}
-
 function detectPlatform(): "ios" | "android" | "desktop" {
   if (typeof navigator === "undefined") return "desktop";
   const ua = navigator.userAgent || "";
