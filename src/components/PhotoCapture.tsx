@@ -215,6 +215,7 @@ const ERROR_EXPLAIN: Record<
   },
 };
 
+// Detailed camera error modal — declared before PhotoCapture so SSR can see it.
 function CameraErrorDialog({
   open,
   onOpenChange,
