@@ -15,6 +15,14 @@ export const Route = createFileRoute("/")({
       },
       { name: "theme-color", content: "#92b61b" },
     ],
+    links: [
+      // Acelera o download do detector facial do MediaPipe (WASM + modelo)
+      // pré-resolvendo DNS/TLS antes do clique em "Abrir câmera".
+      { rel: "preconnect", href: "https://cdn.jsdelivr.net", crossOrigin: "anonymous" },
+      { rel: "preconnect", href: "https://storage.googleapis.com", crossOrigin: "anonymous" },
+      { rel: "dns-prefetch", href: "https://cdn.jsdelivr.net" },
+      { rel: "dns-prefetch", href: "https://storage.googleapis.com" },
+    ],
   }),
   component: Index,
 });

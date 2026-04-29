@@ -344,6 +344,29 @@ export function PhotoCapture({ value, onChange, deviceId = null }: PhotoCaptureP
     );
   }, []);
 
+  // Pré-aquecimento: começa a baixar o WASM + modelo do MediaPipe assim que
+  // o componente monta, em vez de esperar o usuário clicar em "Abrir câmera".
+  // Isso evita o "trava por 5 minutos" no primeiro clique em redes lentas,
+  // pois quando o clique acontece o detector geralmente já está pronto (ou
+  // pelo menos com o download bem adiantado). Ignoramos falhas — o loop de
+  // detecção que roda depois também tenta carregar e tem fallback próprio.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // Em telas de baixo recurso ou quando o usuário pediu economia de dados,
+    // pulamos o pré-aquecimento para não consumir banda à toa.
+    const conn = (navigator as unknown as {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    }).connection;
+    if (conn?.saveData) return;
+    // Dá um tick para não competir com o render inicial da página.
+    const t = window.setTimeout(() => {
+      getFaceLandmarker().catch(() => {
+        /* loop de detecção vai re-tentar e tratar */
+      });
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, []);
+
   // iOS Safari workaround: when the user goes to Settings to flip the
   // camera permission, the page is hidden. When they come back
   // (visibilitychange -> visible) and we're in a denied state, silently
