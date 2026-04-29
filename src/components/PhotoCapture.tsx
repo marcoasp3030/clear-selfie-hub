@@ -1331,3 +1331,105 @@ function CameraPermissionHelp({ kind, message, onRetry, retrying }: CameraPermis
     </div>
   );
 }
+
+// ---- Dynamic guides (safe-margin frame + distance gauge) ----
+function DynamicGuides({ distanceRatio }: { distanceRatio: number | null }) {
+  // Map ratio to status: 1.0 = ideal, <0.7 too far, >1.25 too close
+  const r = distanceRatio;
+  const status: "far" | "close" | "ok" | "idle" =
+    r === null ? "idle" : r < 0.7 ? "far" : r > 1.25 ? "close" : "ok";
+
+  const stroke =
+    status === "ok"
+      ? "rgba(146,182,27,0.85)"
+      : status === "idle"
+        ? "rgba(255,255,255,0.25)"
+        : "rgba(230,180,40,0.85)";
+
+  // Frame inset shrinks when too close, expands when too far.
+  // Range: ratio 0.5 → inset 4 (wide), ratio 1.5 → inset 16 (tight)
+  const inset = r === null ? 10 : Math.max(4, Math.min(16, 10 + (r - 1) * 12));
+  const x = inset;
+  const w = 100 - inset * 2;
+  const y = inset * 0.6;
+  const h = 100 - inset * 1.2;
+
+  return (
+    <>
+      <svg
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        preserveAspectRatio="none"
+        viewBox="0 0 100 100"
+      >
+        <defs>
+          <mask id="face-mask">
+            <rect width="100" height="100" fill="white" />
+            <ellipse cx="50" cy="52" rx="30" ry="40" fill="black" />
+          </mask>
+        </defs>
+        <rect width="100" height="100" fill="rgba(0,0,0,0.55)" mask="url(#face-mask)" />
+        <rect
+          x={x}
+          y={y}
+          width={w}
+          height={h}
+          fill="none"
+          stroke={stroke}
+          strokeWidth="0.3"
+          strokeDasharray="2 2"
+          rx="4"
+          style={{ transition: "all 200ms ease-out" }}
+        />
+        <line x1="50" y1="46" x2="50" y2="58" stroke="rgba(255,255,255,0.55)" strokeWidth="0.3" />
+        <line x1="44" y1="52" x2="56" y2="52" stroke="rgba(255,255,255,0.55)" strokeWidth="0.3" />
+        <line x1="50" y1="36" x2="50" y2="40" stroke="rgba(255,255,255,0.4)" strokeWidth="0.25" />
+        <line x1="50" y1="64" x2="50" y2="68" stroke="rgba(255,255,255,0.4)" strokeWidth="0.25" />
+      </svg>
+
+      <DistanceGauge ratio={r} />
+
+      {(status === "far" || status === "close") && (
+        <div className="pointer-events-none absolute left-1/2 top-24 -translate-x-1/2">
+          <div className="rounded-full bg-warning/95 px-4 py-1.5 text-xs font-semibold text-warning-foreground shadow-lg">
+            {status === "far" ? "Aproxime-se um pouco" : "Afaste-se um pouco"}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function DistanceGauge({ ratio }: { ratio: number | null }) {
+  const r = ratio ?? 1;
+  // ratio 0.5 (far) → top (0%), 1.0 (ideal) → middle (50%), 1.5+ (close) → bottom (100%)
+  const pos = Math.max(0, Math.min(100, ((r - 0.5) / 1.0) * 100));
+  const inIdeal = ratio !== null && ratio >= 0.7 && ratio <= 1.25;
+
+  return (
+    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+      <div className="flex flex-col items-center gap-2">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-white/80">
+          Longe
+        </span>
+        <div className="relative h-40 w-2 overflow-hidden rounded-full bg-white/15">
+          {/* Ideal zone band */}
+          <div
+            className="absolute left-0 right-0 bg-primary/30"
+            style={{ top: "30%", height: "45%" }}
+          />
+          {ratio !== null && (
+            <div
+              className={`absolute left-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-md transition-all duration-200 ${
+                inIdeal ? "bg-primary" : "bg-warning"
+              }`}
+              style={{ top: `${pos}%` }}
+            />
+          )}
+        </div>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-white/80">
+          Perto
+        </span>
+      </div>
+    </div>
+  );
+}
