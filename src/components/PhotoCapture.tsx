@@ -384,6 +384,17 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
           onCancel={stopCamera}
         />
       )}
+
+      <CameraErrorDialog
+        open={errorOpen}
+        onOpenChange={setErrorOpen}
+        detail={errorDetail}
+        kind={errorKind}
+        onRetry={() => {
+          setErrorOpen(false);
+          startCamera();
+        }}
+      />
     </>
   );
 }
