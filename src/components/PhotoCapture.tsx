@@ -364,7 +364,10 @@ function CameraFullscreen({
       return;
     }
     const canvas = document.createElement("canvas");
-    const size = Math.min(video.videoWidth, video.videoHeight);
+    const rawSize = Math.min(video.videoWidth, video.videoHeight);
+    // Engine spec: min 160x160, max area 1920*1080 = 2_073_600 px.
+    // Square output: clamp side between 480 (safety margin) and 1080.
+    const size = Math.max(480, Math.min(1080, rawSize));
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext("2d");
@@ -372,12 +375,12 @@ function CameraFullscreen({
       captureTakenRef.current = false;
       return;
     }
-    const sx = (video.videoWidth - size) / 2;
-    const sy = (video.videoHeight - size) / 2;
+    const sx = (video.videoWidth - rawSize) / 2;
+    const sy = (video.videoHeight - rawSize) / 2;
     // Mirror horizontally so output matches the on-screen preview
     ctx.translate(size, 0);
     ctx.scale(-1, 1);
-    ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
+    ctx.drawImage(video, sx, sy, rawSize, rawSize, 0, 0, size, size);
     canvas.toBlob(
       (blob) => {
         if (!blob) {
