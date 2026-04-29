@@ -664,6 +664,8 @@ function CameraFullscreen({
           smoothRef.current = null;
           blinkHistoryRef.current = [];
           eyesClosedConfirmedRef.current = false;
+          qualityRef.current = null;
+          if (qualityUI !== null) setQualityUI(null);
         }
 
         // ---- Status hysteresis: require the candidate status to persist
