@@ -162,6 +162,7 @@ export async function syncRegistrationToControlId(input: {
   firstName: string;
   lastName: string;
   phone: string;
+  cpf: string;
   imageBase64: string;
 }): Promise<ControlIdSyncResult> {
   const base = normalizeBase(input.apiBaseUrl);
@@ -169,11 +170,13 @@ export async function syncRegistrationToControlId(input: {
   const session = await login(base, input.apiLogin, input.apiPassword);
   if (typeof session !== "string") return { success: false, error: session.error };
 
-  const fullName = `${input.firstName} ${input.lastName}`.slice(0, 80);
-  // Control iD users object has no phone field. The "registration" field is a
-  // free-form string (matrícula) — store the phone there so it appears in the
-  // device UI and can be searched.
-  const registration = input.phone.slice(0, 64);
+  // Control iD users object only has `name` + `registration` (matrícula).
+  // Strategy:
+  //   - name        → "Nome Sobrenome — (11) 91234-5678"  (telefone visível)
+  //   - registration → CPF (11 dígitos, sem formatação)   (identificador único)
+  const fullName =
+    `${input.firstName} ${input.lastName} — ${input.phone}`.slice(0, 100);
+  const registration = (input.cpf || "").slice(0, 64);
 
   const userId = await createUser(base, session, fullName, registration);
   if (typeof userId !== "number") return { success: false, error: userId.error };

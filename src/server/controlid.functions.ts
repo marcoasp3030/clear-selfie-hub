@@ -51,7 +51,7 @@ async function runSync(registrationId: string): Promise<
 > {
   const { data: reg, error: regErr } = await supabaseAdmin
     .from("registrations")
-    .select("id,first_name,last_name,phone,photo_path,device_id")
+    .select("id,first_name,last_name,phone,cpf,photo_path,device_id")
     .eq("id", registrationId)
     .maybeSingle();
 
@@ -123,6 +123,7 @@ async function runSync(registrationId: string): Promise<
     firstName: reg.first_name,
     lastName: reg.last_name,
     phone: reg.phone,
+    cpf: reg.cpf ?? "",
     imageBase64: photo,
   });
 

@@ -21,6 +21,7 @@ import { getDeviceFingerprint } from "@/lib/fingerprint";
 import { collectClientDeviceInfo } from "@/lib/deviceInfo";
 import { PhotoCapture } from "./PhotoCapture";
 import { PhotoGuidelines } from "./PhotoGuidelines";
+import { maskPhone, maskCpf, isValidCpf, isValidMobile, onlyDigits } from "@/lib/brMasks";
 
 const schema = z.object({
   firstName: z.string().trim().min(2, "Informe seu nome").max(100, "Nome muito longo"),
@@ -32,19 +33,12 @@ const schema = z.object({
   phone: z
     .string()
     .trim()
-    .min(14, "Informe um celular válido")
-    .max(20, "Celular muito longo")
-    .regex(/^[\d\s()+-]+$/, "Celular inválido"),
+    .refine((v) => isValidMobile(v), "Informe um celular válido com DDD"),
+  cpf: z
+    .string()
+    .trim()
+    .refine((v) => isValidCpf(v), "CPF inválido"),
 });
-
-function formatPhone(value: string) {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  if (digits.length <= 10)
-    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-}
 
 type Step = 0 | 1 | 2;
 
@@ -62,6 +56,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [cpf, setCpf] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -79,7 +74,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
 
   const submit = async () => {
     setErrors({});
-    const result = schema.safeParse({ firstName, lastName, phone });
+    const result = schema.safeParse({ firstName, lastName, phone, cpf });
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
       for (const issue of result.error.issues) {
@@ -113,6 +108,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
           firstName: result.data.firstName,
           lastName: result.data.lastName,
           phone: result.data.phone,
+          cpf: onlyDigits(result.data.cpf),
           photoPath: path,
           deviceFingerprint: fingerprint,
           deviceId: deviceId ?? null,
@@ -157,6 +153,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
     setFirstName("");
     setLastName("");
     setPhone("");
+    setCpf("");
     setPhoto(null);
     setErrors({});
     setStep(0);
@@ -380,7 +377,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                   id="phone"
                   inputMode="tel"
                   value={phone}
-                  onChange={(e) => setPhone(formatPhone(e.target.value))}
+                  onChange={(e) => setPhone(maskPhone(e.target.value))}
                   placeholder="(11) 91234-5678"
                   autoComplete="tel"
                   disabled={submitting}
@@ -388,6 +385,25 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                 />
                 {errors.phone && (
                   <p className="text-xs font-medium text-destructive">{errors.phone}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="cpf" className="text-sm font-medium">
+                  CPF
+                </Label>
+                <Input
+                  id="cpf"
+                  inputMode="numeric"
+                  value={cpf}
+                  onChange={(e) => setCpf(maskCpf(e.target.value))}
+                  placeholder="000.000.000-00"
+                  autoComplete="off"
+                  disabled={submitting}
+                  className="h-12 rounded-xl border-border/70 text-base transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0"
+                />
+                {errors.cpf && (
+                  <p className="text-xs font-medium text-destructive">{errors.cpf}</p>
                 )}
               </div>
             </div>

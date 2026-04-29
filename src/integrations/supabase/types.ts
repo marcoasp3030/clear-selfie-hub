@@ -49,6 +49,7 @@ export type Database = {
       }
       registrations: {
         Row: {
+          cpf: string | null
           created_at: string
           device_browser: string | null
           device_fingerprint: string | null
@@ -75,6 +76,7 @@ export type Database = {
           user_agent: string | null
         }
         Insert: {
+          cpf?: string | null
           created_at?: string
           device_browser?: string | null
           device_fingerprint?: string | null
@@ -101,6 +103,7 @@ export type Database = {
           user_agent?: string | null
         }
         Update: {
+          cpf?: string | null
           created_at?: string
           device_browser?: string | null
           device_fingerprint?: string | null
