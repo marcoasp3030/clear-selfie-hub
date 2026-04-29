@@ -23,6 +23,7 @@ const checkExistingSchema = z.object({
   cpf: z.string().trim().regex(/^\d{11}$/, "CPF must be 11 digits").optional(),
   phone: z.string().trim().min(10).max(20).optional(),
   deviceFingerprint: z.string().trim().min(8).max(128).optional(),
+  deviceId: z.string().uuid().optional().nullable(),
 });
 
 export const checkExistingRegistration = createServerFn({ method: "POST" })
@@ -38,10 +39,19 @@ export const checkExistingRegistration = createServerFn({ method: "POST" })
     if (data.deviceFingerprint)
       filters.push(`device_fingerprint.eq.${data.deviceFingerprint}`);
 
-    const { data: row, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("registrations")
       .select("id, cpf, phone, device_fingerprint, first_name, last_name, created_at")
-      .or(filters.join(","))
+      .or(filters.join(","));
+
+    // Duplicate is scoped per equipment: same user CAN register on a different device.
+    if (data.deviceId) {
+      query = query.eq("device_id", data.deviceId);
+    } else {
+      query = query.is("device_id", null);
+    }
+
+    const { data: row, error } = await query
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -105,10 +115,21 @@ export const createRegistration = createServerFn({ method: "POST" })
       parsed,
     });
 
-    const { data: existing, error: checkError } = await supabaseAdmin
+    // Duplicate check is scoped per equipment: the same browser/device can be
+    // used to register the same person on different equipments, but not twice
+    // on the same equipment.
+    let dupQuery = supabaseAdmin
       .from("registrations")
       .select("id")
-      .eq("device_fingerprint", data.deviceFingerprint)
+      .eq("device_fingerprint", data.deviceFingerprint);
+
+    if (data.deviceId) {
+      dupQuery = dupQuery.eq("device_id", data.deviceId);
+    } else {
+      dupQuery = dupQuery.is("device_id", null);
+    }
+
+    const { data: existing, error: checkError } = await dupQuery
       .limit(1)
       .maybeSingle();
 
