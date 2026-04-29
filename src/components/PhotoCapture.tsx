@@ -342,6 +342,24 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
     );
   }, []);
 
+  // iOS Safari workaround: when the user goes to Settings to flip the
+  // camera permission, the page is hidden. When they come back
+  // (visibilitychange -> visible) and we're in a denied state, silently
+  // re-attempt getUserMedia. If the permission is now granted, the
+  // camera opens; if still denied, the same help UI stays put.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (errorKind === "denied" && !cameraOn && !starting) {
+        startCamera();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [errorKind, cameraOn, starting]);
+
   useEffect(() => {
     if (!value) {
       setPreviewUrl(null);
@@ -402,7 +420,11 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
       return;
     }
 
-    // 2. Fire getUserMedia FIRST (preserves the user gesture on iOS)
+    // 2. Fire getUserMedia FIRST (preserves the user gesture on iOS).
+    //    NOTE: we intentionally do NOT await navigator.permissions.query()
+    //    here — that would lose the user activation on iOS Safari and the
+    //    permission prompt would never appear. We check permissions only on
+    //    failure, to render better recovery UI.
     const mediaPromise = navigator.mediaDevices
       .getUserMedia({
         video: { facingMode: "user" },
@@ -508,7 +530,34 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
         name: e?.name || "UnknownError",
         message: e?.message || String(err),
       });
-      setErrorOpen(true);
+      // Only auto-open the technical modal for unusual errors. For the
+      // common "denied / in-use / not-found" cases the inline help block
+      // (CameraPermissionHelp) already shows clearer, platform-specific
+      // instructions and a retry button — opening the modal on top of it
+      // is redundant and noisy.
+      if (kind === "generic") {
+        setErrorOpen(true);
+      }
+      // Watch the Permissions API: if the user goes to settings and
+      // flips Camera back to "Allow", auto-retry without them having to
+      // tap the button again. Supported on Chromium (Android/desktop);
+      // silently no-op on Safari/iOS where the API is missing.
+      if (kind === "denied" && typeof navigator !== "undefined" && navigator.permissions) {
+        try {
+          const status = await navigator.permissions.query({
+            name: "camera" as PermissionName,
+          });
+          const handler = () => {
+            if (status.state === "granted") {
+              status.removeEventListener("change", handler);
+              startCamera();
+            }
+          };
+          status.addEventListener("change", handler);
+        } catch {
+          /* permission name not supported — ignore */
+        }
+      }
     } finally {
       setStarting(false);
     }
@@ -1660,6 +1709,13 @@ function CameraPermissionHelp({ kind, message, onRetry, retrying }: CameraPermis
         <div className="flex-1">
           <p className="text-sm font-semibold text-foreground">{title}</p>
           <p className="mt-1 text-xs text-muted-foreground">{message}</p>
+          {isDenied && (
+            <p className="mt-2 rounded-lg bg-background/60 px-2 py-1.5 text-[11px] leading-snug text-muted-foreground">
+              Por segurança, o navegador exige que <strong>você mesmo</strong>{" "}
+              libere a câmera nas configurações. Siga os passos abaixo — leva
+              menos de 30 segundos.
+            </p>
+          )}
         </div>
       </div>
 
@@ -1675,23 +1731,38 @@ function CameraPermissionHelp({ kind, message, onRetry, retrying }: CameraPermis
       </ol>
 
       {!isUnsupported && !isNotFound && (
-        <Button
-          type="button"
-          onClick={onRetry}
-          disabled={retrying}
-          className="mt-4 h-12 w-full text-base"
-          size="lg"
-        >
-          {retrying ? (
-            <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Abrindo câmera...
-            </>
-          ) : (
-            <>
-              <Camera className="mr-2 h-5 w-5" /> Ativar câmera
-            </>
+        <div className="mt-4 flex flex-col gap-2">
+          <Button
+            type="button"
+            onClick={onRetry}
+            disabled={retrying}
+            className="h-12 w-full text-base"
+            size="lg"
+          >
+            {retrying ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Abrindo câmera...
+              </>
+            ) : (
+              <>
+                <Camera className="mr-2 h-5 w-5" /> Tentar novamente
+              </>
+            )}
+          </Button>
+          {isDenied && (
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="h-12 w-full text-base"
+              onClick={() => {
+                if (typeof window !== "undefined") window.location.reload();
+              }}
+            >
+              <RefreshCw className="mr-2 h-5 w-5" /> Recarregar página
+            </Button>
           )}
-        </Button>
+        </div>
       )}
     </div>
   );
