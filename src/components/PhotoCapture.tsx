@@ -295,6 +295,10 @@ function CameraFullscreen({
     brightness: number;
     lightUneven: number;
   } | null>(null);
+  // Distance gauge — face width vs ideal (1.0 = perfect)
+  // <0.7 too far, >1.25 too close
+  const [distanceRatioUI, setDistanceRatioUI] = useState<number | null>(null);
+  const lastDistanceUITsRef = useRef(0);
 
   const statusRef = useRef<DetectionStatus>("loading");
   const rafRef = useRef<number | null>(null);
