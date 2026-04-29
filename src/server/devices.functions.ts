@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 
 const slugRegex = /^[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?$/;
 
@@ -15,7 +16,10 @@ function slugify(input: string): string {
     .slice(0, 60);
 }
 
+const accessTokenSchema = z.string().trim().min(1);
+
 const createSchema = z.object({
+  accessToken: accessTokenSchema,
   name: z.string().trim().min(2).max(120),
   slug: z.string().trim().min(2).max(60).optional(),
   apiBaseUrl: z
@@ -35,22 +39,37 @@ export type DeviceRow = {
   created_at: string;
 };
 
-async function ensureAdmin(userId: string): Promise<void> {
-  const { data, error } = await supabaseAdmin
+let authClient: ReturnType<typeof createClient<Database>> | undefined;
+function getAuthClient() {
+  if (!authClient) {
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+    if (!url || !key) throw new Response("Internal error", { status: 500 });
+    authClient = createClient<Database>(url, key, {
+      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+    });
+  }
+  return authClient;
+}
+
+async function assertAdmin(accessToken: string): Promise<string> {
+  const { data, error } = await getAuthClient().auth.getClaims(accessToken);
+  if (error || !data?.claims?.sub) throw new Response("Unauthorized", { status: 401 });
+  const userId = data.claims.sub;
+  const { data: roleRow, error: roleErr } = await supabaseAdmin
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
     .eq("role", "admin")
     .maybeSingle();
-  if (error || !data) {
-    throw new Error("forbidden");
-  }
+  if (roleErr || !roleRow) throw new Response("Forbidden", { status: 403 });
+  return userId;
 }
 
-export const listDevices = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await ensureAdmin(context.userId);
+export const listDevices = createServerFn({ method: "POST" })
+  .inputValidator((input) => z.object({ accessToken: accessTokenSchema }).parse(input))
+  .handler(async ({ data }) => {
+    await assertAdmin(data.accessToken);
     const { data, error } = await supabaseAdmin
       .from("devices")
       .select("id,name,slug,api_base_url,created_at")
@@ -60,10 +79,9 @@ export const listDevices = createServerFn({ method: "GET" })
   });
 
 export const createDevice = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input) => createSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    await ensureAdmin(context.userId);
+  .handler(async ({ data }) => {
+    const userId = await assertAdmin(data.accessToken);
 
     let slug = (data.slug && data.slug.length > 0 ? data.slug : slugify(data.name)).toLowerCase();
     slug = slug.replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "");
@@ -86,7 +104,7 @@ export const createDevice = createServerFn({ method: "POST" })
         name: data.name,
         slug,
         api_base_url: data.apiBaseUrl.replace(/\/+$/, ""),
-        created_by: context.userId,
+        created_by: userId,
       })
       .select("id,name,slug,api_base_url,created_at")
       .single();
@@ -97,10 +115,11 @@ export const createDevice = createServerFn({ method: "POST" })
   });
 
 export const deleteDevice = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }) => {
-    await ensureAdmin(context.userId);
+  .inputValidator((input) =>
+    z.object({ accessToken: accessTokenSchema, id: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    await assertAdmin(data.accessToken);
     const { error } = await supabaseAdmin.from("devices").delete().eq("id", data.id);
     if (error) return { success: false as const, error: error.message };
     return { success: true as const };
