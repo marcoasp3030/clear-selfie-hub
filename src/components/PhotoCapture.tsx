@@ -272,9 +272,11 @@ function CameraFullscreen({
     statusRef.current = status;
   }, [status]);
 
+  // Keep detection running during countdown so we can abort if the face
+  // leaves the frame. Only pause for onboarding/preview screens.
   useEffect(() => {
-    detectingRef.current = !showOnboarding && !pendingFile && countdown === null;
-  }, [showOnboarding, pendingFile, countdown]);
+    detectingRef.current = !showOnboarding && !pendingFile;
+  }, [showOnboarding, pendingFile]);
 
   // Build preview URL for pending file
   useEffect(() => {
