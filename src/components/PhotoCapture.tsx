@@ -430,8 +430,7 @@ function CameraFullscreen({
   // Countdown effect
   useEffect(() => {
     if (countdown === null) return;
-    // Capture immediately when reaching the last tick.
-    if (countdown <= 1) {
+    if (countdown === 0) {
       if ("vibrate" in navigator) {
         try {
           navigator.vibrate(30);
@@ -455,7 +454,7 @@ function CameraFullscreen({
         /* noop */
       }
     }
-    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 350);
+    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countdown]);
@@ -742,7 +741,7 @@ function CameraFullscreen({
           if (perfectSinceRef.current === null) perfectSinceRef.current = now;
           if (!countdownStartedRef.current && now - perfectSinceRef.current > 500) {
             countdownStartedRef.current = true;
-            setCountdown(1);
+            setCountdown(3);
           }
         } else {
           perfectSinceRef.current = null;
