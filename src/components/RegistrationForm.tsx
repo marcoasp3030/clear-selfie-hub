@@ -25,6 +25,7 @@ import {
 import {
   sendPhoneVerification,
   verifyPhoneCode,
+  pollPhoneVerification,
 } from "@/server/phone.functions";
 import { syncRegistration } from "@/server/controlid.functions";
 import { getDeviceFingerprint } from "@/lib/fingerprint";
@@ -85,6 +86,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
   const checkExisting = useServerFn(checkExistingRegistration);
   const sendVerification = useServerFn(sendPhoneVerification);
   const verifyCode = useServerFn(verifyPhoneCode);
+  const pollVerification = useServerFn(pollPhoneVerification);
 
   // WhatsApp verification state
   const [verificationStatus, setVerificationStatus] = useState<
@@ -104,6 +106,31 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
     const t = setInterval(() => setResendIn((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
   }, [resendIn]);
+
+  // Poll for one-tap WhatsApp button verification while a code is pending.
+  useEffect(() => {
+    if (verificationStatus !== "sent" && verificationStatus !== "verifying") return;
+    if (!phone) return;
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      try {
+        const res = await pollVerification({ data: { phone } });
+        if (cancelled) return;
+        if (res.verified) {
+          setVerificationStatus("verified");
+          setVerifiedPhone(phone);
+          setVerifyError(null);
+          toast.success("WhatsApp verificado automaticamente!");
+        }
+      } catch {
+        /* keep polling silently */
+      }
+    }, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [verificationStatus, phone, pollVerification]);
 
   // Reset verification when phone changes
   useEffect(() => {
