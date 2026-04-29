@@ -100,6 +100,7 @@ export type Database = {
           phone: string
           updated_at: string
           verified_at: string | null
+          verify_token: string | null
         }
         Insert: {
           attempts?: number
@@ -111,6 +112,7 @@ export type Database = {
           phone: string
           updated_at?: string
           verified_at?: string | null
+          verify_token?: string | null
         }
         Update: {
           attempts?: number
@@ -122,6 +124,7 @@ export type Database = {
           phone?: string
           updated_at?: string
           verified_at?: string | null
+          verify_token?: string | null
         }
         Relationships: []
       }
