@@ -272,9 +272,11 @@ function CameraFullscreen({
     statusRef.current = status;
   }, [status]);
 
+  // Keep detection running during countdown so we can abort if the face
+  // leaves the frame. Only pause for onboarding/preview screens.
   useEffect(() => {
-    detectingRef.current = !showOnboarding && !pendingFile && countdown === null;
-  }, [showOnboarding, pendingFile, countdown]);
+    detectingRef.current = !showOnboarding && !pendingFile;
+  }, [showOnboarding, pendingFile]);
 
   // Build preview URL for pending file
   useEffect(() => {
@@ -343,9 +345,13 @@ function CameraFullscreen({
   useEffect(() => {
     if (countdown === null) return;
     if (countdown === 0) {
-      doCapture();
+      // Final safety check: only capture if the face is still perfectly framed.
+      if (statusRef.current === "perfect") {
+        doCapture();
+      }
       setCountdown(null);
       countdownStartedRef.current = false;
+      perfectSinceRef.current = null;
       return;
     }
     // light vibration tick
@@ -504,7 +510,9 @@ function CameraFullscreen({
 
         if (next !== statusRef.current) setStatus(next);
 
-        // Auto-capture: trigger countdown after staying "perfect" for ~700ms
+        // Auto-capture: trigger countdown after staying "perfect" for ~700ms.
+        // If the face stops being "perfect" at any moment (including during
+        // the countdown), abort and require a fresh perfect hold.
         const now = performance.now();
         if (next === "perfect") {
           if (perfectSinceRef.current === null) perfectSinceRef.current = now;
