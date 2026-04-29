@@ -1,9 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Camera, RefreshCw, X, Loader2, Check,
-  ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
-  ZoomIn, ZoomOut, Users, EyeOff, AlertTriangle,
+  Camera,
+  RefreshCw,
+  X,
+  Loader2,
+  Check,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ZoomIn,
+  ZoomOut,
+  Users,
+  EyeOff,
+  AlertTriangle,
 } from "lucide-react";
 import { getFaceLandmarker, KEY_LANDMARKS } from "@/lib/faceDetector";
 
@@ -169,11 +180,7 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
       <div className="space-y-3">
         <div className="relative aspect-square w-full overflow-hidden rounded-2xl border-2 border-dashed border-border bg-muted/40">
           {previewUrl ? (
-            <img
-              src={previewUrl}
-              alt="Pré-visualização"
-              className="h-full w-full object-cover"
-            />
+            <img src={previewUrl} alt="Pré-visualização" className="h-full w-full object-cover" />
           ) : (
             <button
               type="button"
@@ -210,9 +217,7 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
         </div>
 
         {error && (
-          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {error}
-          </p>
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
         )}
 
         {previewUrl && (
@@ -266,6 +271,7 @@ function CameraFullscreen({
   const lastTsRef = useRef(-1);
   const perfectSinceRef = useRef<number | null>(null);
   const countdownStartedRef = useRef(false);
+  const captureTakenRef = useRef(false);
   const detectingRef = useRef(false);
 
   useEffect(() => {
@@ -310,14 +316,24 @@ function CameraFullscreen({
   // We mirror the saved image to match what the user saw on screen
   // (the video is displayed mirrored like a selfie/mirror).
   const doCapture = () => {
+    if (captureTakenRef.current) return;
+    captureTakenRef.current = true;
+    countdownStartedRef.current = false;
+    perfectSinceRef.current = null;
     const video = videoRef.current;
-    if (!video) return;
+    if (!video) {
+      captureTakenRef.current = false;
+      return;
+    }
     const canvas = document.createElement("canvas");
     const size = Math.min(video.videoWidth, video.videoHeight);
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      captureTakenRef.current = false;
+      return;
+    }
     const sx = (video.videoWidth - size) / 2;
     const sy = (video.videoHeight - size) / 2;
     // Mirror horizontally so output matches the on-screen preview
@@ -326,13 +342,20 @@ function CameraFullscreen({
     ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
     canvas.toBlob(
       (blob) => {
-        if (!blob) return;
+        if (!blob) {
+          captureTakenRef.current = false;
+          return;
+        }
         const file = new File([blob], `foto-${Date.now()}.jpg`, { type: "image/jpeg" });
         // Flash + vibration feedback
         setFlash(true);
         setTimeout(() => setFlash(false), 220);
         if ("vibrate" in navigator) {
-          try { navigator.vibrate(80); } catch { /* noop */ }
+          try {
+            navigator.vibrate(80);
+          } catch {
+            /* noop */
+          }
         }
         onCapture(file);
       },
@@ -356,7 +379,11 @@ function CameraFullscreen({
     }
     // light vibration tick
     if ("vibrate" in navigator) {
-      try { navigator.vibrate(20); } catch { /* noop */ }
+      try {
+        navigator.vibrate(20);
+      } catch {
+        /* noop */
+      }
     }
     const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
     return () => clearTimeout(t);
@@ -409,7 +436,10 @@ function CameraFullscreen({
           const offsetY = (vh - side) / 2;
 
           // Compute face bounding box from face oval landmarks
-          let minX = 1, maxX = 0, minY = 1, maxY = 0;
+          let minX = 1,
+            maxX = 0,
+            minY = 1,
+            maxY = 0;
           for (const i of KEY_LANDMARKS.faceOval) {
             const p = landmarks[i];
             if (p.x < minX) minX = p.x;
@@ -439,12 +469,16 @@ function CameraFullscreen({
           // ---- Anti-fraud / quality checks ----
           // 1. Head pose from transformation matrix (column-major 4x4)
           //    Extract yaw/pitch/roll from rotation part.
-          let yawDeg = 0, pitchDeg = 0, rollDeg = 0;
+          let yawDeg = 0,
+            pitchDeg = 0,
+            rollDeg = 0;
           if (matrices[0]) {
             const m = matrices[0].data;
             // Standard rotation extraction (Y-X-Z order)
             // m[0..2]=col0, m[4..6]=col1, m[8..10]=col2
-            const r00 = m[0], r10 = m[1], r20 = m[2];
+            const r00 = m[0],
+              r10 = m[1],
+              r20 = m[2];
             const r21 = m[6];
             const r22 = m[10];
             yawDeg = Math.atan2(-r20, Math.sqrt(r21 * r21 + r22 * r22)) * (180 / Math.PI);
@@ -514,12 +548,13 @@ function CameraFullscreen({
         // If the face stops being "perfect" at any moment (including during
         // the countdown), abort and require a fresh perfect hold.
         const now = performance.now();
-        if (next === "perfect") {
+        if (captureTakenRef.current) {
+          perfectSinceRef.current = null;
+          countdownStartedRef.current = false;
+          setCountdown(null);
+        } else if (next === "perfect") {
           if (perfectSinceRef.current === null) perfectSinceRef.current = now;
-          if (
-            !countdownStartedRef.current &&
-            now - perfectSinceRef.current > 700
-          ) {
+          if (!countdownStartedRef.current && now - perfectSinceRef.current > 700) {
             countdownStartedRef.current = true;
             setCountdown(3);
           }
@@ -559,6 +594,14 @@ function CameraFullscreen({
   const isPerfect = status === "perfect";
   const showReview = !!pendingFile && !!previewUrl;
 
+  const handleRetake = () => {
+    captureTakenRef.current = false;
+    countdownStartedRef.current = false;
+    perfectSinceRef.current = null;
+    setCountdown(null);
+    onRetake();
+  };
+
   const ovalColorClass = showReview
     ? "border-primary"
     : isPerfect
@@ -568,17 +611,27 @@ function CameraFullscreen({
         : "border-destructive shadow-[0_0_0_2px_rgba(0,0,0,0.25),0_0_24px_4px_rgba(220,60,60,0.5)]";
 
   const directionIcon =
-    status === "move_up" ? ArrowUp :
-    status === "move_down" ? ArrowDown :
-    status === "move_left" ? ArrowLeft :
-    status === "move_right" ? ArrowRight :
-    status === "too_small" ? ZoomIn :
-    status === "too_big" ? ZoomOut :
-    status === "multiple" ? Users :
-    status === "covered" ? AlertTriangle :
-    status === "turned" || status === "tilted" ? AlertTriangle :
-    status === "eyes_closed" ? EyeOff :
-    null;
+    status === "move_up"
+      ? ArrowUp
+      : status === "move_down"
+        ? ArrowDown
+        : status === "move_left"
+          ? ArrowLeft
+          : status === "move_right"
+            ? ArrowRight
+            : status === "too_small"
+              ? ZoomIn
+              : status === "too_big"
+                ? ZoomOut
+                : status === "multiple"
+                  ? Users
+                  : status === "covered"
+                    ? AlertTriangle
+                    : status === "turned" || status === "tilted"
+                      ? AlertTriangle
+                      : status === "eyes_closed"
+                        ? EyeOff
+                        : null;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
@@ -645,16 +698,18 @@ function CameraFullscreen({
               style={{ width: "60vw", maxWidth: "340px", aspectRatio: "0.75 / 1" }}
             >
               {/* Direction icon arrow inside oval */}
-              {directionIcon && countdown === null && (() => {
-                const Icon = directionIcon;
-                return (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/90 text-destructive-foreground shadow-lg animate-bounce">
-                      <Icon className="h-8 w-8" strokeWidth={3} />
+              {directionIcon &&
+                countdown === null &&
+                (() => {
+                  const Icon = directionIcon;
+                  return (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/90 text-destructive-foreground shadow-lg animate-bounce">
+                        <Icon className="h-8 w-8" strokeWidth={3} />
+                      </div>
                     </div>
-                  </div>
-                );
-              })()}
+                  );
+                })()}
             </div>
           </div>
         )}
@@ -700,7 +755,10 @@ function CameraFullscreen({
 
         {/* Flash effect */}
         {flash && (
-          <div className="pointer-events-none absolute inset-0 bg-white" style={{ opacity: 0.85 }} />
+          <div
+            className="pointer-events-none absolute inset-0 bg-white"
+            style={{ opacity: 0.85 }}
+          />
         )}
       </div>
 
@@ -712,17 +770,12 @@ function CameraFullscreen({
               type="button"
               variant="outline"
               size="lg"
-              onClick={onRetake}
+              onClick={handleRetake}
               className="h-14 flex-1 border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white"
             >
               <RefreshCw className="mr-2 h-5 w-5" /> Tirar outra
             </Button>
-            <Button
-              type="button"
-              size="lg"
-              onClick={onAccept}
-              className="h-14 flex-1"
-            >
+            <Button type="button" size="lg" onClick={onAccept} className="h-14 flex-1">
               <Check className="mr-2 h-5 w-5" /> Usar esta foto
             </Button>
           </>
@@ -743,20 +796,26 @@ function CameraFullscreen({
           </div>
           <h2 className="text-2xl font-bold">Vamos tirar sua foto</h2>
           <p className="mt-3 max-w-xs text-sm text-white/80">
-            Encaixe seu rosto no oval. Quando ficar verde, a foto será tirada
-            automaticamente em 3 segundos.
+            Encaixe seu rosto no oval. Quando ficar verde, a foto será tirada automaticamente em 3
+            segundos.
           </p>
 
           <div className="mt-8 grid w-full max-w-xs gap-3 text-left text-sm">
             <div className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-destructive text-xs font-bold">!</span>
-              <span>Oval <strong>vermelho</strong>: ajuste a posição</span>
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-destructive text-xs font-bold">
+                !
+              </span>
+              <span>
+                Oval <strong>vermelho</strong>: ajuste a posição
+              </span>
             </div>
             <div className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                 <Check className="h-4 w-4" strokeWidth={3} />
               </span>
-              <span>Oval <strong>verde</strong>: pronto, segure firme</span>
+              <span>
+                Oval <strong>verde</strong>: pronto, segure firme
+              </span>
             </div>
           </div>
 
@@ -787,7 +846,8 @@ function CameraFullscreen({
 type Pt = { x: number; y: number; z?: number };
 
 function avgPoint(landmarks: Pt[], indices: number[]): Pt {
-  let sx = 0, sy = 0;
+  let sx = 0,
+    sy = 0;
   for (const i of indices) {
     sx += landmarks[i].x;
     sy += landmarks[i].y;
