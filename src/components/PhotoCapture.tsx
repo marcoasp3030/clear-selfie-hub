@@ -228,7 +228,12 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
         </div>
 
         {error && (
-          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+          <CameraPermissionHelp
+            kind={errorKind}
+            message={error}
+            onRetry={startCamera}
+            retrying={starting}
+          />
         )}
 
         {previewUrl && (
