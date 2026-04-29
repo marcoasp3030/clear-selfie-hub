@@ -772,7 +772,10 @@ function CameraFullscreen({
   // Keep detection running during countdown so we can abort if the face
   // leaves the frame. Only pause for onboarding/preview screens.
   useEffect(() => {
-    detectingRef.current = !showOnboarding && !pendingFile;
+    // Start detection as soon as the camera is up — even while the onboarding
+    // overlay is visible — so the face landmarker model warms up and the
+    // capture flow feels instant the moment the user dismisses the overlay.
+    detectingRef.current = !pendingFile;
   }, [showOnboarding, pendingFile]);
 
   // Build preview URL for pending file
@@ -1170,9 +1173,11 @@ function CameraFullscreen({
           setCountdown(null);
         } else if (committed === "perfect") {
           if (perfectSinceRef.current === null) perfectSinceRef.current = now;
-          if (!countdownStartedRef.current && now - perfectSinceRef.current > 500) {
+          // Snappier auto-capture: only ~200ms of stable "perfect" hold
+          // before the countdown starts.
+          if (!countdownStartedRef.current && now - perfectSinceRef.current > 200) {
             countdownStartedRef.current = true;
-            setCountdown(3);
+            setCountdown(2);
           }
         } else {
           perfectSinceRef.current = null;
@@ -1424,8 +1429,7 @@ function CameraFullscreen({
           </div>
           <h2 className="text-2xl font-bold">Vamos tirar sua foto</h2>
           <p className="mt-3 max-w-xs text-sm text-white/80">
-            Encaixe seu rosto no oval. Quando ficar verde, a foto será tirada automaticamente em 3
-            segundos.
+            Encaixe seu rosto no oval. Quando ficar verde, a foto será tirada automaticamente.
           </p>
 
           <div className="mt-8 grid w-full max-w-xs gap-3 text-left text-sm">
