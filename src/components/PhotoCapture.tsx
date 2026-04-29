@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Camera,
   RefreshCw,
   X,
@@ -17,6 +25,7 @@ import {
   AlertTriangle,
   ShieldAlert,
   ExternalLink,
+  Copy,
 } from "lucide-react";
 import { getFaceLandmarker, KEY_LANDMARKS } from "@/lib/faceDetector";
 
@@ -81,6 +90,11 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
   const [errorKind, setErrorKind] = useState<
     "denied" | "not_found" | "in_use" | "unsupported" | "generic" | null
   >(null);
+  const [errorDetail, setErrorDetail] = useState<{
+    name: string;
+    message: string;
+  } | null>(null);
+  const [errorOpen, setErrorOpen] = useState(false);
   const [inIframe, setInIframe] = useState(false);
   const [insecure, setInsecure] = useState(false);
 
@@ -151,6 +165,11 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
             : "Seu navegador não suporta acesso à câmera. Use o Safari (iPhone) ou Chrome (Android) atualizado.",
       );
       setErrorKind("unsupported");
+      setErrorDetail({
+        name: inAppBrowser ? "InAppBrowserError" : isInsecure ? "InsecureContextError" : "UnsupportedBrowserError",
+        message: typeof navigator !== "undefined" ? navigator.userAgent : "",
+      });
+      setErrorOpen(true);
       return;
     }
 
@@ -256,6 +275,11 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
       }
       setError(msg);
       setErrorKind(kind);
+      setErrorDetail({
+        name: e?.name || "UnknownError",
+        message: e?.message || String(err),
+      });
+      setErrorOpen(true);
     } finally {
       setStarting(false);
     }
@@ -360,6 +384,17 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
           onCancel={stopCamera}
         />
       )}
+
+      <CameraErrorDialog
+        open={errorOpen}
+        onOpenChange={setErrorOpen}
+        detail={errorDetail}
+        kind={errorKind}
+        onRetry={() => {
+          setErrorOpen(false);
+          startCamera();
+        }}
+      />
     </>
   );
 }
@@ -1264,6 +1299,235 @@ function detectPlatform(): "ios" | "android" | "desktop" {
   if (/iPhone|iPad|iPod/i.test(ua)) return "ios";
   if (/Android/i.test(ua)) return "android";
   return "desktop";
+}
+
+// ---- Detailed error modal ----
+
+const ERROR_EXPLAIN: Record<
+  string,
+  { title: string; what: string; fix: string[] }
+> = {
+  NotAllowedError: {
+    title: "Permissão da câmera negada",
+    what: "Você (ou o navegador) bloqueou o acesso à câmera para este site.",
+    fix: [
+      "Toque no ícone 🔒 (cadeado) na barra de endereço",
+      "Procure por “Câmera” e selecione Permitir",
+      "Recarregue a página e tente novamente",
+    ],
+  },
+  PermissionDeniedError: {
+    title: "Permissão da câmera negada",
+    what: "Você (ou o navegador) bloqueou o acesso à câmera para este site.",
+    fix: [
+      "Toque no ícone 🔒 (cadeado) na barra de endereço",
+      "Procure por “Câmera” e selecione Permitir",
+      "Recarregue a página e tente novamente",
+    ],
+  },
+  NotFoundError: {
+    title: "Nenhuma câmera encontrada",
+    what: "O navegador não detectou nenhuma câmera neste dispositivo.",
+    fix: [
+      "Confirme que o aparelho tem câmera frontal funcionando",
+      "Se for desktop, conecte uma webcam",
+      "Reinicie o navegador e tente novamente",
+    ],
+  },
+  DevicesNotFoundError: {
+    title: "Nenhuma câmera encontrada",
+    what: "O navegador não detectou nenhuma câmera neste dispositivo.",
+    fix: [
+      "Confirme que o aparelho tem câmera frontal funcionando",
+      "Se for desktop, conecte uma webcam",
+      "Reinicie o navegador e tente novamente",
+    ],
+  },
+  NotReadableError: {
+    title: "Câmera ocupada",
+    what: "Outro app ou aba já está usando a câmera neste momento.",
+    fix: [
+      "Feche apps de vídeo (Zoom, Meet, WhatsApp, FaceTime…)",
+      "Feche outras abas que usam a câmera",
+      "Reinicie o navegador e tente novamente",
+    ],
+  },
+  TrackStartError: {
+    title: "Câmera ocupada",
+    what: "Outro app ou aba já está usando a câmera neste momento.",
+    fix: [
+      "Feche apps de vídeo (Zoom, Meet, WhatsApp, FaceTime…)",
+      "Feche outras abas que usam a câmera",
+      "Reinicie o navegador e tente novamente",
+    ],
+  },
+  OverconstrainedError: {
+    title: "Câmera incompatível",
+    what: "A câmera não suporta a resolução ou o modo solicitado pelo site.",
+    fix: [
+      "Tente novamente — vamos pedir uma configuração mais simples",
+      "Se persistir, use outro navegador (Safari/Chrome atualizado)",
+    ],
+  },
+  ConstraintNotSatisfiedError: {
+    title: "Câmera incompatível",
+    what: "A câmera não suporta a resolução ou o modo solicitado pelo site.",
+    fix: [
+      "Tente novamente — vamos pedir uma configuração mais simples",
+      "Se persistir, use outro navegador (Safari/Chrome atualizado)",
+    ],
+  },
+  SecurityError: {
+    title: "Bloqueado por segurança",
+    what: "O navegador bloqueou a câmera por motivos de segurança (geralmente HTTP ou iframe sem permissão).",
+    fix: [
+      "Verifique se a URL começa com https://",
+      "Abra o link diretamente no navegador (não dentro de um app)",
+    ],
+  },
+  AbortError: {
+    title: "Acesso cancelado",
+    what: "O processo de inicialização da câmera foi interrompido.",
+    fix: [
+      "Toque novamente em “Tentar novamente”",
+      "Se persistir, recarregue a página",
+    ],
+  },
+  TypeError: {
+    title: "Configuração inválida",
+    what: "O navegador rejeitou os parâmetros enviados para a câmera.",
+    fix: [
+      "Recarregue a página",
+      "Atualize seu navegador para a versão mais recente",
+    ],
+  },
+  InAppBrowserError: {
+    title: "Navegador interno bloqueia a câmera",
+    what: "Você está usando o navegador embutido de um app (Instagram, WhatsApp, Facebook, TikTok…). Esses navegadores não liberam a câmera.",
+    fix: [
+      "Toque nos 3 pontinhos no canto da tela",
+      "Escolha “Abrir no navegador” ou “Abrir no Safari/Chrome”",
+      "Tente novamente na aba aberta",
+    ],
+  },
+  InsecureContextError: {
+    title: "Conexão não segura (HTTP)",
+    what: "A câmera só funciona em páginas servidas por HTTPS.",
+    fix: [
+      "Confira que a URL começa com https://",
+      "Peça o link correto para quem enviou",
+    ],
+  },
+  UnsupportedBrowserError: {
+    title: "Navegador não suportado",
+    what: "Seu navegador não oferece a API de câmera (getUserMedia).",
+    fix: [
+      "Use o Safari (iPhone) ou Chrome (Android) atualizado",
+      "Evite navegadores antigos ou embutidos",
+    ],
+  },
+  UnknownError: {
+    title: "Erro desconhecido na câmera",
+    what: "O navegador retornou um erro inesperado ao tentar abrir a câmera.",
+    fix: [
+      "Tente novamente",
+      "Recarregue a página",
+      "Se persistir, troque de navegador",
+    ],
+  },
+};
+
+function CameraErrorDialog({
+  open,
+  onOpenChange,
+  detail,
+  kind,
+  onRetry,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  detail: { name: string; message: string } | null;
+  kind: "denied" | "not_found" | "in_use" | "unsupported" | "generic" | null;
+  onRetry: () => void;
+}) {
+  const info = (detail && ERROR_EXPLAIN[detail.name]) || ERROR_EXPLAIN.UnknownError;
+  const canRetry = kind !== "not_found" && kind !== "unsupported";
+  const handleCopy = async () => {
+    if (!detail) return;
+    const text = `${detail.name}: ${detail.message}`;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      /* noop */
+    }
+  };
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <ShieldAlert className="h-6 w-6" />
+          </div>
+          <DialogTitle>{info.title}</DialogTitle>
+          <DialogDescription>{info.what}</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              O que fazer
+            </p>
+            <ol className="space-y-2 text-sm">
+              {info.fix.map((step, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-bold text-primary">
+                    {i + 1}
+                  </span>
+                  <span className="leading-snug">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          {detail && (
+            <div className="rounded-lg border border-border bg-muted/40 p-3">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Detalhe técnico
+                </p>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="flex items-center gap-1 rounded px-2 py-0.5 text-[11px] text-muted-foreground transition hover:bg-background hover:text-foreground"
+                >
+                  <Copy className="h-3 w-3" /> Copiar
+                </button>
+              </div>
+              <p className="break-all font-mono text-xs text-foreground">
+                {detail.name}
+              </p>
+              {detail.message && (
+                <p className="mt-1 break-words font-mono text-[11px] text-muted-foreground">
+                  {detail.message}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Fechar
+          </Button>
+          {canRetry && (
+            <Button type="button" onClick={onRetry}>
+              <Camera className="mr-2 h-4 w-4" /> Tentar novamente
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function IframeWarning({ insecure }: { insecure: boolean }) {
