@@ -25,6 +25,7 @@ import {
 import {
   sendPhoneVerification,
   verifyPhoneCode,
+  pollPhoneVerification,
 } from "@/server/phone.functions";
 import { syncRegistration } from "@/server/controlid.functions";
 import { getDeviceFingerprint } from "@/lib/fingerprint";
@@ -85,6 +86,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
   const checkExisting = useServerFn(checkExistingRegistration);
   const sendVerification = useServerFn(sendPhoneVerification);
   const verifyCode = useServerFn(verifyPhoneCode);
+  const pollVerification = useServerFn(pollPhoneVerification);
 
   // WhatsApp verification state
   const [verificationStatus, setVerificationStatus] = useState<
@@ -104,6 +106,31 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
     const t = setInterval(() => setResendIn((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
   }, [resendIn]);
+
+  // Poll for one-tap WhatsApp button verification while a code is pending.
+  useEffect(() => {
+    if (verificationStatus !== "sent" && verificationStatus !== "verifying") return;
+    if (!phone) return;
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      try {
+        const res = await pollVerification({ data: { phone } });
+        if (cancelled) return;
+        if (res.verified) {
+          setVerificationStatus("verified");
+          setVerifiedPhone(phone);
+          setVerifyError(null);
+          toast.success("WhatsApp verificado automaticamente!");
+        }
+      } catch {
+        /* keep polling silently */
+      }
+    }, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [verificationStatus, phone, pollVerification]);
 
   // Reset verification when phone changes
   useEffect(() => {
@@ -635,6 +662,19 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                     {(verificationStatus === "sent" ||
                       verificationStatus === "verifying") && (
                       <div className="mt-3 space-y-2">
+                        <div className="rounded-lg border border-emerald-500/30 bg-white/70 p-2.5 text-[11px] leading-relaxed text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+                          <div className="flex items-start gap-1.5">
+                            <Loader2 className="mt-0.5 h-3 w-3 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
+                            <p>
+                              Mensagem enviada! Toque em{" "}
+                              <span className="font-semibold">✅ Já verifiquei</span>{" "}
+                              dentro do WhatsApp para confirmar automaticamente — ou
+                              use{" "}
+                              <span className="font-semibold">📋 Copiar código</span>{" "}
+                              e cole abaixo.
+                            </p>
+                          </div>
+                        </div>
                         <Label htmlFor="otp" className="text-xs font-medium">
                           Código recebido no WhatsApp
                         </Label>
