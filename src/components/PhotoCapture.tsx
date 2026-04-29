@@ -834,6 +834,14 @@ function CameraFullscreen({
               </span>
             </div>
             <div className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-warning text-warning-foreground text-xs font-bold">
+                ~
+              </span>
+              <span>
+                Oval <strong>amarelo</strong>: quase lá, pequenos ajustes
+              </span>
+            </div>
+            <div className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                 <Check className="h-4 w-4" strokeWidth={3} />
               </span>
