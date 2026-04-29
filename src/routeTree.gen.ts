@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as RSlugRouteImport } from './routes/r.$slug'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminDevicesRouteImport } from './routes/admin.devices'
 import { Route as AdminRegistrationsIndexRouteImport } from './routes/admin.registrations.index'
 import { Route as AdminRegistrationsIdRouteImport } from './routes/admin.registrations.$id'
 
@@ -31,9 +33,19 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const RSlugRoute = RSlugRouteImport.update({
+  id: '/r/$slug',
+  path: '/r/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDevicesRoute = AdminDevicesRouteImport.update({
+  id: '/devices',
+  path: '/devices',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminRegistrationsIndexRoute = AdminRegistrationsIndexRouteImport.update({
@@ -50,14 +62,18 @@ const AdminRegistrationsIdRoute = AdminRegistrationsIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/admin/devices': typeof AdminDevicesRoute
   '/admin/login': typeof AdminLoginRoute
+  '/r/$slug': typeof RSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
   '/admin/registrations/': typeof AdminRegistrationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/devices': typeof AdminDevicesRoute
   '/admin/login': typeof AdminLoginRoute
+  '/r/$slug': typeof RSlugRoute
   '/admin': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
   '/admin/registrations': typeof AdminRegistrationsIndexRoute
@@ -66,7 +82,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/admin/devices': typeof AdminDevicesRoute
   '/admin/login': typeof AdminLoginRoute
+  '/r/$slug': typeof RSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
   '/admin/registrations/': typeof AdminRegistrationsIndexRoute
@@ -76,14 +94,18 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/admin/devices'
     | '/admin/login'
+    | '/r/$slug'
     | '/admin/'
     | '/admin/registrations/$id'
     | '/admin/registrations/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin/devices'
     | '/admin/login'
+    | '/r/$slug'
     | '/admin'
     | '/admin/registrations/$id'
     | '/admin/registrations'
@@ -91,7 +113,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/admin/devices'
     | '/admin/login'
+    | '/r/$slug'
     | '/admin/'
     | '/admin/registrations/$id'
     | '/admin/registrations/'
@@ -100,6 +124,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  RSlugRoute: typeof RSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -125,11 +150,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/r/$slug': {
+      id: '/r/$slug'
+      path: '/r/$slug'
+      fullPath: '/r/$slug'
+      preLoaderRoute: typeof RSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/login': {
       id: '/admin/login'
       path: '/login'
       fullPath: '/admin/login'
       preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/devices': {
+      id: '/admin/devices'
+      path: '/devices'
+      fullPath: '/admin/devices'
+      preLoaderRoute: typeof AdminDevicesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/registrations/': {
@@ -150,6 +189,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminDevicesRoute: typeof AdminDevicesRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminRegistrationsIdRoute: typeof AdminRegistrationsIdRoute
@@ -157,6 +197,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminDevicesRoute: AdminDevicesRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminRegistrationsIdRoute: AdminRegistrationsIdRoute,
@@ -168,6 +209,7 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  RSlugRoute: RSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

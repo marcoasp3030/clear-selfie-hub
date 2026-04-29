@@ -13,7 +13,7 @@ import { checkAdminAccess } from "@/server/admin.functions";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
-import { LayoutDashboard, Users, LogOut, Loader2, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, Loader2, ShieldAlert, Cpu } from "lucide-react";
 import { toast } from "sonner";
 import nutricarLogo from "@/assets/nutricar-logo.png";
 
@@ -149,6 +149,17 @@ function AdminLayout() {
             >
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Cadastros</span>
+            </Link>
+            <Link
+              to="/admin/devices"
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                path.startsWith("/admin/devices")
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <Cpu className="h-4 w-4" />
+              <span className="hidden sm:inline">Equipamentos</span>
             </Link>
             <button
               onClick={handleLogout}

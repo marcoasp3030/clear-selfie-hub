@@ -52,7 +52,11 @@ const STEPS = [
   { label: "Dados", icon: UserRound },
 ] as const;
 
-export function RegistrationForm() {
+interface RegistrationFormProps {
+  deviceId?: string;
+}
+
+export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
   const [step, setStep] = useState<Step>(0);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -109,6 +113,7 @@ export function RegistrationForm() {
           phone: result.data.phone,
           photoPath: path,
           deviceFingerprint: fingerprint,
+          deviceId: deviceId ?? null,
           userAgent: deviceInfo.userAgent,
           screenResolution: deviceInfo.screenResolution,
           language: deviceInfo.language,

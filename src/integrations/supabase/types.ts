@@ -14,11 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      devices: {
+        Row: {
+          api_base_url: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          api_base_url: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          api_base_url?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
       registrations: {
         Row: {
           created_at: string
           device_browser: string | null
           device_fingerprint: string | null
+          device_id: string | null
           device_language: string | null
           device_model: string | null
           device_os: string | null
@@ -40,6 +68,7 @@ export type Database = {
           created_at?: string
           device_browser?: string | null
           device_fingerprint?: string | null
+          device_id?: string | null
           device_language?: string | null
           device_model?: string | null
           device_os?: string | null
@@ -61,6 +90,7 @@ export type Database = {
           created_at?: string
           device_browser?: string | null
           device_fingerprint?: string | null
+          device_id?: string | null
           device_language?: string | null
           device_model?: string | null
           device_os?: string | null
@@ -78,7 +108,15 @@ export type Database = {
           screen_resolution?: string | null
           user_agent?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "registrations_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
