@@ -266,6 +266,7 @@ function CameraFullscreen({
   const lastTsRef = useRef(-1);
   const perfectSinceRef = useRef<number | null>(null);
   const countdownStartedRef = useRef(false);
+  const captureTakenRef = useRef(false);
   const detectingRef = useRef(false);
 
   useEffect(() => {
@@ -310,14 +311,24 @@ function CameraFullscreen({
   // We mirror the saved image to match what the user saw on screen
   // (the video is displayed mirrored like a selfie/mirror).
   const doCapture = () => {
+    if (captureTakenRef.current) return;
+    captureTakenRef.current = true;
+    countdownStartedRef.current = false;
+    perfectSinceRef.current = null;
     const video = videoRef.current;
-    if (!video) return;
+    if (!video) {
+      captureTakenRef.current = false;
+      return;
+    }
     const canvas = document.createElement("canvas");
     const size = Math.min(video.videoWidth, video.videoHeight);
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      captureTakenRef.current = false;
+      return;
+    }
     const sx = (video.videoWidth - size) / 2;
     const sy = (video.videoHeight - size) / 2;
     // Mirror horizontally so output matches the on-screen preview
@@ -326,7 +337,10 @@ function CameraFullscreen({
     ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
     canvas.toBlob(
       (blob) => {
-        if (!blob) return;
+        if (!blob) {
+          captureTakenRef.current = false;
+          return;
+        }
         const file = new File([blob], `foto-${Date.now()}.jpg`, { type: "image/jpeg" });
         // Flash + vibration feedback
         setFlash(true);
@@ -514,7 +528,11 @@ function CameraFullscreen({
         // If the face stops being "perfect" at any moment (including during
         // the countdown), abort and require a fresh perfect hold.
         const now = performance.now();
-        if (next === "perfect") {
+        if (captureTakenRef.current) {
+          perfectSinceRef.current = null;
+          countdownStartedRef.current = false;
+          setCountdown(null);
+        } else if (next === "perfect") {
           if (perfectSinceRef.current === null) perfectSinceRef.current = now;
           if (
             !countdownStartedRef.current &&
@@ -558,6 +576,14 @@ function CameraFullscreen({
 
   const isPerfect = status === "perfect";
   const showReview = !!pendingFile && !!previewUrl;
+
+  const handleRetake = () => {
+    captureTakenRef.current = false;
+    countdownStartedRef.current = false;
+    perfectSinceRef.current = null;
+    setCountdown(null);
+    onRetake();
+  };
 
   const ovalColorClass = showReview
     ? "border-primary"
@@ -712,7 +738,7 @@ function CameraFullscreen({
               type="button"
               variant="outline"
               size="lg"
-              onClick={onRetake}
+              onClick={handleRetake}
               className="h-14 flex-1 border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white"
             >
               <RefreshCw className="mr-2 h-5 w-5" /> Tirar outra
