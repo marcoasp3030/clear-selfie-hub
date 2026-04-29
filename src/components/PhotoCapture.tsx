@@ -506,7 +506,9 @@ function CameraFullscreen({
 
         if (next !== statusRef.current) setStatus(next);
 
-        // Auto-capture: trigger countdown after staying "perfect" for ~700ms
+        // Auto-capture: trigger countdown after staying "perfect" for ~700ms.
+        // If the face stops being "perfect" at any moment (including during
+        // the countdown), abort and require a fresh perfect hold.
         const now = performance.now();
         if (next === "perfect") {
           if (perfectSinceRef.current === null) perfectSinceRef.current = now;
