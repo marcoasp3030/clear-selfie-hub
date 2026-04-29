@@ -16,6 +16,7 @@ import {
   EyeOff,
   AlertTriangle,
   ShieldAlert,
+  ExternalLink,
 } from "lucide-react";
 import { getFaceLandmarker, KEY_LANDMARKS } from "@/lib/faceDetector";
 
@@ -80,6 +81,23 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
   const [errorKind, setErrorKind] = useState<
     "denied" | "not_found" | "in_use" | "unsupported" | "generic" | null
   >(null);
+  const [inIframe, setInIframe] = useState(false);
+  const [insecure, setInsecure] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      setInIframe(window.top !== window.self);
+    } catch {
+      // Cross-origin access throws — that itself means we're in an iframe
+      setInIframe(true);
+    }
+    setInsecure(
+      !window.isSecureContext &&
+        window.location.hostname !== "localhost" &&
+        window.location.hostname !== "127.0.0.1",
+    );
+  }, []);
 
   useEffect(() => {
     if (!value) {
@@ -295,6 +313,10 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
             onRetry={startCamera}
             retrying={starting}
           />
+        )}
+
+        {!error && !previewUrl && (inIframe || insecure) && (
+          <IframeWarning insecure={insecure} />
         )}
 
         {previewUrl && (
