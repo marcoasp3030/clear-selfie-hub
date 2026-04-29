@@ -15,6 +15,7 @@ import {
   Users,
   EyeOff,
   AlertTriangle,
+  ShieldAlert,
 } from "lucide-react";
 import { getFaceLandmarker, KEY_LANDMARKS } from "@/lib/faceDetector";
 
@@ -64,6 +65,9 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<
+    "denied" | "not_found" | "in_use" | "unsupported" | "generic" | null
+  >(null);
 
   useEffect(() => {
     if (!value) {
@@ -93,6 +97,7 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
 
   const startCamera = async () => {
     setError(null);
+    setErrorKind(null);
     setStarting(true);
     setPendingFile(null);
 
@@ -100,6 +105,7 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
       setError(
         "Seu navegador não suporta acesso à câmera. Use o Safari (iPhone) ou Chrome (Android) atualizado.",
       );
+      setErrorKind("unsupported");
       setStarting(false);
       return;
     }
@@ -133,15 +139,20 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
       const e = err as DOMException;
       let msg =
         "Não foi possível acessar a câmera. Verifique as permissões nas configurações do navegador.";
+      let kind: "denied" | "not_found" | "in_use" | "generic" = "generic";
       if (e?.name === "NotAllowedError" || e?.name === "PermissionDeniedError") {
         msg =
           "Permissão da câmera negada. Toque no ícone de cadeado/câmera na barra de endereço para permitir o acesso.";
+        kind = "denied";
       } else if (e?.name === "NotFoundError" || e?.name === "DevicesNotFoundError") {
         msg = "Nenhuma câmera encontrada no dispositivo.";
+        kind = "not_found";
       } else if (e?.name === "NotReadableError") {
         msg = "A câmera está sendo usada por outro aplicativo. Feche-o e tente novamente.";
+        kind = "in_use";
       }
       setError(msg);
+      setErrorKind(kind);
     } finally {
       setStarting(false);
     }
@@ -217,7 +228,12 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
         </div>
 
         {error && (
-          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+          <CameraPermissionHelp
+            kind={errorKind}
+            message={error}
+            onRetry={startCamera}
+            retrying={starting}
+          />
         )}
 
         {previewUrl && (
@@ -986,4 +1002,127 @@ function dist(a: Pt, b: Pt): number {
 
 function midPoint(a: Pt, b: Pt): Pt {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+// ---- Camera permission helper UI ----
+function detectPlatform(): "ios" | "android" | "desktop" {
+  if (typeof navigator === "undefined") return "desktop";
+  const ua = navigator.userAgent || "";
+  if (/iPhone|iPad|iPod/i.test(ua)) return "ios";
+  if (/Android/i.test(ua)) return "android";
+  return "desktop";
+}
+
+interface CameraPermissionHelpProps {
+  kind: "denied" | "not_found" | "in_use" | "unsupported" | "generic" | null;
+  message: string;
+  onRetry: () => void;
+  retrying: boolean;
+}
+
+function CameraPermissionHelp({ kind, message, onRetry, retrying }: CameraPermissionHelpProps) {
+  const platform = detectPlatform();
+  const isDenied = kind === "denied";
+  const isInUse = kind === "in_use";
+  const isNotFound = kind === "not_found";
+  const isUnsupported = kind === "unsupported";
+
+  const title = isDenied
+    ? "Permita o acesso à câmera"
+    : isInUse
+      ? "Câmera em uso"
+      : isNotFound
+        ? "Câmera não encontrada"
+        : isUnsupported
+          ? "Navegador não suportado"
+          : "Não foi possível abrir a câmera";
+
+  const steps: string[] = isDenied
+    ? platform === "ios"
+      ? [
+          "Toque no ícone “aA” na barra de endereço do Safari",
+          "Selecione “Ajustes do site”",
+          "Em “Câmera”, escolha Permitir",
+          "Volte aqui e toque em Ativar câmera",
+        ]
+      : platform === "android"
+        ? [
+            "Toque no ícone de cadeado 🔒 na barra de endereço",
+            "Toque em Permissões",
+            "Ative a Câmera",
+            "Volte aqui e toque em Ativar câmera",
+          ]
+        : [
+            "Clique no ícone de cadeado 🔒 na barra de endereço",
+            "Em Câmera, selecione Permitir",
+            "Recarregue a página, se necessário",
+            "Clique em Ativar câmera",
+          ]
+    : isInUse
+      ? [
+          "Feche outros aplicativos que estejam usando a câmera",
+          "Feche outras abas do navegador com chamadas de vídeo",
+          "Toque em Ativar câmera novamente",
+        ]
+      : isNotFound
+        ? [
+            "Verifique se o dispositivo tem uma câmera frontal",
+            "Conecte uma webcam, se estiver no computador",
+            "Toque em Ativar câmera novamente",
+          ]
+        : isUnsupported
+          ? [
+              "Use o Safari (iPhone) ou o Chrome (Android) atualizado",
+              "Evite navegadores embutidos do Instagram, Facebook ou TikTok",
+              "Abra o link em outro navegador",
+            ]
+          : [
+              "Verifique sua conexão e permissões",
+              "Toque em Ativar câmera para tentar novamente",
+            ];
+
+  return (
+    <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-destructive">
+          <ShieldAlert className="h-5 w-5" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-foreground">{title}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{message}</p>
+        </div>
+      </div>
+
+      <ol className="mt-3 space-y-1.5 pl-1 text-xs text-foreground/80">
+        {steps.map((s, i) => (
+          <li key={i} className="flex gap-2">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
+              {i + 1}
+            </span>
+            <span className="leading-tight">{s}</span>
+          </li>
+        ))}
+      </ol>
+
+      {!isUnsupported && !isNotFound && (
+        <Button
+          type="button"
+          onClick={onRetry}
+          disabled={retrying}
+          className="mt-4 h-12 w-full text-base"
+          size="lg"
+        >
+          {retrying ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Abrindo câmera...
+            </>
+          ) : (
+            <>
+              <Camera className="mr-2 h-5 w-5" /> Ativar câmera
+            </>
+          )}
+        </Button>
+      )}
+    </div>
+  );
 }
