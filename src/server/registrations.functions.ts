@@ -104,11 +104,13 @@ export const createRegistration = createServerFn({ method: "POST" })
         : null,
     });
 
-    const { error: insertError } = await supabaseAdmin
+    const { data: inserted, error: insertError } = await supabaseAdmin
       .from("registrations")
-      .insert(insertPayload);
+      .insert(insertPayload)
+      .select("id")
+      .single();
 
-    if (insertError) {
+    if (insertError || !inserted) {
       console.error("Insert failed:", insertError);
       await supabaseAdmin.storage
         .from("registration-photos")
@@ -116,5 +118,5 @@ export const createRegistration = createServerFn({ method: "POST" })
       return { success: false as const, error: "insert_failed" as const };
     }
 
-    return { success: true as const };
+    return { success: true as const, registrationId: inserted.id };
   });
