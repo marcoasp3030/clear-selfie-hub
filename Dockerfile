@@ -10,6 +10,15 @@ RUN bun install --frozen-lockfile || bun install
 
 # Copy source and build for Node (no Cloudflare plugin)
 COPY . .
+
+# ----- Build-time env (Vite inlines VITE_* into the client bundle) -----
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_PUBLISHABLE_KEY
+ARG VITE_SUPABASE_PROJECT_ID
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+ENV VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
+
 ENV DEPLOY_TARGET=node
 ENV NODE_ENV=production
 RUN bun run build
