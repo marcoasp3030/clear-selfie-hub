@@ -19,6 +19,53 @@ const registrationSchema = z.object({
   platform: z.string().trim().max(64).optional().default(""),
 });
 
+const checkExistingSchema = z.object({
+  cpf: z.string().trim().regex(/^\d{11}$/, "CPF must be 11 digits").optional(),
+  phone: z.string().trim().min(10).max(20).optional(),
+  deviceFingerprint: z.string().trim().min(8).max(128).optional(),
+});
+
+export const checkExistingRegistration = createServerFn({ method: "POST" })
+  .inputValidator((input) => checkExistingSchema.parse(input))
+  .handler(async ({ data }) => {
+    if (!data.cpf && !data.phone && !data.deviceFingerprint) {
+      return { exists: false as const };
+    }
+
+    const filters: string[] = [];
+    if (data.cpf) filters.push(`cpf.eq.${data.cpf}`);
+    if (data.phone) filters.push(`phone.eq.${data.phone}`);
+    if (data.deviceFingerprint)
+      filters.push(`device_fingerprint.eq.${data.deviceFingerprint}`);
+
+    const { data: row, error } = await supabaseAdmin
+      .from("registrations")
+      .select("id, cpf, phone, device_fingerprint, first_name, last_name, created_at")
+      .or(filters.join(","))
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error("checkExistingRegistration failed:", error);
+      return { exists: false as const };
+    }
+
+    if (!row) return { exists: false as const };
+
+    let matchedBy: "cpf" | "phone" | "device" = "device";
+    if (data.cpf && row.cpf === data.cpf) matchedBy = "cpf";
+    else if (data.phone && row.phone === data.phone) matchedBy = "phone";
+
+    return {
+      exists: true as const,
+      matchedBy,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      createdAt: row.created_at,
+    };
+  });
+
 export const createRegistration = createServerFn({ method: "POST" })
   .inputValidator((input) => registrationSchema.parse(input))
   .handler(async ({ data }) => {

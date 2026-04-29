@@ -16,7 +16,10 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
-import { createRegistration } from "@/server/registrations.functions";
+import {
+  createRegistration,
+  checkExistingRegistration,
+} from "@/server/registrations.functions";
 import { syncRegistration } from "@/server/controlid.functions";
 import { getDeviceFingerprint } from "@/lib/fingerprint";
 import { collectClientDeviceInfo } from "@/lib/deviceInfo";
@@ -60,8 +63,20 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
   const [photo, setPhoto] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [duplicateInfo, setDuplicateInfo] = useState<{
+    matchedBy: "cpf" | "phone" | "device";
+    firstName: string;
+    lastName: string;
+  } | null>(null);
+  const [syncStatus, setSyncStatus] = useState<
+    | { state: "pending" }
+    | { state: "success"; deviceUserId: number }
+    | { state: "error"; message: string }
+    | null
+  >(null);
   const submitRegistration = useServerFn(createRegistration);
   const triggerSync = useServerFn(syncRegistration);
+  const checkExisting = useServerFn(checkExistingRegistration);
 
   const goPhoto = () => {
     if (!photo) {
@@ -74,6 +89,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
 
   const submit = async () => {
     setErrors({});
+    setDuplicateInfo(null);
     const result = schema.safeParse({ firstName, lastName, phone, cpf });
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
@@ -94,6 +110,33 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
     try {
       const fingerprint = await getDeviceFingerprint();
       const deviceInfo = collectClientDeviceInfo();
+      const cpfDigits = onlyDigits(result.data.cpf);
+      const phoneDigits = onlyDigits(result.data.phone);
+
+      // Pre-check: warn the user if CPF / phone / device is already registered
+      const existing = await checkExisting({
+        data: {
+          cpf: cpfDigits,
+          phone: phoneDigits,
+          deviceFingerprint: fingerprint,
+        },
+      });
+
+      if (existing.exists) {
+        setDuplicateInfo({
+          matchedBy: existing.matchedBy,
+          firstName: existing.firstName,
+          lastName: existing.lastName,
+        });
+        const reasonMsg =
+          existing.matchedBy === "cpf"
+            ? "Este CPF já está cadastrado."
+            : existing.matchedBy === "phone"
+              ? "Este celular já está cadastrado."
+              : "Este dispositivo já realizou um cadastro.";
+        toast.error(reasonMsg);
+        return;
+      }
 
       const ext = photo.name.split(".").pop()?.toLowerCase() || "jpg";
       const path = `${crypto.randomUUID()}.${ext}`;
@@ -108,7 +151,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
           firstName: result.data.firstName,
           lastName: result.data.lastName,
           phone: result.data.phone,
-          cpf: onlyDigits(result.data.cpf),
+          cpf: cpfDigits,
           photoPath: path,
           deviceFingerprint: fingerprint,
           deviceId: deviceId ?? null,
@@ -122,6 +165,11 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
 
       if (!response.success) {
         if (response.error === "duplicate_device") {
+          setDuplicateInfo({
+            matchedBy: "device",
+            firstName: result.data.firstName,
+            lastName: result.data.lastName,
+          });
           toast.error(
             "Este dispositivo já realizou um cadastro. Apenas um cadastro por aparelho é permitido."
           );
@@ -131,15 +179,33 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
         return;
       }
 
+      // Move to success screen and wait for the device sync response
       setStep(2);
-      toast.success("Cadastro enviado!");
 
-      // Fire-and-forget sync to the Control iD device. Errors are recorded on the
-      // registration row and an admin can retry from the admin panel.
       if (deviceId && response.registrationId) {
-        triggerSync({ data: { registrationId: response.registrationId } }).catch(
-          (err) => console.warn("Control iD sync failed:", err),
-        );
+        setSyncStatus({ state: "pending" });
+        try {
+          const syncRes = await triggerSync({
+            data: { registrationId: response.registrationId },
+          });
+          if (syncRes.success) {
+            setSyncStatus({
+              state: "success",
+              deviceUserId: syncRes.deviceUserId,
+            });
+          } else {
+            setSyncStatus({ state: "error", message: syncRes.error });
+          }
+        } catch (err) {
+          console.warn("Control iD sync failed:", err);
+          setSyncStatus({
+            state: "error",
+            message:
+              "Não foi possível confirmar o cadastro no equipamento. Um administrador poderá reenviar.",
+          });
+        }
+      } else {
+        setSyncStatus(null);
       }
     } catch (err) {
       console.error(err);
@@ -156,6 +222,8 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
     setCpf("");
     setPhoto(null);
     setErrors({});
+    setDuplicateInfo(null);
+    setSyncStatus(null);
     setStep(0);
   };
 
@@ -182,6 +250,46 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
           Obrigado, <span className="font-medium text-foreground">{firstName}</span>.
           Entraremos em contato pelo celular informado em breve.
         </p>
+
+        {syncStatus && (
+          <div
+            className={`mt-5 rounded-xl border p-4 text-left text-sm ${
+              syncStatus.state === "success"
+                ? "border-primary/30 bg-primary/5 text-foreground"
+                : syncStatus.state === "error"
+                  ? "border-destructive/30 bg-destructive/5 text-destructive"
+                  : "border-border bg-muted/40 text-muted-foreground"
+            }`}
+          >
+            {syncStatus.state === "pending" && (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Confirmando cadastro no equipamento...</span>
+              </div>
+            )}
+            {syncStatus.state === "success" && (
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <div>
+                  <p className="font-semibold">Cadastrado no equipamento</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    ID no aparelho:{" "}
+                    <span className="font-mono">{syncStatus.deviceUserId}</span>
+                  </p>
+                </div>
+              </div>
+            )}
+            {syncStatus.state === "error" && (
+              <div className="space-y-1">
+                <p className="font-semibold">
+                  Falha ao cadastrar no equipamento
+                </p>
+                <p className="text-xs leading-relaxed">{syncStatus.message}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         <Button
           onClick={reset}
           size="lg"
@@ -334,7 +442,10 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                 <Input
                   id="firstName"
                   value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
+                  onChange={(e) => {
+                    setFirstName(e.target.value);
+                    if (duplicateInfo) setDuplicateInfo(null);
+                  }}
                   placeholder="João"
                   maxLength={100}
                   autoComplete="given-name"
@@ -355,7 +466,10 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                 <Input
                   id="lastName"
                   value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
+                  onChange={(e) => {
+                    setLastName(e.target.value);
+                    if (duplicateInfo) setDuplicateInfo(null);
+                  }}
                   placeholder="Silva"
                   maxLength={100}
                   autoComplete="family-name"
@@ -377,7 +491,10 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                   id="phone"
                   inputMode="tel"
                   value={phone}
-                  onChange={(e) => setPhone(maskPhone(e.target.value))}
+                  onChange={(e) => {
+                    setPhone(maskPhone(e.target.value));
+                    if (duplicateInfo) setDuplicateInfo(null);
+                  }}
                   placeholder="(11) 91234-5678"
                   autoComplete="tel"
                   disabled={submitting}
@@ -396,7 +513,10 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                   id="cpf"
                   inputMode="numeric"
                   value={cpf}
-                  onChange={(e) => setCpf(maskCpf(e.target.value))}
+                  onChange={(e) => {
+                    setCpf(maskCpf(e.target.value));
+                    if (duplicateInfo) setDuplicateInfo(null);
+                  }}
                   placeholder="000.000.000-00"
                   autoComplete="off"
                   disabled={submitting}
@@ -408,6 +528,25 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
               </div>
             </div>
           </div>
+
+          {duplicateInfo && (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-200">
+              <p className="font-semibold">
+                {duplicateInfo.matchedBy === "cpf"
+                  ? "Este CPF já possui cadastro"
+                  : duplicateInfo.matchedBy === "phone"
+                    ? "Este celular já possui cadastro"
+                    : "Este dispositivo já realizou um cadastro"}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed">
+                Encontramos um cadastro existente em nome de{" "}
+                <span className="font-medium">
+                  {duplicateInfo.firstName} {duplicateInfo.lastName}
+                </span>
+                . Se precisar atualizar seus dados, fale com um administrador.
+              </p>
+            </div>
+          )}
 
           <div className="flex gap-3">
             <Button
@@ -425,7 +564,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
               onClick={submit}
               size="lg"
               className="h-14 flex-1 rounded-xl text-base font-semibold shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98]"
-              disabled={submitting}
+              disabled={submitting || !!duplicateInfo}
             >
               {submitting ? (
                 <>
