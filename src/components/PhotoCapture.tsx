@@ -602,13 +602,29 @@ function CameraFullscreen({
     onRetake();
   };
 
-  const ovalColorClass = showReview
-    ? "border-primary"
+  // 3-level severity:
+  // - "neutral": loading / searching (white)
+  // - "warning": minor adjust (yellow) — face detected but needs small fix
+  // - "error": critical (red) — no face, multiple faces, way off
+  // - "ok": perfect (green)
+  const severity: "neutral" | "warning" | "error" | "ok" = showReview
+    ? "ok"
     : isPerfect
-      ? "border-primary shadow-[0_0_0_2px_rgba(0,0,0,0.25),0_0_30px_6px_rgba(146,182,27,0.65)]"
+      ? "ok"
       : status === "loading" || status === "searching"
-        ? "border-white/70"
-        : "border-destructive shadow-[0_0_0_2px_rgba(0,0,0,0.25),0_0_24px_4px_rgba(220,60,60,0.5)]";
+        ? "neutral"
+        : status === "multiple" || status === "too_small" || status === "too_big"
+          ? "error"
+          : "warning";
+
+  const ovalColorClass =
+    severity === "ok"
+      ? "border-primary shadow-[0_0_0_2px_rgba(0,0,0,0.25),0_0_30px_6px_rgba(146,182,27,0.65)]"
+      : severity === "warning"
+        ? "border-warning shadow-[0_0_0_2px_rgba(0,0,0,0.25),0_0_24px_4px_rgba(230,180,40,0.55)]"
+        : severity === "error"
+          ? "border-destructive shadow-[0_0_0_2px_rgba(0,0,0,0.25),0_0_24px_4px_rgba(220,60,60,0.5)]"
+          : "border-white/70";
 
   const directionIcon =
     status === "move_up"
@@ -702,9 +718,15 @@ function CameraFullscreen({
                 countdown === null &&
                 (() => {
                   const Icon = directionIcon;
+                  const badgeClass =
+                    severity === "warning"
+                      ? "bg-warning/95 text-warning-foreground"
+                      : "bg-destructive/90 text-destructive-foreground";
                   return (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/90 text-destructive-foreground shadow-lg animate-bounce">
+                      <div
+                        className={`flex h-16 w-16 items-center justify-center rounded-full ${badgeClass} shadow-lg animate-bounce`}
+                      >
                         <Icon className="h-8 w-8" strokeWidth={3} />
                       </div>
                     </div>
@@ -734,11 +756,13 @@ function CameraFullscreen({
           <div className="absolute bottom-6 left-4 right-4 flex justify-center">
             <div
               className={`flex max-w-sm items-center gap-3 rounded-2xl px-4 py-3 shadow-xl backdrop-blur transition-colors ${
-                isPerfect
+                severity === "ok"
                   ? "bg-primary text-primary-foreground"
-                  : status === "loading" || status === "searching"
-                    ? "bg-black/70 text-white"
-                    : "bg-destructive text-destructive-foreground"
+                  : severity === "warning"
+                    ? "bg-warning text-warning-foreground"
+                    : severity === "error"
+                      ? "bg-destructive text-destructive-foreground"
+                      : "bg-black/70 text-white"
               }`}
             >
               {status === "loading" && <Loader2 className="h-5 w-5 shrink-0 animate-spin" />}
