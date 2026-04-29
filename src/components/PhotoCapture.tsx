@@ -1437,7 +1437,7 @@ const ERROR_EXPLAIN: Record<
   },
 };
 
-function CameraErrorDialog({
+const CameraErrorDialog = ({
   open,
   onOpenChange,
   detail,
@@ -1449,7 +1449,7 @@ function CameraErrorDialog({
   detail: { name: string; message: string } | null;
   kind: "denied" | "not_found" | "in_use" | "unsupported" | "generic" | null;
   onRetry: () => void;
-}) {
+}) => {
   const info = (detail && ERROR_EXPLAIN[detail.name]) || ERROR_EXPLAIN.UnknownError;
   const canRetry = kind !== "not_found" && kind !== "unsupported";
   const handleCopy = async () => {
@@ -1528,7 +1528,7 @@ function CameraErrorDialog({
       </DialogContent>
     </Dialog>
   );
-}
+};
 
 function IframeWarning({ insecure }: { insecure: boolean }) {
   const openInNewTab = () => {
