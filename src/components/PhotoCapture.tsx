@@ -860,6 +860,24 @@ function CameraFullscreen({
               </mask>
             </defs>
             <rect width="100" height="100" fill="rgba(0,0,0,0.55)" mask="url(#face-mask)" />
+            {/* Safe-margin frame: shows the recommended outer bounds */}
+            <rect
+              x="10"
+              y="6"
+              width="80"
+              height="88"
+              fill="none"
+              stroke="rgba(255,255,255,0.25)"
+              strokeWidth="0.3"
+              strokeDasharray="2 2"
+              rx="4"
+            />
+            {/* Center crosshair guides */}
+            <line x1="50" y1="46" x2="50" y2="58" stroke="rgba(255,255,255,0.55)" strokeWidth="0.3" />
+            <line x1="44" y1="52" x2="56" y2="52" stroke="rgba(255,255,255,0.55)" strokeWidth="0.3" />
+            {/* Rule-of-thirds light hints inside oval */}
+            <line x1="50" y1="36" x2="50" y2="40" stroke="rgba(255,255,255,0.4)" strokeWidth="0.25" />
+            <line x1="50" y1="64" x2="50" y2="68" stroke="rgba(255,255,255,0.4)" strokeWidth="0.25" />
           </svg>
         )}
 
