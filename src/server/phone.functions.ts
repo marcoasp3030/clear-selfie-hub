@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeader, getRequestIP } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { createHash, randomInt, randomBytes, timingSafeEqual } from "crypto";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "./supabaseAdmin.server";
 import { uazFetch } from "./uazapi.server";
 
 const RESEND_COOLDOWN_SECONDS = 30;

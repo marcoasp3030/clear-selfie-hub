@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "./supabaseAdmin.server";
 import { assertAdminAccess } from "./admin.functions";
 
 const DIAGNOSTIC_IDS = [
