@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Camera,
   RefreshCw,
   X,
@@ -17,6 +25,7 @@ import {
   AlertTriangle,
   ShieldAlert,
   ExternalLink,
+  Copy,
 } from "lucide-react";
 import { getFaceLandmarker, KEY_LANDMARKS } from "@/lib/faceDetector";
 
@@ -81,6 +90,11 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
   const [errorKind, setErrorKind] = useState<
     "denied" | "not_found" | "in_use" | "unsupported" | "generic" | null
   >(null);
+  const [errorDetail, setErrorDetail] = useState<{
+    name: string;
+    message: string;
+  } | null>(null);
+  const [errorOpen, setErrorOpen] = useState(false);
   const [inIframe, setInIframe] = useState(false);
   const [insecure, setInsecure] = useState(false);
 
