@@ -114,13 +114,26 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
     setPendingFile(null);
 
     if (!navigator.mediaDevices?.getUserMedia) {
+      const isInsecure =
+        typeof window !== "undefined" &&
+        window.location.protocol !== "https:" &&
+        window.location.hostname !== "localhost";
       setError(
-        "Seu navegador não suporta acesso à câmera. Use o Safari (iPhone) ou Chrome (Android) atualizado.",
+        isInsecure
+          ? "A câmera só funciona em conexões seguras (HTTPS). Acesse esta página por HTTPS."
+          : "Seu navegador não suporta acesso à câmera. Use o Safari (iPhone) ou Chrome (Android) atualizado.",
       );
       setErrorKind("unsupported");
       setStarting(false);
       return;
     }
+
+    console.log("[camera] startCamera invoked", {
+      protocol: window.location.protocol,
+      host: window.location.host,
+      isSecureContext: window.isSecureContext,
+      inIframe: window.top !== window.self,
+    });
 
     try {
       const s = await navigator.mediaDevices.getUserMedia({
@@ -131,6 +144,7 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
         },
         audio: false,
       });
+      console.log("[camera] stream acquired", s.getVideoTracks().map((t) => t.label));
       setStream(s);
       setCameraOn(true);
       setTimeout(() => {
@@ -149,12 +163,18 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
       }, 50);
     } catch (err) {
       const e = err as DOMException;
+      console.error("[camera] getUserMedia failed", e?.name, e?.message, e);
       let msg =
         "Não foi possível acessar a câmera. Verifique as permissões nas configurações do navegador.";
       let kind: "denied" | "not_found" | "in_use" | "generic" = "generic";
       if (e?.name === "NotAllowedError" || e?.name === "PermissionDeniedError") {
-        msg =
-          "Permissão da câmera negada. Toque no ícone de cadeado/câmera na barra de endereço para permitir o acesso.";
+        // SecurityError-like denial inside an iframe without allow="camera"
+        // surfaces as NotAllowedError in some browsers — give a clearer hint.
+        const inIframe =
+          typeof window !== "undefined" && window.top !== window.self;
+        msg = inIframe
+          ? "Permissão da câmera negada. Abra esta página em uma aba nova (não dentro de outro app) e permita o acesso à câmera."
+          : "Permissão da câmera negada. Toque no ícone de cadeado/câmera na barra de endereço para permitir o acesso.";
         kind = "denied";
       } else if (e?.name === "NotFoundError" || e?.name === "DevicesNotFoundError") {
         msg = "Nenhuma câmera encontrada no dispositivo.";
@@ -162,6 +182,35 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
       } else if (e?.name === "NotReadableError") {
         msg = "A câmera está sendo usada por outro aplicativo. Feche-o e tente novamente.";
         kind = "in_use";
+      } else if (e?.name === "SecurityError") {
+        msg =
+          "O navegador bloqueou o acesso à câmera. Abra esta página em HTTPS e fora de iframes para liberar.";
+        kind = "denied";
+      } else if (e?.name === "OverconstrainedError") {
+        // Try again with a much simpler constraint
+        try {
+          const s2 = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
+          console.log("[camera] fallback stream acquired");
+          setStream(s2);
+          setCameraOn(true);
+          setTimeout(() => {
+            const v = videoRef.current;
+            if (v) {
+              v.srcObject = s2;
+              v.setAttribute("playsinline", "true");
+              v.setAttribute("webkit-playsinline", "true");
+              v.muted = true;
+              v.play().catch(() => {});
+            }
+          }, 50);
+          setStarting(false);
+          return;
+        } catch {
+          msg = "A câmera deste dispositivo não suporta os requisitos solicitados.";
+        }
       }
       setError(msg);
       setErrorKind(kind);
