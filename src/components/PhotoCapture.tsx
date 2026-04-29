@@ -1280,14 +1280,6 @@ function IframeWarning({ insecure }: { insecure: boolean }) {
   );
 }
 
-function _detectPlatformDup(): "ios" | "android" | "desktop" {
-  if (typeof navigator === "undefined") return "desktop";
-  const ua = navigator.userAgent || "";
-  if (/iPhone|iPad|iPod/i.test(ua)) return "ios";
-  if (/Android/i.test(ua)) return "android";
-  return "desktop";
-}
-
 interface CameraPermissionHelpProps {
   kind: "denied" | "not_found" | "in_use" | "unsupported" | "generic" | null;
   message: string;
