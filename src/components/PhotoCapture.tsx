@@ -549,26 +549,18 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
           {previewUrl ? (
             <img src={previewUrl} alt="Pré-visualização" className="h-full w-full object-cover" />
           ) : (
-            <button
-              type="button"
-              onClick={startCamera}
-              disabled={starting}
-              className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center text-muted-foreground transition hover:bg-muted/60 active:bg-muted"
-            >
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 text-primary">
-                {starting ? (
-                  <Loader2 className="h-7 w-7 animate-spin" />
-                ) : (
-                  <Camera className="h-7 w-7" />
-                )}
+            <div className="pointer-events-none flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center text-muted-foreground">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <span className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
+                <Camera className="relative h-9 w-9" />
               </div>
               <div>
-                <p className="text-base font-medium text-foreground">
-                  {starting ? "Abrindo câmera..." : "Toque para abrir a câmera"}
+                <p className="text-base font-semibold text-foreground">
+                  Pronto para tirar sua foto?
                 </p>
-                <p className="mt-1 text-xs">A foto será tirada automaticamente</p>
+                <p className="mt-1 text-xs">A foto será capturada automaticamente</p>
               </div>
-            </button>
+            </div>
           )}
 
           {previewUrl && (
@@ -582,6 +574,28 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
             </button>
           )}
         </div>
+
+        {!previewUrl && (
+          <Button
+            type="button"
+            onClick={startCamera}
+            disabled={starting}
+            size="lg"
+            className="h-14 w-full rounded-xl text-base font-semibold shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98]"
+          >
+            {starting ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Abrindo câmera...
+              </>
+            ) : (
+              <>
+                <Camera className="mr-2 h-5 w-5" />
+                Abrir câmera
+              </>
+            )}
+          </Button>
+        )}
 
         {error && (
           <CameraPermissionHelp
