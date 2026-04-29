@@ -55,25 +55,53 @@ git pull
 docker compose up -d --build
 ```
 
-## 6. Colocar atrás de um domínio + HTTPS (recomendado)
+## 6. Colocar atrás do domínio `facial.nutricarbrasil.com.br` + HTTPS
 
-Use **Nginx** ou **Caddy** como proxy reverso. Exemplo com Caddy
-(`/etc/caddy/Caddyfile`):
+### 6.1 DNS
+
+No painel do seu registrador (onde está `nutricarbrasil.com.br`), crie um
+registro **A**:
+
+| Tipo | Nome     | Valor              | TTL  |
+|------|----------|--------------------|------|
+| A    | facial   | IP_PUBLICO_DA_VPS  | 3600 |
+
+Aguarde a propagação (verifique em https://dnschecker.org buscando
+`facial.nutricarbrasil.com.br`).
+
+### 6.2 Proxy reverso + SSL automático (recomendado: Caddy)
+
+Caddy é o caminho mais rápido — ele cuida do certificado Let's Encrypt sozinho.
+
+```bash
+sudo apt install -y caddy
+sudo nano /etc/caddy/Caddyfile
+```
+
+Conteúdo do `Caddyfile`:
 
 ```
-seu-dominio.com.br {
+facial.nutricarbrasil.com.br {
     reverse_proxy localhost:3000
 }
 ```
 
-O Caddy pega certificado SSL Let's Encrypt automaticamente.
+```bash
+sudo systemctl reload caddy
+```
 
-Exemplo equivalente com Nginx:
+Pronto. Acesse `https://facial.nutricarbrasil.com.br/` — o SSL é emitido
+automaticamente em poucos segundos.
+
+### 6.3 Alternativa com Nginx + Certbot
 
 ```nginx
+# /etc/nginx/sites-available/facial.nutricarbrasil.com.br
 server {
     listen 80;
-    server_name seu-dominio.com.br;
+    server_name facial.nutricarbrasil.com.br;
+
+    client_max_body_size 20M;   # uploads de foto
 
     location / {
         proxy_pass         http://127.0.0.1:3000;
@@ -88,14 +116,27 @@ server {
 }
 ```
 
-Depois rode `sudo certbot --nginx -d seu-dominio.com.br` para o SSL.
+```bash
+sudo ln -s /etc/nginx/sites-available/facial.nutricarbrasil.com.br \
+           /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d facial.nutricarbrasil.com.br
+```
+
+### 6.4 Firewall
+
+```bash
+sudo ufw allow 80
+sudo ufw allow 443
+# NÃO abra a 3000 publicamente — o proxy já cuida disso
+```
 
 ## 7. Webhook do uazapi
 
-Após colocar no domínio, configure o webhook do uazapi para:
+No painel do uazapi, configure o webhook para:
 
 ```
-https://seu-dominio.com.br/api/public/uazapi-webhook
+https://facial.nutricarbrasil.com.br/api/public/uazapi-webhook
 ```
 
 ## 8. Comandos úteis
