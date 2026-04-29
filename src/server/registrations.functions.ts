@@ -4,6 +4,13 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { parseUserAgent, lookupGeoFromIp } from "./deviceParser";
 
+function normalizePhoneE164(raw: string): string {
+  let digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  if (!digits.startsWith("55")) digits = `55${digits}`;
+  return digits;
+}
+
 const registrationSchema = z.object({
   firstName: z.string().trim().min(2).max(100),
   lastName: z.string().trim().min(2).max(100),
@@ -84,6 +91,29 @@ export const createRegistration = createServerFn({ method: "POST" })
       getRequestHeader("x-real-ip") ||
       getRequestHeader("x-forwarded-for")?.split(",")[0]?.trim() ||
       null;
+
+    // Phone must have been verified via WhatsApp before allowing the registration.
+    {
+      const phoneE164 = normalizePhoneE164(data.phone);
+      const { data: verif, error: verifErr } = await supabaseAdmin
+        .from("phone_verifications")
+        .select("verified_at")
+        .eq("phone", phoneE164)
+        .not("verified_at", "is", null)
+        .order("verified_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (verifErr) {
+        console.error("phone verification lookup failed:", verifErr);
+        return { success: false as const, error: "phone_not_verified" as const };
+      }
+      if (!verif?.verified_at) {
+        await supabaseAdmin.storage
+          .from("registration-photos")
+          .remove([data.photoPath]);
+        return { success: false as const, error: "phone_not_verified" as const };
+      }
+    }
 
     let ip: string | null = headerIp;
     if (!ip) {
