@@ -28,6 +28,7 @@ import {
   Copy,
 } from "lucide-react";
 import { getFaceLandmarker, KEY_LANDMARKS } from "@/lib/faceDetector";
+import { CameraDiagnostics } from "./CameraDiagnostics";
 
 interface PhotoCaptureProps {
   value: File | null;
@@ -652,6 +653,12 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
             message={error}
             onRetry={startCamera}
             retrying={starting}
+          />
+        )}
+
+        {error && (
+          <CameraDiagnostics
+            probeInUse={errorKind !== "denied" && errorKind !== "unsupported"}
           />
         )}
 
