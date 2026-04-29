@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
-  assertAdminAccess,
   checkIsAdminByAccessToken,
   deleteRegistrationById,
   getPhotoSignedUrlForPath,
@@ -10,8 +9,6 @@ import {
 } from "./admin.server";
 
 const accessTokenSchema = z.string().trim().min(1);
-
-export { assertAdminAccess } from "./admin.server";
 
 export const listRegistrations = createServerFn({ method: "POST" })
   .inputValidator(
