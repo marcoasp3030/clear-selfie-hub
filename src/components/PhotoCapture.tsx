@@ -303,6 +303,14 @@ function CameraFullscreen({
   const candidateRef = useRef<{ status: DetectionStatus; since: number } | null>(null);
   const blinkHistoryRef = useRef<number[]>([]); // recent blink scores (max eye)
   const eyesClosedConfirmedRef = useRef(false);
+  // Image quality (sharpness + lighting) sampled at low frequency
+  const qualityCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lastQualityTsRef = useRef(0);
+  const qualityRef = useRef<{
+    sharpness: number; // higher = sharper (Sobel mean magnitude)
+    brightness: number; // 0..255 mean luma over face region
+    lightUneven: number; // 0..1, |left_mean - right_mean| / 255
+  } | null>(null);
   // Smoothed geometry (EMA) to absorb landmark jitter
   const smoothRef = useRef<{
     faceWidthRatio: number;
@@ -504,8 +512,10 @@ function CameraFullscreen({
           const distance = Math.sqrt(dxScreen * dxScreen + dyNorm * dyNorm);
 
           const idealWidth = TARGET.rx * 2 * 0.95;
-          const minWidth = idealWidth * 0.6;
-          const maxWidth = idealWidth * 1.4;
+          // Tighter so face occupies a healthy share of the frame
+          // (engine recommends face well-centered with margins).
+          const minWidth = idealWidth * 0.7;
+          const maxWidth = idealWidth * 1.25;
 
           // ---- Anti-fraud / quality checks ----
           // 1. Head pose from transformation matrix (column-major 4x4)
@@ -600,10 +610,22 @@ function CameraFullscreen({
           }
           const sm = smoothRef.current!;
 
+          // ---- Sample image quality every ~250ms over the face bbox ----
+          if (ts - lastQualityTsRef.current > 250) {
+            lastQualityTsRef.current = ts;
+            try {
+              const q = analyzeFaceQuality(video, minX, minY, maxX, maxY, qualityCanvasRef);
+              if (q) qualityRef.current = q;
+            } catch {
+              /* noop */
+            }
+          }
+          const q = qualityRef.current;
+
           // ---- Status priority ----
           if (sm.faceWidthRatio < minWidth) next = "too_small";
           else if (sm.faceWidthRatio > maxWidth) next = "too_big";
-          else if (sm.distance > 0.55) {
+          else if (sm.distance > 0.4) {
             if (Math.abs(dyNorm) > Math.abs(dxScreen)) {
               next = dyNorm > 0 ? "move_up" : "move_down";
             } else {
@@ -611,12 +633,20 @@ function CameraFullscreen({
             }
           } else if (occluded) {
             next = "covered";
-          } else if (Math.abs(sm.yawDeg) > 18 || Math.abs(sm.pitchDeg) > 18) {
+          } else if (Math.abs(sm.yawDeg) > 12 || Math.abs(sm.pitchDeg) > 12) {
             next = "turned";
-          } else if (Math.abs(sm.rollDeg) > 15) {
+          } else if (Math.abs(sm.rollDeg) > 10) {
             next = "tilted";
           } else if (eyesClosed) {
             next = "eyes_closed";
+          } else if (q && q.brightness < 55) {
+            next = "too_dark";
+          } else if (q && q.brightness > 220) {
+            next = "too_bright";
+          } else if (q && q.lightUneven > 0.28) {
+            next = "uneven_light";
+          } else if (q && q.sharpness < 6) {
+            next = "blurry";
           } else {
             next = "perfect";
           }
