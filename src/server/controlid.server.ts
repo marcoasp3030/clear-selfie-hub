@@ -54,7 +54,6 @@ async function createUser(
   session: string,
   fullName: string,
   registration: string,
-  cpf: string,
 ): Promise<number | { error: string }> {
   const r = await fcgi<{ ids?: number[] }>(
     `${base}/create_objects.fcgi?session=${encodeURIComponent(session)}`,
@@ -64,7 +63,6 @@ async function createUser(
         {
           name: fullName,
           registration,
-          cpf,
           password: "",
           salt: "",
         },
@@ -178,9 +176,8 @@ export async function syncRegistrationToControlId(input: {
   //   - cpf          → CPF (campo nativo, 11 dígitos sem formatação)
   const fullName = `${input.firstName} ${input.lastName}`.slice(0, 100);
   const registration = (input.phone || "").slice(0, 64);
-  const cpf = (input.cpf || "").slice(0, 14);
 
-  const userId = await createUser(base, session, fullName, registration, cpf);
+  const userId = await createUser(base, session, fullName, registration);
   if (typeof userId !== "number") return { success: false, error: userId.error };
 
   const photoOk = await setUserImage(base, session, userId, input.imageBase64);
