@@ -70,12 +70,12 @@ export const listDevices = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ accessToken: accessTokenSchema }).parse(input))
   .handler(async ({ data }) => {
     await assertAdmin(data.accessToken);
-    const { data, error } = await supabaseAdmin
+    const { data: rows, error } = await supabaseAdmin
       .from("devices")
       .select("id,name,slug,api_base_url,created_at")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return { devices: (data ?? []) as DeviceRow[] };
+    return { devices: (rows ?? []) as DeviceRow[] };
   });
 
 export const createDevice = createServerFn({ method: "POST" })
