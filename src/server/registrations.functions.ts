@@ -115,10 +115,21 @@ export const createRegistration = createServerFn({ method: "POST" })
       parsed,
     });
 
-    const { data: existing, error: checkError } = await supabaseAdmin
+    // Duplicate check is scoped per equipment: the same browser/device can be
+    // used to register the same person on different equipments, but not twice
+    // on the same equipment.
+    let dupQuery = supabaseAdmin
       .from("registrations")
       .select("id")
-      .eq("device_fingerprint", data.deviceFingerprint)
+      .eq("device_fingerprint", data.deviceFingerprint);
+
+    if (data.deviceId) {
+      dupQuery = dupQuery.eq("device_id", data.deviceId);
+    } else {
+      dupQuery = dupQuery.is("device_id", null);
+    }
+
+    const { data: existing, error: checkError } = await dupQuery
       .limit(1)
       .maybeSingle();
 
