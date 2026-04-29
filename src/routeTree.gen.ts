@@ -13,6 +13,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminDevicesRouteImport } from './routes/admin.devices'
 import { Route as AdminRegistrationsIndexRouteImport } from './routes/admin.registrations.index'
 import { Route as AdminRegistrationsIdRouteImport } from './routes/admin.registrations.$id'
 
@@ -36,6 +37,11 @@ const AdminLoginRoute = AdminLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminDevicesRoute = AdminDevicesRouteImport.update({
+  id: '/devices',
+  path: '/devices',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminRegistrationsIndexRoute = AdminRegistrationsIndexRouteImport.update({
   id: '/registrations/',
   path: '/registrations/',
@@ -50,6 +56,7 @@ const AdminRegistrationsIdRoute = AdminRegistrationsIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/admin/devices': typeof AdminDevicesRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/devices': typeof AdminDevicesRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
@@ -66,6 +74,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/admin/devices': typeof AdminDevicesRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
@@ -76,6 +85,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/admin/devices'
     | '/admin/login'
     | '/admin/'
     | '/admin/registrations/$id'
@@ -83,6 +93,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin/devices'
     | '/admin/login'
     | '/admin'
     | '/admin/registrations/$id'
@@ -91,6 +102,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/admin/devices'
     | '/admin/login'
     | '/admin/'
     | '/admin/registrations/$id'
@@ -132,6 +144,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/devices': {
+      id: '/admin/devices'
+      path: '/devices'
+      fullPath: '/admin/devices'
+      preLoaderRoute: typeof AdminDevicesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/registrations/': {
       id: '/admin/registrations/'
       path: '/registrations'
@@ -150,6 +169,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminDevicesRoute: typeof AdminDevicesRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminRegistrationsIdRoute: typeof AdminRegistrationsIdRoute
@@ -157,6 +177,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminDevicesRoute: AdminDevicesRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminRegistrationsIdRoute: AdminRegistrationsIdRoute,
