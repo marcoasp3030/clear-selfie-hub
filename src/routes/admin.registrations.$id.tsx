@@ -399,3 +399,25 @@ function formatFullDate(iso: string): string {
     second: "2-digit",
   });
 }
+
+function SyncBadge({ status }: { status: string | null }) {
+  if (status === "success") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+        <CheckCircle2 className="h-3.5 w-3.5" /> Sincronizado
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+        <XCircle className="h-3.5 w-3.5" /> Falhou
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+      <Clock3 className="h-3.5 w-3.5" /> Pendente
+    </span>
+  );
+}
