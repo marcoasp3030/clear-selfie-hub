@@ -29,6 +29,8 @@ const createSchema = z.object({
     .max(255)
     .url("URL inválida")
     .refine((u) => /^https?:\/\//i.test(u), "URL deve começar com http:// ou https://"),
+  apiLogin: z.string().trim().min(1).max(120),
+  apiPassword: z.string().trim().min(1).max(255),
 });
 
 export type DeviceRow = {
@@ -36,6 +38,7 @@ export type DeviceRow = {
   name: string;
   slug: string;
   api_base_url: string;
+  api_login: string | null;
   created_at: string;
 };
 
@@ -72,7 +75,7 @@ export const listDevices = createServerFn({ method: "POST" })
     await assertAdmin(data.accessToken);
     const { data: rows, error } = await supabaseAdmin
       .from("devices")
-      .select("id,name,slug,api_base_url,created_at")
+      .select("id,name,slug,api_base_url,api_login,created_at")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return { devices: (rows ?? []) as DeviceRow[] };
@@ -104,9 +107,11 @@ export const createDevice = createServerFn({ method: "POST" })
         name: data.name,
         slug,
         api_base_url: data.apiBaseUrl.replace(/\/+$/, ""),
+        api_login: data.apiLogin,
+        api_password: data.apiPassword,
         created_by: userId,
       })
-      .select("id,name,slug,api_base_url,created_at")
+      .select("id,name,slug,api_base_url,api_login,created_at")
       .single();
     if (error || !inserted) {
       return { success: false as const, error: "insert_failed" as const };
