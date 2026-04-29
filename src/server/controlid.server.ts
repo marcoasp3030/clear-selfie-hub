@@ -107,14 +107,15 @@ async function setUserImage(
 ): Promise<true | { error: string }> {
   const r = await fcgi<{
     results?: Array<{
-      success?: number;
+      success?: boolean | number;
+      user_id?: number;
       errors?: Array<{ code: number; message: string }>;
     }>;
   }>(`${base}/user_set_image_list.fcgi?session=${encodeURIComponent(session)}`, {
-    match: true,
+    match: false,
     user_images: [
       {
-        user_id: userId,
+        user_id: Number(userId),
         timestamp: Math.floor(Date.now() / 1000),
         image: imageBase64,
       },
@@ -122,10 +123,12 @@ async function setUserImage(
   });
   if (!r.ok) return { error: `Erro ao enviar foto ao equipamento — ${r.error}` };
   const result = r.data?.results?.[0];
-  if (result?.success === 1) return true;
+  if (result?.success === true || result?.success === 1) return true;
   const firstErr = result?.errors?.[0];
   if (firstErr) return { error: imageErrorMessage(firstErr.code, firstErr.message) };
-  return { error: "Equipamento rejeitou a foto sem detalhes do erro." };
+  return {
+    error: `Equipamento rejeitou a foto sem detalhes. Resposta: ${JSON.stringify(r.data).slice(0, 300)}`,
+  };
 }
 
 async function enableUser(
