@@ -36,6 +36,8 @@ type DetectionStatus =
   | "move_right"
   | "covered"
   | "turned"
+  | "look_down"
+  | "look_up"
   | "tilted"
   | "eyes_closed"
   | "blurry"
@@ -56,6 +58,8 @@ const STATUS_COPY: Record<DetectionStatus, { msg: string; sub?: string }> = {
   move_right: { msg: "Mova para a direita", sub: "Coloque o rosto no oval" },
   covered: { msg: "Mostre o rosto inteiro", sub: "Tire as mãos ou objetos do rosto" },
   turned: { msg: "Olhe para a câmera", sub: "Vire o rosto para frente" },
+  look_down: { msg: "Levante o queixo", sub: "Olhe direto para a câmera" },
+  look_up: { msg: "Abaixe o queixo", sub: "Olhe direto para a câmera" },
   tilted: { msg: "Endireite a cabeça", sub: "Mantenha o rosto na vertical" },
   eyes_closed: { msg: "Mantenha os olhos abertos", sub: "Olhe para a câmera" },
   blurry: { msg: "Imagem sem nitidez", sub: "Segure firme e limpe a lente" },
@@ -426,7 +430,15 @@ function CameraFullscreen({
   // Countdown effect
   useEffect(() => {
     if (countdown === null) return;
-    if (countdown === 0) {
+    // Capture immediately when reaching the last tick.
+    if (countdown <= 1) {
+      if ("vibrate" in navigator) {
+        try {
+          navigator.vibrate(30);
+        } catch {
+          /* noop */
+        }
+      }
       // Final safety check: only capture if the face is still perfectly framed.
       if (statusRef.current === "perfect") {
         doCapture();
@@ -436,7 +448,6 @@ function CameraFullscreen({
       perfectSinceRef.current = null;
       return;
     }
-    // light vibration tick
     if ("vibrate" in navigator) {
       try {
         navigator.vibrate(20);
@@ -444,7 +455,7 @@ function CameraFullscreen({
         /* noop */
       }
     }
-    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
+    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countdown]);
@@ -652,8 +663,13 @@ function CameraFullscreen({
             }
           } else if (occluded) {
             next = "covered";
-          } else if (Math.abs(sm.yawDeg) > 12 || Math.abs(sm.pitchDeg) > 12) {
+          } else if (Math.abs(sm.yawDeg) > 12) {
             next = "turned";
+          } else if (sm.pitchDeg > 10) {
+            // pitch > 0 means chin up / looking up (depending on convention)
+            next = "look_up";
+          } else if (sm.pitchDeg < -10) {
+            next = "look_down";
           } else if (Math.abs(sm.rollDeg) > 10) {
             next = "tilted";
           } else if (eyesClosed) {
@@ -724,9 +740,9 @@ function CameraFullscreen({
           setCountdown(null);
         } else if (committed === "perfect") {
           if (perfectSinceRef.current === null) perfectSinceRef.current = now;
-          if (!countdownStartedRef.current && now - perfectSinceRef.current > 700) {
+          if (!countdownStartedRef.current && now - perfectSinceRef.current > 500) {
             countdownStartedRef.current = true;
-            setCountdown(3);
+            setCountdown(1);
           }
         } else {
           perfectSinceRef.current = null;
