@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "./supabaseAdmin.server";
 import type { Database } from "@/integrations/supabase/types";
-import { assertAdminAccess } from "./admin.functions";
+import { assertAdminAccess } from "./admin.server";
 import { uazFetch } from "./uazapi.server";
 
 const accessTokenSchema = z.string().trim().min(1);
