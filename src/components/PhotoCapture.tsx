@@ -345,9 +345,13 @@ function CameraFullscreen({
   useEffect(() => {
     if (countdown === null) return;
     if (countdown === 0) {
-      doCapture();
+      // Final safety check: only capture if the face is still perfectly framed.
+      if (statusRef.current === "perfect") {
+        doCapture();
+      }
       setCountdown(null);
       countdownStartedRef.current = false;
+      perfectSinceRef.current = null;
       return;
     }
     // light vibration tick
