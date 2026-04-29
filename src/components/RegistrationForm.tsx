@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { z } from "zod";
+import { maskPhone, maskCpf, isValidCpf, isValidMobile, onlyDigits } from "@/lib/brMasks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +22,6 @@ import { getDeviceFingerprint } from "@/lib/fingerprint";
 import { collectClientDeviceInfo } from "@/lib/deviceInfo";
 import { PhotoCapture } from "./PhotoCapture";
 import { PhotoGuidelines } from "./PhotoGuidelines";
-import { maskPhone, maskCpf, isValidCpf, isValidMobile, onlyDigits } from "@/lib/brMasks";
 
 const schema = z.object({
   firstName: z.string().trim().min(2, "Informe seu nome").max(100, "Nome muito longo"),
