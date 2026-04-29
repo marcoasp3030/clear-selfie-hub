@@ -13,6 +13,8 @@ import {
   Camera,
   UserRound,
   Sparkles,
+  MessageCircle,
+  ShieldCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
@@ -20,6 +22,10 @@ import {
   createRegistration,
   checkExistingRegistration,
 } from "@/server/registrations.functions";
+import {
+  sendPhoneVerification,
+  verifyPhoneCode,
+} from "@/server/phone.functions";
 import { syncRegistration } from "@/server/controlid.functions";
 import { getDeviceFingerprint } from "@/lib/fingerprint";
 import { collectClientDeviceInfo } from "@/lib/deviceInfo";
@@ -77,6 +83,83 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
   const submitRegistration = useServerFn(createRegistration);
   const triggerSync = useServerFn(syncRegistration);
   const checkExisting = useServerFn(checkExistingRegistration);
+  const sendVerification = useServerFn(sendPhoneVerification);
+  const verifyCode = useServerFn(verifyPhoneCode);
+
+  // WhatsApp verification state
+  const [verificationStatus, setVerificationStatus] = useState<
+    "idle" | "sending" | "sent" | "verifying" | "verified"
+  >("idle");
+  const [verifiedPhone, setVerifiedPhone] = useState<string>("");
+  const [code, setCode] = useState("");
+  const [resendIn, setResendIn] = useState(0);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  const isPhoneVerified =
+    verificationStatus === "verified" && verifiedPhone === phone;
+
+  // Resend cooldown ticker
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setInterval(() => setResendIn((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [resendIn]);
+
+  // Reset verification when phone changes
+  useEffect(() => {
+    if (verifiedPhone && phone !== verifiedPhone) {
+      setVerificationStatus("idle");
+      setVerifiedPhone("");
+      setCode("");
+      setVerifyError(null);
+    }
+  }, [phone, verifiedPhone]);
+
+  const handleSendCode = async () => {
+    setVerifyError(null);
+    if (!isValidMobile(phone)) {
+      setErrors((prev) => ({ ...prev, phone: "Informe um celular válido com DDD" }));
+      return;
+    }
+    setVerificationStatus("sending");
+    try {
+      const res = await sendVerification({ data: { phone } });
+      setVerificationStatus("sent");
+      setResendIn(res.cooldownSeconds ?? 30);
+      toast.success("Código enviado no WhatsApp.");
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Não foi possível enviar o código.";
+      setVerificationStatus("idle");
+      setVerifyError(msg);
+      toast.error(msg);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    setVerifyError(null);
+    if (!/^\d{6}$/.test(code)) {
+      setVerifyError("Informe os 6 dígitos do código.");
+      return;
+    }
+    setVerificationStatus("verifying");
+    try {
+      const res = await verifyCode({ data: { phone, code } });
+      if (res.success) {
+        setVerificationStatus("verified");
+        setVerifiedPhone(phone);
+        toast.success("WhatsApp verificado!");
+      } else {
+        setVerificationStatus("sent");
+        setVerifyError(res.message || "Código inválido.");
+      }
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Não foi possível validar o código.";
+      setVerificationStatus("sent");
+      setVerifyError(msg);
+    }
+  };
 
   const goPhoto = () => {
     if (!photo) {
