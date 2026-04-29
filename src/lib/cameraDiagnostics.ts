@@ -41,6 +41,52 @@ function detectPlatform(): "ios" | "android" | "desktop" {
   return "desktop";
 }
 
+export function getEnvironmentInfo() {
+  if (typeof navigator === "undefined" || typeof window === "undefined") {
+    return {
+      platform: null as null | "ios" | "android" | "desktop",
+      browser: null as
+        | null
+        | "safari"
+        | "chrome"
+        | "firefox"
+        | "edge"
+        | "in_app"
+        | "other",
+      inAppBrowser: false,
+      inIframe: false,
+      isSecureContext: true,
+      userAgent: null as string | null,
+    };
+  }
+  const ua = navigator.userAgent || "";
+  const inApp = IN_APP_UA.test(ua);
+  let browser: "safari" | "chrome" | "firefox" | "edge" | "in_app" | "other" =
+    "other";
+  if (inApp) browser = "in_app";
+  else if (/Edg\//i.test(ua)) browser = "edge";
+  else if (/Firefox\//i.test(ua)) browser = "firefox";
+  else if (/Chrome\//i.test(ua)) browser = "chrome";
+  else if (/Safari\//i.test(ua)) browser = "safari";
+  let inIframe = false;
+  try {
+    inIframe = window.top !== window.self;
+  } catch {
+    inIframe = true;
+  }
+  return {
+    platform: detectPlatform(),
+    browser,
+    inAppBrowser: inApp,
+    inIframe,
+    isSecureContext:
+      window.isSecureContext ||
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1",
+    userAgent: ua.slice(0, 500),
+  };
+}
+
 async function checkPermission(): Promise<DiagnosticResult> {
   if (typeof navigator === "undefined" || !navigator.permissions?.query) {
     return {
