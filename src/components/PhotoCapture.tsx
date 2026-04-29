@@ -1173,11 +1173,12 @@ function CameraFullscreen({
           setCountdown(null);
         } else if (committed === "perfect") {
           if (perfectSinceRef.current === null) perfectSinceRef.current = now;
-          // Snappier auto-capture: only ~200ms of stable "perfect" hold
-          // before the countdown starts.
-          if (!countdownStartedRef.current && now - perfectSinceRef.current > 200) {
+          // Snappier auto-capture: only ~150ms of stable "perfect" hold
+          // before firing. We start the countdown at 1 so the capture
+          // happens on the very next tick — no extra 1s wait on "2".
+          if (!countdownStartedRef.current && now - perfectSinceRef.current > 150) {
             countdownStartedRef.current = true;
-            setCountdown(2);
+            setCountdown(1);
           }
         } else {
           perfectSinceRef.current = null;
