@@ -181,6 +181,54 @@ export type Database = {
           },
         ]
       }
+      uazapi_instances: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          instance_id: string | null
+          instance_token: string | null
+          last_qr_at: string | null
+          last_status_at: string | null
+          name: string
+          owner_jid: string | null
+          phone_connected: string | null
+          profile_name: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instance_id?: string | null
+          instance_token?: string | null
+          last_qr_at?: string | null
+          last_status_at?: string | null
+          name: string
+          owner_jid?: string | null
+          phone_connected?: string | null
+          profile_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instance_id?: string | null
+          instance_token?: string | null
+          last_qr_at?: string | null
+          last_status_at?: string | null
+          name?: string
+          owner_jid?: string | null
+          phone_connected?: string | null
+          profile_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
