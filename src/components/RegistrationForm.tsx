@@ -534,17 +534,17 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
             <div className="rounded-xl border border-amber-500/40 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-200">
               <p className="font-semibold">
                 {duplicateInfo.matchedBy === "cpf"
-                  ? "Este CPF já possui cadastro"
+                  ? "Este CPF já possui cadastro neste equipamento"
                   : duplicateInfo.matchedBy === "phone"
-                    ? "Este celular já possui cadastro"
-                    : "Este dispositivo já realizou um cadastro"}
+                    ? "Este celular já possui cadastro neste equipamento"
+                    : "Este dispositivo já realizou um cadastro neste equipamento"}
               </p>
               <p className="mt-1 text-xs leading-relaxed">
-                Encontramos um cadastro existente em nome de{" "}
+                Já existe um cadastro neste equipamento em nome de{" "}
                 <span className="font-medium">
                   {duplicateInfo.firstName} {duplicateInfo.lastName}
                 </span>
-                . Se precisar atualizar seus dados, fale com um administrador.
+                . Você pode se cadastrar normalmente em outro equipamento.
               </p>
             </div>
           )}
