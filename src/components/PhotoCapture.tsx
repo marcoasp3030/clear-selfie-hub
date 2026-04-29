@@ -273,6 +273,20 @@ function CameraFullscreen({
   const countdownStartedRef = useRef(false);
   const captureTakenRef = useRef(false);
   const detectingRef = useRef(false);
+  // Stability buffers — avoid rapid green/red flicker.
+  // We track recent raw detections and only commit a status change
+  // once the candidate has been stable for a short window.
+  const candidateRef = useRef<{ status: DetectionStatus; since: number } | null>(null);
+  const blinkHistoryRef = useRef<number[]>([]); // recent blink scores (max eye)
+  const eyesClosedConfirmedRef = useRef(false);
+  // Smoothed geometry (EMA) to absorb landmark jitter
+  const smoothRef = useRef<{
+    faceWidthRatio: number;
+    distance: number;
+    yawDeg: number;
+    pitchDeg: number;
+    rollDeg: number;
+  } | null>(null);
 
   useEffect(() => {
     statusRef.current = status;
@@ -511,19 +525,58 @@ function CameraFullscreen({
             noseTip.y < Math.min(lEye.y, rEye.y) - 0.05 ||
             noseTip.y > mouthCenter.y + 0.05;
 
-          // 3. Eyes closed via blendshapes
-          let eyesClosed = false;
+          // 3. Eyes closed via blendshapes — needs SUSTAINED closure.
+          //    A blink lasts ~100-300ms; we require the closed signal to
+          //    persist across recent frames (~500ms window) before we
+          //    flag the user as having eyes closed. This filters out
+          //    natural blinks and reflex glints that briefly spike scores.
+          let eyesClosed = eyesClosedConfirmedRef.current;
           if (blendshapes[0]) {
             const cats = blendshapes[0].categories;
             const blinkL = cats.find((c) => c.categoryName === "eyeBlinkLeft")?.score ?? 0;
             const blinkR = cats.find((c) => c.categoryName === "eyeBlinkRight")?.score ?? 0;
-            eyesClosed = blinkL > 0.6 && blinkR > 0.6;
+            // Use the MAX so a wink doesn't trigger; both eyes must close.
+            const minBlink = Math.min(blinkL, blinkR);
+            const hist = blinkHistoryRef.current;
+            hist.push(minBlink);
+            // Keep ~15 samples (~500ms at 30fps)
+            if (hist.length > 15) hist.shift();
+            // Confirm "closed" only if MAJORITY of recent frames are above threshold
+            const closedFrames = hist.filter((s) => s > 0.55).length;
+            const ratio = hist.length > 0 ? closedFrames / hist.length : 0;
+            if (ratio >= 0.7 && hist.length >= 8) {
+              eyesClosed = true;
+              eyesClosedConfirmedRef.current = true;
+            } else if (ratio <= 0.2) {
+              eyesClosed = false;
+              eyesClosedConfirmedRef.current = false;
+            }
           }
 
+          // ---- Smooth geometry with EMA to reduce jitter ----
+          const alpha = 0.35; // higher = more responsive, lower = smoother
+          const prev = smoothRef.current;
+          if (!prev) {
+            smoothRef.current = {
+              faceWidthRatio,
+              distance,
+              yawDeg,
+              pitchDeg,
+              rollDeg,
+            };
+          } else {
+            prev.faceWidthRatio = prev.faceWidthRatio * (1 - alpha) + faceWidthRatio * alpha;
+            prev.distance = prev.distance * (1 - alpha) + distance * alpha;
+            prev.yawDeg = prev.yawDeg * (1 - alpha) + yawDeg * alpha;
+            prev.pitchDeg = prev.pitchDeg * (1 - alpha) + pitchDeg * alpha;
+            prev.rollDeg = prev.rollDeg * (1 - alpha) + rollDeg * alpha;
+          }
+          const sm = smoothRef.current!;
+
           // ---- Status priority ----
-          if (faceWidthRatio < minWidth) next = "too_small";
-          else if (faceWidthRatio > maxWidth) next = "too_big";
-          else if (distance > 0.55) {
+          if (sm.faceWidthRatio < minWidth) next = "too_small";
+          else if (sm.faceWidthRatio > maxWidth) next = "too_big";
+          else if (sm.distance > 0.55) {
             if (Math.abs(dyNorm) > Math.abs(dxScreen)) {
               next = dyNorm > 0 ? "move_up" : "move_down";
             } else {
@@ -531,18 +584,56 @@ function CameraFullscreen({
             }
           } else if (occluded) {
             next = "covered";
-          } else if (Math.abs(yawDeg) > 18 || Math.abs(pitchDeg) > 18) {
+          } else if (Math.abs(sm.yawDeg) > 18 || Math.abs(sm.pitchDeg) > 18) {
             next = "turned";
-          } else if (Math.abs(rollDeg) > 15) {
+          } else if (Math.abs(sm.rollDeg) > 15) {
             next = "tilted";
           } else if (eyesClosed) {
             next = "eyes_closed";
           } else {
             next = "perfect";
           }
+        } else {
+          // No face detected — clear smoothing/blink state
+          smoothRef.current = null;
+          blinkHistoryRef.current = [];
+          eyesClosedConfirmedRef.current = false;
         }
 
-        if (next !== statusRef.current) setStatus(next);
+        // ---- Status hysteresis: require the candidate status to persist
+        //      for a short window before committing it. This prevents
+        //      the oval flicking red↔green between frames.
+        //      Going INTO "perfect" requires longer confirmation than
+        //      leaving it (we want to abort capture quickly if the user
+        //      genuinely moves, but ignore single-frame glitches).
+        const HOLD_TO_PERFECT_MS = 250;
+        const HOLD_FROM_PERFECT_MS = 180;
+        const HOLD_DEFAULT_MS = 150;
+
+        const current = statusRef.current;
+        let committed = current;
+        if (next === current) {
+          candidateRef.current = null;
+        } else {
+          if (!candidateRef.current || candidateRef.current.status !== next) {
+            candidateRef.current = { status: next, since: ts };
+          }
+          const elapsed = ts - candidateRef.current.since;
+          const required =
+            next === "perfect"
+              ? HOLD_TO_PERFECT_MS
+              : current === "perfect"
+                ? HOLD_FROM_PERFECT_MS
+                : HOLD_DEFAULT_MS;
+          // Critical errors (no face / multiple faces) commit immediately
+          const immediate = next === "searching" || next === "multiple";
+          if (immediate || elapsed >= required) {
+            committed = next;
+            candidateRef.current = null;
+          }
+        }
+
+        if (committed !== statusRef.current) setStatus(committed);
 
         // Auto-capture: trigger countdown after staying "perfect" for ~700ms.
         // If the face stops being "perfect" at any moment (including during
@@ -552,7 +643,7 @@ function CameraFullscreen({
           perfectSinceRef.current = null;
           countdownStartedRef.current = false;
           setCountdown(null);
-        } else if (next === "perfect") {
+        } else if (committed === "perfect") {
           if (perfectSinceRef.current === null) perfectSinceRef.current = now;
           if (!countdownStartedRef.current && now - perfectSinceRef.current > 700) {
             countdownStartedRef.current = true;
