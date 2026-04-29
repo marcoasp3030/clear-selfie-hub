@@ -676,6 +676,7 @@ function CameraFullscreen({
           eyesClosedConfirmedRef.current = false;
           qualityRef.current = null;
           if (qualityUI !== null) setQualityUI(null);
+          if (distanceRatioUI !== null) setDistanceRatioUI(null);
         }
 
         // ---- Status hysteresis: require the candidate status to persist
