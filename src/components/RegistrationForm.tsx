@@ -377,7 +377,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                   id="phone"
                   inputMode="tel"
                   value={phone}
-                  onChange={(e) => setPhone(formatPhone(e.target.value))}
+                  onChange={(e) => setPhone(maskPhone(e.target.value))}
                   placeholder="(11) 91234-5678"
                   autoComplete="tel"
                   disabled={submitting}
@@ -385,6 +385,25 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                 />
                 {errors.phone && (
                   <p className="text-xs font-medium text-destructive">{errors.phone}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="cpf" className="text-sm font-medium">
+                  CPF
+                </Label>
+                <Input
+                  id="cpf"
+                  inputMode="numeric"
+                  value={cpf}
+                  onChange={(e) => setCpf(maskCpf(e.target.value))}
+                  placeholder="000.000.000-00"
+                  autoComplete="off"
+                  disabled={submitting}
+                  className="h-12 rounded-xl border-border/70 text-base transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0"
+                />
+                {errors.cpf && (
+                  <p className="text-xs font-medium text-destructive">{errors.cpf}</p>
                 )}
               </div>
             </div>
