@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import { Loader2, Lock, ArrowLeft } from "lucide-react";
+import { Loader2, Lock, ArrowLeft, ShieldAlert } from "lucide-react";
 import nutricarLogo from "@/assets/nutricar-logo.png";
 
 export const Route = createFileRoute("/admin/login")({
@@ -27,6 +27,16 @@ function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [insecure, setInsecure] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setInsecure(
+      !window.isSecureContext &&
+        window.location.hostname !== "localhost" &&
+        window.location.hostname !== "127.0.0.1",
+    );
+  }, []);
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -38,13 +48,27 @@ function AdminLoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setSubmitting(false);
-    if (error) {
-      toast.error("Email ou senha inválidos");
-      return;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        console.error("[admin-login] signIn error:", error);
+        toast.error(error.message || "Email ou senha inválidos");
+        return;
+      }
+      if (!data.session) {
+        toast.error("Sessão não criada. Verifique se está acessando via HTTPS.");
+        return;
+      }
+      toast.success("Login realizado");
+      // Não confie só no onAuthStateChange — alguns navegadores em http://
+      // não persistem o cookie e o evento nunca dispara.
+      navigate({ to: "/admin" });
+    } catch (err) {
+      console.error("[admin-login] unexpected:", err);
+      toast.error("Falha de conexão com o servidor de autenticação.");
+    } finally {
+      setSubmitting(false);
     }
-    toast.success("Login realizado");
   };
 
   return (
@@ -71,6 +95,20 @@ function AdminLoginPage() {
           className="space-y-4 rounded-2xl border border-border/60 bg-card p-6"
           style={{ boxShadow: "var(--shadow-card)" }}
         >
+          {insecure && (
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <p className="font-semibold">Conexão não segura (HTTP)</p>
+                <p className="mt-1 opacity-90">
+                  O login pode falhar silenciosamente porque o navegador não
+                  persiste a sessão sem HTTPS. Acesse via{" "}
+                  <code className="font-mono">https://</code> (configure SSL no
+                  Traefik/Caddy/Nginx).
+                </p>
+              </div>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
             <Input

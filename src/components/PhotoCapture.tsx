@@ -653,7 +653,7 @@ export function PhotoCapture({ value, onChange, deviceId = null }: PhotoCaptureP
           <Button
             type="button"
             onClick={startCamera}
-            disabled={starting}
+            disabled={starting || insecure}
             size="lg"
             className="h-14 w-full rounded-xl text-base font-semibold shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98]"
           >
@@ -661,6 +661,11 @@ export function PhotoCapture({ value, onChange, deviceId = null }: PhotoCaptureP
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 Abrindo câmera...
+              </>
+            ) : insecure ? (
+              <>
+                <ShieldAlert className="mr-2 h-5 w-5" />
+                HTTPS necessário
               </>
             ) : (
               <>
