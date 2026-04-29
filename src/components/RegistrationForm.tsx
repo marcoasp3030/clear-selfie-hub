@@ -758,7 +758,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
               onClick={submit}
               size="lg"
               className="h-14 flex-1 rounded-xl text-base font-semibold shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98]"
-              disabled={submitting || !!duplicateInfo}
+              disabled={submitting || !!duplicateInfo || !isPhoneVerified}
             >
               {submitting ? (
                 <>
