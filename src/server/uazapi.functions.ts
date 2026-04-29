@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Database } from "@/integrations/supabase/types";
 import { assertAdminAccess } from "./admin.functions";
 import { uazFetch } from "./uazapi.server";
 
@@ -47,7 +48,7 @@ async function persistFromStatus(
   payload: Instance & Record<string, unknown>
 ) {
   const status = pickStatus(payload);
-  const update: Record<string, unknown> = {
+  const update: Database["public"]["Tables"]["uazapi_instances"]["Update"] = {
     status,
     last_status_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -236,7 +237,6 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
       owner: typeof inst.owner === "string" ? inst.owner : null,
       profileName:
         typeof inst.profileName === "string" ? inst.profileName : null,
-      instance: inst,
     };
   });
 
