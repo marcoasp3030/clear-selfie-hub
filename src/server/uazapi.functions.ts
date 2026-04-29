@@ -209,7 +209,13 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
     await assertAdminAccess(data.accessToken);
     const row = await getSavedInstance();
     if (!row?.instance_token) {
-      return { status: "no_instance" as const, qrcode: null, instance: null };
+      return {
+        status: "no_instance",
+        qrcode: null,
+        paircode: null,
+        owner: null,
+        profileName: null,
+      };
     }
 
     const res = await uazFetch<Record<string, unknown>>("/instance/status", {
