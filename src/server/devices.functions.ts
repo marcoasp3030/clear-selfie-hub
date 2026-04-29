@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "./supabaseAdmin.server";
 import type { Database } from "@/integrations/supabase/types";
 
 const slugRegex = /^[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?$/;

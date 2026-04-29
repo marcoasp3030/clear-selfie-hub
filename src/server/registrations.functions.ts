@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeader, getRequestIP } from "@tanstack/react-start/server";
 import { z } from "zod";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "./supabaseAdmin.server";
 import { parseUserAgent, lookupGeoFromIp } from "./deviceParser";
 
 function normalizePhoneE164(raw: string): string {
