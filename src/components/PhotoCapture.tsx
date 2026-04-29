@@ -826,6 +826,11 @@ function CameraFullscreen({
         <div className="h-10 w-10" />
       </div>
 
+      {/* Quality bars (sharpness + lighting) */}
+      {!showReview && (
+        <QualityBars quality={qualityUI} />
+      )}
+
       {/* Video + guides */}
       <div className="relative flex-1 overflow-hidden">
         <video
