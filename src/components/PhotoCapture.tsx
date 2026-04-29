@@ -165,6 +165,11 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
             : "Seu navegador não suporta acesso à câmera. Use o Safari (iPhone) ou Chrome (Android) atualizado.",
       );
       setErrorKind("unsupported");
+      setErrorDetail({
+        name: inAppBrowser ? "InAppBrowserError" : isInsecure ? "InsecureContextError" : "UnsupportedBrowserError",
+        message: typeof navigator !== "undefined" ? navigator.userAgent : "",
+      });
+      setErrorOpen(true);
       return;
     }
 
@@ -270,6 +275,11 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
       }
       setError(msg);
       setErrorKind(kind);
+      setErrorDetail({
+        name: e?.name || "UnknownError",
+        message: e?.message || String(err),
+      });
+      setErrorOpen(true);
     } finally {
       setStarting(false);
     }
