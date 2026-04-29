@@ -620,6 +620,12 @@ function CameraFullscreen({
           }
           const sm = smoothRef.current!;
 
+          // Push distance ratio to UI (throttled ~6fps)
+          if (ts - lastDistanceUITsRef.current > 160) {
+            lastDistanceUITsRef.current = ts;
+            setDistanceRatioUI(sm.faceWidthRatio / idealWidth);
+          }
+
           // ---- Sample image quality every ~250ms over the face bbox ----
           if (ts - lastQualityTsRef.current > 250) {
             lastQualityTsRef.current = ts;
