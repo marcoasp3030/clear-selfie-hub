@@ -15,6 +15,7 @@ import {
   Users,
   EyeOff,
   AlertTriangle,
+  ShieldAlert,
 } from "lucide-react";
 import { getFaceLandmarker, KEY_LANDMARKS } from "@/lib/faceDetector";
 
@@ -64,6 +65,9 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<
+    "denied" | "not_found" | "in_use" | "unsupported" | "generic" | null
+  >(null);
 
   useEffect(() => {
     if (!value) {
@@ -93,6 +97,7 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
 
   const startCamera = async () => {
     setError(null);
+    setErrorKind(null);
     setStarting(true);
     setPendingFile(null);
 
@@ -100,6 +105,7 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
       setError(
         "Seu navegador não suporta acesso à câmera. Use o Safari (iPhone) ou Chrome (Android) atualizado.",
       );
+      setErrorKind("unsupported");
       setStarting(false);
       return;
     }
@@ -133,15 +139,20 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
       const e = err as DOMException;
       let msg =
         "Não foi possível acessar a câmera. Verifique as permissões nas configurações do navegador.";
+      let kind: "denied" | "not_found" | "in_use" | "generic" = "generic";
       if (e?.name === "NotAllowedError" || e?.name === "PermissionDeniedError") {
         msg =
           "Permissão da câmera negada. Toque no ícone de cadeado/câmera na barra de endereço para permitir o acesso.";
+        kind = "denied";
       } else if (e?.name === "NotFoundError" || e?.name === "DevicesNotFoundError") {
         msg = "Nenhuma câmera encontrada no dispositivo.";
+        kind = "not_found";
       } else if (e?.name === "NotReadableError") {
         msg = "A câmera está sendo usada por outro aplicativo. Feche-o e tente novamente.";
+        kind = "in_use";
       }
       setError(msg);
+      setErrorKind(kind);
     } finally {
       setStarting(false);
     }
