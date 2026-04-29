@@ -126,42 +126,66 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
   }, [cameraOn]);
 
   const startCamera = async () => {
+    // CRITICAL iOS/Safari rule: getUserMedia must be called *synchronously*
+    // inside the user-gesture handler. Any awaited work or heavy setState
+    // before the call can break the "user activation" and the browser will
+    // silently refuse without ever showing the permission prompt.
+    // So we kick off getUserMedia immediately and only update React state
+    // after we have the promise (or the failure).
+
+    // 1. Detect missing API up front (HTTP / unsupported browser)
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      const isInsecure =
+        typeof window !== "undefined" &&
+        window.location.protocol !== "https:" &&
+        window.location.hostname !== "localhost" &&
+        window.location.hostname !== "127.0.0.1";
+      const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+      const inAppBrowser =
+        /Instagram|FBAN|FBAV|FB_IAB|Line|MicroMessenger|WhatsApp|TikTok/i.test(ua);
+      setError(
+        inAppBrowser
+          ? "Este navegador interno (Instagram/WhatsApp/etc) bloqueia a câmera. Toque nos 3 pontinhos e escolha 'Abrir no navegador' (Safari/Chrome)."
+          : isInsecure
+            ? "A câmera só funciona em conexões seguras (HTTPS). Acesse esta página por HTTPS."
+            : "Seu navegador não suporta acesso à câmera. Use o Safari (iPhone) ou Chrome (Android) atualizado.",
+      );
+      setErrorKind("unsupported");
+      return;
+    }
+
+    // 2. Fire getUserMedia FIRST (preserves the user gesture on iOS)
+    const mediaPromise = navigator.mediaDevices
+      .getUserMedia({
+        video: { facingMode: "user" },
+        audio: false,
+      })
+      .catch((err) => err as DOMException);
+
+    // 3. Now safe to update UI state
     setError(null);
     setErrorKind(null);
     setStarting(true);
     setPendingFile(null);
 
-    if (!navigator.mediaDevices?.getUserMedia) {
-      const isInsecure =
-        typeof window !== "undefined" &&
-        window.location.protocol !== "https:" &&
-        window.location.hostname !== "localhost";
-      setError(
-        isInsecure
-          ? "A câmera só funciona em conexões seguras (HTTPS). Acesse esta página por HTTPS."
-          : "Seu navegador não suporta acesso à câmera. Use o Safari (iPhone) ou Chrome (Android) atualizado.",
-      );
-      setErrorKind("unsupported");
-      setStarting(false);
-      return;
-    }
-
     console.log("[camera] startCamera invoked", {
       protocol: window.location.protocol,
       host: window.location.host,
       isSecureContext: window.isSecureContext,
-      inIframe: window.top !== window.self,
+      inIframe: (() => {
+        try {
+          return window.top !== window.self;
+        } catch {
+          return true;
+        }
+      })(),
+      ua: navigator.userAgent,
     });
 
     try {
-      const s = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "user",
-          width: { ideal: 1280 },
-          height: { ideal: 1280 },
-        },
-        audio: false,
-      });
+      const result = await mediaPromise;
+      if (!(result instanceof MediaStream)) throw result;
+      const s = result;
       console.log("[camera] stream acquired", s.getVideoTracks().map((t) => t.label));
       setStream(s);
       setCameraOn(true);
