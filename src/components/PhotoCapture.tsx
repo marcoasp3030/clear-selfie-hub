@@ -864,7 +864,7 @@ function CameraFullscreen({
   // Countdown effect
   useEffect(() => {
     if (countdown === null) return;
-    if (countdown === 0) {
+    if (countdown <= 1) {
       if ("vibrate" in navigator) {
         try {
           navigator.vibrate(30);
