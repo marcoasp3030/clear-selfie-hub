@@ -656,8 +656,13 @@ function CameraFullscreen({
             }
           } else if (occluded) {
             next = "covered";
-          } else if (Math.abs(sm.yawDeg) > 12 || Math.abs(sm.pitchDeg) > 12) {
+          } else if (Math.abs(sm.yawDeg) > 12) {
             next = "turned";
+          } else if (sm.pitchDeg > 10) {
+            // pitch > 0 means chin up / looking up (depending on convention)
+            next = "look_up";
+          } else if (sm.pitchDeg < -10) {
+            next = "look_down";
           } else if (Math.abs(sm.rollDeg) > 10) {
             next = "tilted";
           } else if (eyesClosed) {
