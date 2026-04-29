@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { assertAdminAccess } from "./admin.functions";
 
 const DIAGNOSTIC_IDS = [
   "secure_context",
@@ -76,14 +77,13 @@ export interface DiagnosticsAggregate {
   }>;
 }
 
-export const getDiagnosticsAggregate = createServerFn({ method: "GET" })
-  .handler(async (): Promise<DiagnosticsAggregate> => {
-    // Admin-only: rely on RLS via authenticated client would be ideal, but
-    // we want to read aggregates without forcing the caller to attach a JWT.
-    // Instead we use the admin client and gate this server fn behind the
-    // existing admin route guard. (This file is only imported from the
-    // admin pages, which already require an authenticated admin session.)
-    const { data, error } = await supabaseAdmin
+export const getDiagnosticsAggregate = createServerFn({ method: "POST" })
+  .inputValidator((input: { accessToken: string }) =>
+    z.object({ accessToken: z.string().trim().min(1) }).parse(input),
+  )
+  .handler(async ({ data }): Promise<DiagnosticsAggregate> => {
+    await assertAdminAccess(data.accessToken);
+    const { data: rows, error } = await supabaseAdmin
       .from("camera_diagnostics_reports")
       .select(
         "id, created_at, likely_cause, platform, browser, in_app_browser, in_iframe, is_secure_context, user_agent",
@@ -92,12 +92,12 @@ export const getDiagnosticsAggregate = createServerFn({ method: "GET" })
       .limit(500);
     if (error) throw new Error(error.message);
 
-    const rows = data ?? [];
+    const list = rows ?? [];
     const tally = <T extends string | null>(
-      key: (r: (typeof rows)[number]) => T,
+      key: (r: (typeof list)[number]) => T,
     ) => {
       const map = new Map<T, number>();
-      for (const r of rows) {
+      for (const r of list) {
         const k = key(r);
         map.set(k, (map.get(k) ?? 0) + 1);
       }
@@ -107,7 +107,7 @@ export const getDiagnosticsAggregate = createServerFn({ method: "GET" })
     };
 
     return {
-      totalReports: rows.length,
+      totalReports: list.length,
       byCause: tally((r) => r.likely_cause).map(({ key, count }) => ({
         cause: key,
         count,
@@ -120,6 +120,6 @@ export const getDiagnosticsAggregate = createServerFn({ method: "GET" })
         browser: key,
         count,
       })),
-      recent: rows.slice(0, 50),
+      recent: list.slice(0, 50),
     };
   });
