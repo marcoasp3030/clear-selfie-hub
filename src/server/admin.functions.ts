@@ -1,65 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { supabaseAdmin } from "./supabaseAdmin.server";
-import type { Database } from "@/integrations/supabase/types";
+import {
+  assertAdminAccess,
+  checkIsAdminByAccessToken,
+  deleteRegistrationById,
+  getPhotoSignedUrlForPath,
+  getRegistrationStatsData,
+  listRegistrationRows,
+} from "./admin.server";
 
 const accessTokenSchema = z.string().trim().min(1);
-
-function createAuthClient() {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabasePublishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
-
-  if (!supabaseUrl || !supabasePublishableKey) {
-    throw new Response("Internal error", { status: 500 });
-  }
-
-  return createClient<Database>(supabaseUrl, supabasePublishableKey, {
-    auth: {
-      storage: undefined,
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-}
-
-let authClient: ReturnType<typeof createAuthClient> | undefined;
-
-async function getUserIdFromAccessToken(accessToken: string) {
-  if (!authClient) authClient = createAuthClient();
-
-  const { data, error } = await authClient.auth.getClaims(accessToken);
-
-  if (error || !data?.claims?.sub) {
-    throw new Response("Unauthorized", { status: 401 });
-  }
-
-  return data.claims.sub;
-}
-
-// Helper: throws Response 403 if the user isn't an admin.
-async function assertAdmin(userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .limit(1)
-    .maybeSingle();
-  if (error) {
-    console.error("Role check failed:", error);
-    throw new Response("Internal error", { status: 500 });
-  }
-  if (!data) {
-    throw new Response("Forbidden: admin role required", { status: 403 });
-  }
-}
-
-export async function assertAdminAccess(accessToken: string) {
-  const userId = await getUserIdFromAccessToken(accessToken);
-  await assertAdmin(userId);
-  return userId;
-}
 
 export const listRegistrations = createServerFn({ method: "POST" })
   .inputValidator(
