@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      camera_diagnostics_reports: {
+        Row: {
+          browser: string | null
+          created_at: string
+          device_id: string | null
+          id: string
+          in_app_browser: boolean
+          in_iframe: boolean
+          is_secure_context: boolean
+          likely_cause: string | null
+          platform: string | null
+          results: Json
+          user_agent: string | null
+        }
+        Insert: {
+          browser?: string | null
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          in_app_browser?: boolean
+          in_iframe?: boolean
+          is_secure_context?: boolean
+          likely_cause?: string | null
+          platform?: string | null
+          results: Json
+          user_agent?: string | null
+        }
+        Update: {
+          browser?: string | null
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          in_app_browser?: boolean
+          in_iframe?: boolean
+          is_secure_context?: boolean
+          likely_cause?: string | null
+          platform?: string | null
+          results?: Json
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       devices: {
         Row: {
           api_base_url: string

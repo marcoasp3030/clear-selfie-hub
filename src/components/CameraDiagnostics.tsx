@@ -7,20 +7,28 @@ import {
   Loader2,
   Stethoscope,
   RefreshCw,
+  Send,
+  Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   runCameraDiagnostics,
   pickLikelyCause,
+  getEnvironmentInfo,
   type DiagnosticResult,
   type DiagnosticStatus,
 } from "@/lib/cameraDiagnostics";
+import { useServerFn } from "@tanstack/react-start";
+import { submitDiagnosticsReport } from "@/server/diagnostics.functions";
+import { toast } from "sonner";
 
 interface CameraDiagnosticsProps {
   /** When true, the in-use probe runs (briefly opens the camera). */
   probeInUse?: boolean;
   /** Auto-run on mount. Defaults to true. */
   autoRun?: boolean;
+  /** Optional device id from the route, included in the opt-in report. */
+  deviceId?: string | null;
 }
 
 const STATUS_META: Record<
@@ -52,9 +60,14 @@ const STATUS_META: Record<
 export function CameraDiagnostics({
   probeInUse = false,
   autoRun = true,
+  deviceId = null,
 }: CameraDiagnosticsProps) {
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<DiagnosticResult[] | null>(null);
+  const [consent, setConsent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const submit = useServerFn(submitDiagnosticsReport);
 
   const run = async () => {
     setRunning(true);
@@ -72,6 +85,37 @@ export function CameraDiagnostics({
   }, []);
 
   const cause = results ? pickLikelyCause(results) : null;
+
+  const sendReport = async () => {
+    if (!results || !consent || sent) return;
+    setSending(true);
+    try {
+      const env = getEnvironmentInfo();
+      const res = await submit({
+        data: {
+          likelyCause: (cause?.id ?? null) as null,
+          results: results.map((r) => ({ id: r.id, status: r.status })),
+          platform: env.platform,
+          browser: env.browser,
+          inAppBrowser: env.inAppBrowser,
+          inIframe: env.inIframe,
+          isSecureContext: env.isSecureContext,
+          deviceId: deviceId,
+          userAgent: env.userAgent,
+        },
+      });
+      if (res.success) {
+        setSent(true);
+        toast.success("Obrigado! Diagnóstico enviado.");
+      } else {
+        toast.error("Não foi possível enviar agora.");
+      }
+    } catch {
+      toast.error("Não foi possível enviar agora.");
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <div className="rounded-2xl border border-border bg-card/60 p-4">
@@ -165,6 +209,62 @@ export function CameraDiagnostics({
           </li>
         )}
       </ul>
+
+      {/* Opt-in report */}
+      {results && (
+        <div className="mt-4 rounded-xl border border-dashed border-border bg-background/40 p-3">
+          {sent ? (
+            <div className="flex items-center gap-2 text-xs text-primary">
+              <Heart className="h-4 w-4" />
+              <span>Obrigado por nos ajudar a melhorar!</span>
+            </div>
+          ) : (
+            <>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Ajude a melhorar (opcional)
+              </p>
+              <p className="mb-2 text-xs leading-snug text-muted-foreground">
+                Podemos receber este resultado para identificar problemas comuns
+                e corrigi-los. Enviamos apenas dados técnicos (sistema,
+                navegador, status de cada verificação) — <strong>sem fotos,
+                nome, telefone ou CPF</strong>.
+              </p>
+              <label className="mb-2 flex items-start gap-2 text-xs text-foreground">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-primary"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                />
+                <span className="leading-snug">
+                  Concordo em enviar este diagnóstico anônimo para a equipe
+                  Nutricar.
+                </span>
+              </label>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!consent || sending}
+                onClick={sendReport}
+                className="h-9 w-full"
+              >
+                {sending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Enviar diagnóstico
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -268,7 +268,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                 </p>
               </div>
             </div>
-            <PhotoCapture value={photo} onChange={setPhoto} />
+            <PhotoCapture value={photo} onChange={setPhoto} deviceId={deviceId ?? null} />
             {errors.photo && (
               <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
                 {errors.photo}

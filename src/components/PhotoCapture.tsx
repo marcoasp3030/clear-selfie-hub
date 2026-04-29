@@ -33,6 +33,7 @@ import { CameraDiagnostics } from "./CameraDiagnostics";
 interface PhotoCaptureProps {
   value: File | null;
   onChange: (file: File | null) => void;
+  deviceId?: string | null;
 }
 
 type DetectionStatus =
@@ -309,7 +310,7 @@ function CameraErrorDialog({
     </Dialog>
   );
 }
-export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
+export function PhotoCapture({ value, onChange, deviceId = null }: PhotoCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraOn, setCameraOn] = useState(false);
@@ -659,6 +660,7 @@ export function PhotoCapture({ value, onChange }: PhotoCaptureProps) {
         {error && (
           <CameraDiagnostics
             probeInUse={errorKind !== "denied" && errorKind !== "unsupported"}
+            deviceId={deviceId}
           />
         )}
 
