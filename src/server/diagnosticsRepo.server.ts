@@ -56,7 +56,17 @@ export async function insertDiagnosticsReport(
   }
   const { error } = await supabaseAdmin
     .from("camera_diagnostics_reports")
-    .insert(input);
+    .insert([{
+      likely_cause: input.likely_cause,
+      results: input.results as never,
+      platform: input.platform,
+      browser: input.browser,
+      in_app_browser: input.in_app_browser,
+      in_iframe: input.in_iframe,
+      is_secure_context: input.is_secure_context,
+      device_id: input.device_id,
+      user_agent: input.user_agent,
+    }]);
   if (error) {
     console.error("[diagnostics] insert failed", error);
     return { ok: false };
