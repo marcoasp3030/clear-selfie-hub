@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { supabaseAdmin } from "./supabaseAdmin.server";
 import { assertAdminAccess } from "./admin.server";
+import {
+  insertDiagnosticsReport,
+  listDiagnosticsReports,
+} from "./diagnosticsRepo.server";
 
 const DIAGNOSTIC_IDS = [
   "secure_context",
@@ -39,24 +42,18 @@ const reportSchema = z.object({
 export const submitDiagnosticsReport = createServerFn({ method: "POST" })
   .inputValidator((data) => reportSchema.parse(data))
   .handler(async ({ data }) => {
-    const { error } = await supabaseAdmin
-      .from("camera_diagnostics_reports")
-      .insert({
-        likely_cause: data.likelyCause,
-        results: data.results,
-        platform: data.platform,
-        browser: data.browser,
-        in_app_browser: data.inAppBrowser,
-        in_iframe: data.inIframe,
-        is_secure_context: data.isSecureContext,
-        device_id: data.deviceId ?? null,
-        user_agent: data.userAgent ?? null,
-      });
-    if (error) {
-      console.error("[diagnostics] insert failed", error);
-      return { success: false as const };
-    }
-    return { success: true as const };
+    const res = await insertDiagnosticsReport({
+      likely_cause: data.likelyCause,
+      results: data.results,
+      platform: data.platform,
+      browser: data.browser,
+      in_app_browser: data.inAppBrowser,
+      in_iframe: data.inIframe,
+      is_secure_context: data.isSecureContext,
+      device_id: data.deviceId ?? null,
+      user_agent: data.userAgent ?? null,
+    });
+    return { success: res.ok as boolean };
   });
 
 export interface DiagnosticsAggregate {
@@ -83,16 +80,7 @@ export const getDiagnosticsAggregate = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<DiagnosticsAggregate> => {
     await assertAdminAccess(data.accessToken);
-    const { data: rows, error } = await supabaseAdmin
-      .from("camera_diagnostics_reports")
-      .select(
-        "id, created_at, likely_cause, platform, browser, in_app_browser, in_iframe, is_secure_context, user_agent",
-      )
-      .order("created_at", { ascending: false })
-      .limit(500);
-    if (error) throw new Error(error.message);
-
-    const list = rows ?? [];
+    const list = await listDiagnosticsReports(500);
     const tally = <T extends string | null>(
       key: (r: (typeof list)[number]) => T,
     ) => {
