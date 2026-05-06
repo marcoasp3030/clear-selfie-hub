@@ -1,6 +1,17 @@
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "./supabaseAdmin.server";
 import type { Database } from "@/integrations/supabase/types";
+import { getCookie } from "@tanstack/react-start/server";
+import { AUTH_COOKIE_NAME, verifyAdminToken } from "./auth.server";
+
+export const LOCAL_ACCESS_TOKEN_SENTINEL = "__local_jwt__";
+
+function tryLocalAdminFromCookie(): string | null {
+  const token = getCookie(AUTH_COOKIE_NAME);
+  if (!token) return null;
+  const user = verifyAdminToken(token);
+  return user ? user.id : null;
+}
 
 function createAuthClient() {
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -52,12 +63,27 @@ async function assertAdmin(userId: string) {
 }
 
 export async function assertAdminAccess(accessToken: string) {
+  // Caminho novo: cookie httpOnly com JWT proprio (Etapa 2 da migracao VPS).
+  if (accessToken === LOCAL_ACCESS_TOKEN_SENTINEL || !accessToken) {
+    const localUserId = tryLocalAdminFromCookie();
+    if (localUserId) return localUserId;
+    if (accessToken === LOCAL_ACCESS_TOKEN_SENTINEL) {
+      throw new Response("Unauthorized", { status: 401 });
+    }
+  }
+  // Caminho legado (Supabase Auth) — mantido durante o cutover.
   const userId = await getUserIdFromAccessToken(accessToken);
   await assertAdmin(userId);
   return userId;
 }
 
 export async function checkIsAdminByAccessToken(accessToken: string) {
+  if (accessToken === LOCAL_ACCESS_TOKEN_SENTINEL || !accessToken) {
+    const localUserId = tryLocalAdminFromCookie();
+    if (localUserId) return true;
+    if (accessToken === LOCAL_ACCESS_TOKEN_SENTINEL) return false;
+  }
+
   let userId: string;
 
   try {
