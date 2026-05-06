@@ -1,12 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Server, Database, Lock, HardDrive, Rocket, ShieldCheck, AlertTriangle, Copy } from "lucide-react";
+import { useState } from "react";
+import {
+  Server,
+  Database,
+  Lock,
+  HardDrive,
+  Rocket,
+  ShieldCheck,
+  AlertTriangle,
+  Copy,
+  PlugZap,
+  MessageCircle,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { pingPostgresFromClient } from "@/server/dbHealth.functions";
 
 export const Route = createFileRoute("/admin/migration")({
   head: () => ({
     meta: [
-      { title: "Migração para VPS · Admin Nutricar" },
+      { title: "Migração VPS · Admin Nutricar" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -46,19 +62,22 @@ function Section({
   children,
 }: {
   icon: React.ComponentType<{ className?: string }>;
-  step: number;
+  step: number | string;
   title: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-6" style={{ boxShadow: "var(--shadow-card)" }}>
+    <section
+      className="rounded-2xl border border-border/60 bg-card p-6"
+      style={{ boxShadow: "var(--shadow-card)" }}
+    >
       <div className="mb-4 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <Icon className="h-5 w-5" />
         </div>
         <div>
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Passo {step}
+            {typeof step === "number" ? `Passo ${step}` : step}
           </div>
           <h2 className="text-lg font-bold tracking-tight">{title}</h2>
         </div>
@@ -68,162 +87,156 @@ function Section({
   );
 }
 
+function ConnectionTester() {
+  const [state, setState] = useState<
+    | { kind: "idle" }
+    | { kind: "loading" }
+    | { kind: "ok"; now: string; tables: Record<string, number | null> }
+    | { kind: "err"; error: string; configured: boolean }
+  >({ kind: "idle" });
+
+  async function run() {
+    setState({ kind: "loading" });
+    try {
+      const res = await pingPostgresFromClient();
+      if (res.ok) {
+        setState({ kind: "ok", now: res.now, tables: res.tables });
+      } else {
+        setState({ kind: "err", error: res.error, configured: res.configured });
+      }
+    } catch (e) {
+      setState({
+        kind: "err",
+        error: e instanceof Error ? e.message : String(e),
+        configured: true,
+      });
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Teste de conexão</p>
+          <p className="text-xs text-muted-foreground">
+            Usa o secret <code className="font-mono">DATABASE_URL</code> do projeto.
+          </p>
+        </div>
+        <Button onClick={run} disabled={state.kind === "loading"} size="sm">
+          {state.kind === "loading" ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <PlugZap className="mr-2 h-4 w-4" />
+          )}
+          Testar agora
+        </Button>
+      </div>
+
+      {state.kind === "ok" && (
+        <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-900 dark:text-emerald-200">
+          <div className="flex items-center gap-2 font-semibold">
+            <CheckCircle2 className="h-4 w-4" /> Conectado — {state.now}
+          </div>
+          <ul className="mt-2 space-y-1 font-mono">
+            {Object.entries(state.tables).map(([t, c]) => (
+              <li key={t}>
+                {t}:{" "}
+                {c === null ? (
+                  <span className="opacity-60">tabela ainda não existe</span>
+                ) : (
+                  <span>{c} linhas</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {state.kind === "err" && (
+        <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+          <div className="flex items-center gap-2 font-semibold">
+            <XCircle className="h-4 w-4" />
+            {state.configured ? "Falha ao conectar" : "DATABASE_URL não configurado"}
+          </div>
+          <pre className="mt-1 whitespace-pre-wrap break-all">{state.error}</pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MigrationPage() {
-  const dockerCompose = `version: "3.9"
-
+  const dockerCompose = `# /opt/nutricar/docker-compose.yml
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: nutricar-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: nutricar
-      POSTGRES_USER: nutricar
-      POSTGRES_PASSWORD: \${DB_PASSWORD}
-    volumes:
-      - ./data/postgres:/var/lib/postgresql/data
-      - ./db/init:/docker-entrypoint-initdb.d:ro
-    ports:
-      - "127.0.0.1:5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nutricar"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: nutricar-app
+    build: { context: ., dockerfile: Dockerfile }
+    image: clear-selfie-hub:latest
+    container_name: clear-selfie-hub
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
       HOST: 0.0.0.0
-      # Banco
-      DATABASE_URL: postgres://nutricar:\${DB_PASSWORD}@db:5432/nutricar
-      # Auth (JWT próprio)
+      # Postgres da MESMA rede docker do n8n
+      DATABASE_URL: postgres://postgres:\${DB_POSTGRESDB_PASSWORD}@postgres:5432/postgres
+      DB_SSL: "false"
       JWT_SECRET: \${JWT_SECRET}
       SESSION_SECRET: \${SESSION_SECRET}
-      # Storage (disco local)
       UPLOADS_DIR: /var/app/uploads
       PUBLIC_BASE_URL: https://facial.nutricarbrasil.com.br
-      # WhatsApp (uazapi)
       UAZAPI_BASE_URL: \${UAZAPI_BASE_URL}
       UAZAPI_ADMIN_TOKEN: \${UAZAPI_ADMIN_TOKEN}
+      # Mantenha enquanto o cutover nao terminar:
+      SUPABASE_URL: \${SUPABASE_URL}
+      SUPABASE_PUBLISHABLE_KEY: \${SUPABASE_PUBLISHABLE_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: \${SUPABASE_SERVICE_ROLE_KEY}
     volumes:
       - ./data/uploads:/var/app/uploads
-    ports:
-      - "127.0.0.1:3000:3000"
-`;
+    networks: [n8n_network]
+
+networks:
+  n8n_network:
+    external: true
+    name: n8n_default   # ajuste com 'docker network ls'`;
 
   const envFile = `# /opt/nutricar/.env
-DB_PASSWORD=troque-por-uma-senha-forte
+DB_POSTGRESDB_PASSWORD=pd2V7VA2phVQBfxQ
 JWT_SECRET=gere-com-openssl-rand-base64-48
 SESSION_SECRET=gere-com-openssl-rand-base64-48
+PUBLIC_BASE_URL=https://facial.nutricarbrasil.com.br
 UAZAPI_BASE_URL=https://sua-instancia.uazapi.com
 UAZAPI_ADMIN_TOKEN=seu-admin-token
-`;
+# Mantidos durante o cutover:
+SUPABASE_URL=https://hffbxygfvdkvtrjtxrba.supabase.co
+SUPABASE_PUBLISHABLE_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...`;
 
-  const schemaSql = `-- db/init/001_schema.sql
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+  const findNetwork = `# Na VPS, descubra o nome real da rede onde o n8n + postgres estao:
+docker network ls
+docker inspect postgres --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{"\\n"}}{{end}}'`;
 
--- Usuários (substitui auth.users do Supabase)
-CREATE TABLE users (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email        TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,           -- bcrypt
-  is_admin     BOOLEAN NOT NULL DEFAULT false,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+  const psqlCheck = `# Verifique do host se o Postgres responde:
+docker exec -it postgres psql -U postgres -c "SELECT version();"`;
 
--- Cadastros faciais
-CREATE TABLE registrations (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  first_name  TEXT NOT NULL,
-  last_name   TEXT NOT NULL,
-  phone       TEXT NOT NULL,
-  cpf         TEXT,
-  photo_path  TEXT NOT NULL,            -- caminho relativo em UPLOADS_DIR
-  ip_address  TEXT,
-  user_agent  TEXT,
-  device_os   TEXT,
-  device_browser TEXT,
-  geo_city    TEXT,
-  geo_region  TEXT,
-  geo_country TEXT,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+  const schemaSql = `-- db/init/001_schema.sql (ja gerado no repositorio)
+-- Aplique uma unica vez no banco do n8n, em um database separado:
+docker exec -it postgres psql -U postgres -c "CREATE DATABASE nutricar;"
+docker exec -i  postgres psql -U postgres -d nutricar < db/init/001_schema.sql
 
--- Verificações de telefone (WhatsApp / SMS)
-CREATE TABLE phone_verifications (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  phone       TEXT NOT NULL,
-  code_hash   TEXT NOT NULL,
-  attempts    INT NOT NULL DEFAULT 0,
-  expires_at  TIMESTAMPTZ NOT NULL,
-  verified_at TIMESTAMPTZ,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX ON phone_verifications (phone);
+# Em seguida AJUSTE o DATABASE_URL para apontar pro database "nutricar":
+DATABASE_URL=postgres://postgres:pd2V7VA2phVQBfxQ@postgres:5432/nutricar`;
 
--- Equipamentos ControlID
-CREATE TABLE devices (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name         TEXT NOT NULL,
-  slug         TEXT UNIQUE NOT NULL,
-  api_base_url TEXT NOT NULL,
-  api_login    TEXT,
-  api_password TEXT,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+  const seedAdmin = `-- Hash bcrypt da senha do admin inicial (gere com bcryptjs)
+docker run --rm node:20-alpine sh -c \\
+  "npx -y bcryptjs-cli hash 'SuaSenhaForte123!' 10"
 
--- Diagnósticos de câmera
-CREATE TABLE camera_diagnostics_reports (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_agent      TEXT,
-  platform        TEXT,
-  browser         TEXT,
-  in_app_browser  BOOLEAN NOT NULL DEFAULT false,
-  in_iframe       BOOLEAN NOT NULL DEFAULT false,
-  is_secure_context BOOLEAN NOT NULL DEFAULT true,
-  results         JSONB NOT NULL,
-  likely_cause    TEXT,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Instâncias uazapi
-CREATE TABLE uazapi_instances (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name            TEXT NOT NULL,
-  instance_id     TEXT,
-  instance_token  TEXT,
-  status          TEXT NOT NULL DEFAULT 'disconnected',
-  phone_connected TEXT,
-  profile_name    TEXT,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-`;
-
-  const seedAdmin = `-- db/init/002_seed_admin.sql
--- Cria o admin inicial. Troque a senha imediatamente após o primeiro login.
--- Hash bcrypt para a senha "TroqueEssaSenha123!" (custo 10):
+-- Cole o hash gerado abaixo:
 INSERT INTO users (email, password_hash, is_admin)
-VALUES (
-  'marcoasp.r@outlook.com',
-  '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
-  true
-);
-`;
+VALUES ('marcoasp.r@outlook.com', '<HASH_BCRYPT>', true);`;
 
-  const dumpCmd = `# Na sua máquina (com acesso ao Lovable Cloud)
-# Pegue a connection string em: Cloud → Backend → Connection string (Direct)
+  const dumpCmd = `# Exporte SOMENTE os dados do Lovable Cloud (schema novo ja existe na VPS):
 pg_dump --no-owner --no-acl --data-only \\
   --table=public.registrations \\
   --table=public.devices \\
@@ -232,29 +245,18 @@ pg_dump --no-owner --no-acl --data-only \\
   "postgres://postgres.hffbxygfvdkvtrjtxrba:SENHA@aws-0-...supabase.com:5432/postgres" \\
   > dump.sql
 
-# Copie pra VPS
 scp dump.sql usuario@SEU_IP:/opt/nutricar/
+docker exec -i postgres psql -U postgres -d nutricar < /opt/nutricar/dump.sql`;
 
-# Restaure no Postgres da VPS
-docker compose exec -T db psql -U nutricar -d nutricar < /opt/nutricar/dump.sql`;
-
-  const storageMigrate = `# Baixar todas as fotos do bucket Supabase Storage
-# Use o painel Cloud → Storage → registration-photos → Download all
-# Ou via API:
-curl -X GET "https://hffbxygfvdkvtrjtxrba.supabase.co/storage/v1/object/list/registration-photos" \\
-  -H "Authorization: Bearer SUPABASE_SERVICE_ROLE_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{"prefix":"","limit":1000}' > files.json
-
-# Coloque tudo em ./data/uploads na VPS — o photo_path do banco continua igual
-rsync -avz ./fotos/ usuario@SEU_IP:/opt/nutricar/data/uploads/`;
+  const storageMigrate = `# Baixar todas as fotos de registration-photos do Lovable Cloud
+# (Backend -> Storage -> Download all) e copiar para a VPS:
+rsync -avz ./fotos/ usuario@SEU_IP:/opt/nutricar/data/uploads/
+# O campo photo_path no banco continua igual.`;
 
   const caddyfile = `facial.nutricarbrasil.com.br {
     reverse_proxy localhost:3000
     encode zstd gzip
-    request_body {
-        max_size 20MB
-    }
+    request_body { max_size 20MB }
 }`;
 
   const deployFlow = `ssh usuario@SEU_IP
@@ -263,9 +265,8 @@ cd /opt/nutricar
 
 git clone https://github.com/SEU_USUARIO/SEU_REPO.git .
 cp .env.example .env
-nano .env   # preencha DB_PASSWORD, JWT_SECRET etc.
+nano .env   # preencha com os valores acima
 
-# Gere segredos fortes
 openssl rand -base64 48   # use no JWT_SECRET
 openssl rand -base64 48   # use no SESSION_SECRET
 
@@ -275,12 +276,33 @@ docker compose logs -f app`;
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">Migração para VPS (Postgres + JWT próprio)</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Migração para VPS (Postgres + JWT próprio)
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Guia passo-a-passo para sair do Supabase/Lovable Cloud e rodar o sistema 100% na sua VPS,
-          com Postgres self-hosted, autenticação JWT própria e fotos em disco local.
+          Guia em 3 etapas para sair do Supabase. <strong>Etapa 1 (esta):</strong> infra +
+          conexão Postgres validada.{" "}
+          <strong>Etapa 2:</strong> migrar autenticação para JWT/bcrypt.{" "}
+          <strong>Etapa 3:</strong> migrar storage e queries.
         </p>
       </header>
+
+      <Section icon={PlugZap} step="Status" title="Conexão com seu Postgres">
+        <p>
+          Suas credenciais foram salvas no secret{" "}
+          <code className="font-mono">DATABASE_URL</code>. Hostname{" "}
+          <code className="font-mono">postgres</code>, usuário{" "}
+          <code className="font-mono">postgres</code>, porta{" "}
+          <code className="font-mono">5432</code>.
+        </p>
+        <p className="text-xs">
+          ⚠️ O hostname <code className="font-mono">postgres</code> só resolve <strong>de
+          dentro</strong> da rede Docker do n8n. O teste abaixo só funcionará após o app
+          estar rodando na VPS na mesma rede. Em desenvolvimento aqui no Lovable, ele falha —
+          é o esperado.
+        </p>
+        <ConnectionTester />
+      </Section>
 
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-200">
         <div className="flex gap-3">
@@ -289,118 +311,97 @@ docker compose logs -f app`;
             <p className="font-semibold">Antes de começar</p>
             <p className="mt-1 opacity-90">
               Faça <strong>backup completo</strong> do banco e do bucket{" "}
-              <code className="font-mono">registration-photos</code> no Lovable Cloud. Após apontar o DNS pra
-              VPS, o sistema antigo deixa de receber novos cadastros.
+              <code className="font-mono">registration-photos</code> no Lovable Cloud antes
+              do cutover final.
             </p>
           </div>
         </div>
       </div>
 
-      <Section icon={Server} step={1} title="Pré-requisitos da VPS">
-        <p>VPS Linux (Ubuntu 22.04+ recomendado), 2 vCPU / 2 GB RAM, 20 GB disco, IP público.</p>
-        <CopyBlock code={`curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER
-newgrp docker
-docker --version && docker compose version`} />
-        <p>Abra portas 80/443 no firewall (não exponha 3000 nem 5432 publicamente):</p>
-        <CopyBlock code={`sudo ufw allow OpenSSH
-sudo ufw allow 80
-sudo ufw allow 443
-sudo ufw enable`} />
+      <Section icon={Server} step={1} title="Identificar a rede Docker do n8n">
+        <p>
+          Como o Postgres já roda no docker-compose do n8n, vamos conectar o app à mesma
+          rede em vez de subir um Postgres novo.
+        </p>
+        <CopyBlock code={findNetwork} />
+        <p>
+          Anote o nome da rede (ex.: <code className="font-mono">n8n_default</code>) e
+          ajuste no <code className="font-mono">docker-compose.yml</code> abaixo.
+        </p>
+        <CopyBlock code={psqlCheck} />
       </Section>
 
-      <Section icon={Database} step={2} title="Schema do Postgres">
+      <Section icon={Database} step={2} title="Criar database e schema">
         <p>
-          Crie o diretório <code className="font-mono">db/init/</code> na raiz do projeto. O Postgres
-          executa qualquer <code className="font-mono">.sql</code> ali na primeira inicialização.
+          Crie um database <code className="font-mono">nutricar</code> separado no mesmo
+          Postgres (não use o database do n8n) e aplique o schema (já está em{" "}
+          <code className="font-mono">db/init/001_schema.sql</code> no repo):
         </p>
         <CopyBlock code={schemaSql} lang="sql" />
-        <p>Esse schema substitui as tabelas do Supabase (sem RLS — a segurança fica no backend Node).</p>
       </Section>
 
       <Section icon={Lock} step={3} title="Auth JWT próprio + admin inicial">
         <p>
-          Removemos o <code className="font-mono">supabase.auth</code> e usamos bcrypt + JWT.
-          Crie o admin inicial via seed:
+          No cutover (Etapa 2), <code className="font-mono">supabase.auth</code> é
+          substituído por bcrypt + JWT. Crie o admin inicial:
         </p>
         <CopyBlock code={seedAdmin} lang="sql" />
-        <p>Para gerar o hash da sua senha real:</p>
-        <CopyBlock code={`docker run --rm -it node:20-alpine sh -c \\
-  "npm i -g bcryptjs && node -e \\"console.log(require('bcryptjs').hashSync(process.argv[1],10))\\" 'SuaSenhaAqui'"`} />
-        <p>
-          O backend deve emitir um JWT assinado com <code className="font-mono">JWT_SECRET</code> em{" "}
-          <code className="font-mono">/api/auth/login</code> e validar em todo endpoint admin
-          (substitui o <code className="font-mono">requireAdminAccessToken</code> atual).
-        </p>
       </Section>
 
       <Section icon={HardDrive} step={4} title="Storage em disco local">
         <p>
-          O Supabase Storage é trocado por uma pasta no host (<code className="font-mono">/opt/nutricar/data/uploads</code>),
-          montada no container em <code className="font-mono">/var/app/uploads</code>. As fotos
-          continuam referenciadas pelo campo <code className="font-mono">photo_path</code> da tabela{" "}
-          <code className="font-mono">registrations</code>.
+          Supabase Storage vira pasta no host (<code className="font-mono">/opt/nutricar/data/uploads</code>),
+          montada em <code className="font-mono">/var/app/uploads</code>. O campo{" "}
+          <code className="font-mono">photo_path</code> continua igual.
         </p>
-        <p>Endpoints novos no backend:</p>
-        <ul className="ml-5 list-disc space-y-1">
-          <li><code className="font-mono">POST /api/upload</code> — recebe multipart, grava em <code>UPLOADS_DIR</code>, retorna <code>photo_path</code>.</li>
-          <li><code className="font-mono">GET /api/photos/:path</code> — só admin autenticado, faz stream do arquivo.</li>
-        </ul>
-        <p>Backup automático diário (rode via cron):</p>
-        <CopyBlock code={`# /etc/cron.daily/nutricar-backup
+        <CopyBlock
+          code={`# Backup diario (cron)
 #!/bin/bash
 set -e
 DATE=$(date +%F)
 OUT=/opt/backups/nutricar
 mkdir -p $OUT
-docker compose -f /opt/nutricar/docker-compose.yml exec -T db \\
-  pg_dump -U nutricar nutricar | gzip > $OUT/db-$DATE.sql.gz
+docker exec -t postgres pg_dump -U postgres nutricar | gzip > $OUT/db-$DATE.sql.gz
 tar -czf $OUT/uploads-$DATE.tgz -C /opt/nutricar/data uploads
-find $OUT -mtime +14 -delete`} />
+find $OUT -mtime +14 -delete`}
+        />
       </Section>
 
-      <Section icon={Rocket} step={5} title="docker-compose + variáveis">
-        <p>Substitua o <code className="font-mono">docker-compose.yml</code> da raiz pelo abaixo:</p>
+      <Section icon={Rocket} step={5} title="docker-compose + .env">
+        <p>
+          Arquivo já versionado em <code className="font-mono">docker-compose.yml</code>:
+        </p>
         <CopyBlock code={dockerCompose} lang="yaml" />
-        <p>E o <code className="font-mono">.env</code> em <code>/opt/nutricar/.env</code>:</p>
         <CopyBlock code={envFile} lang="env" />
       </Section>
 
       <Section icon={Database} step={6} title="Migrar dados do Lovable Cloud">
-        <p>Exporte os dados existentes (apenas dados, sem schema — o schema novo já foi criado no passo 2):</p>
         <CopyBlock code={dumpCmd} />
-        <p>E as fotos do Storage:</p>
         <CopyBlock code={storageMigrate} />
       </Section>
 
       <Section icon={Rocket} step={7} title="Subir o app">
         <CopyBlock code={deployFlow} />
-        <p>O app fica em <code className="font-mono">http://127.0.0.1:3000</code> (não exposto). HTTPS público vem no próximo passo.</p>
       </Section>
 
       <Section icon={ShieldCheck} step={8} title="HTTPS com Caddy + domínio">
         <p>Aponte o DNS A de <code>facial.nutricarbrasil.com.br</code> para o IP da VPS.</p>
-        <CopyBlock code={`sudo apt install -y caddy
-sudo nano /etc/caddy/Caddyfile`} />
         <CopyBlock code={caddyfile} lang="caddy" />
         <CopyBlock code={`sudo systemctl reload caddy`} />
-        <p>Caddy emite certificado Let's Encrypt automaticamente em segundos.</p>
       </Section>
 
-      <Section icon={MessageCircleIcon} step={9} title="Webhook do uazapi">
-        <p>No painel do uazapi, atualize a URL do webhook para:</p>
+      <Section icon={MessageCircle} step={9} title="Webhook do uazapi">
         <CopyBlock code={`https://facial.nutricarbrasil.com.br/api/public/uazapi-webhook`} />
       </Section>
 
       <Section icon={ShieldCheck} step={10} title="Checklist final">
         <ul className="ml-5 list-disc space-y-1.5">
-          <li>✅ Acesso <code>https://facial.nutricarbrasil.com.br</code> retorna o formulário de cadastro.</li>
-          <li>✅ Login admin funciona com email + senha bcrypt.</li>
-          <li>✅ Cadastrar uma pessoa salva foto em <code>data/uploads/</code> e linha em <code>registrations</code>.</li>
+          <li>✅ Botão "Testar agora" acima retorna conectado.</li>
+          <li>✅ Login admin funciona com email + bcrypt.</li>
+          <li>✅ Cadastro salva foto em <code>data/uploads/</code> e linha em <code>registrations</code>.</li>
           <li>✅ <code>docker compose logs -f app</code> sem erros.</li>
-          <li>✅ <code>cron.daily/nutricar-backup</code> ativo.</li>
+          <li>✅ Backup diário ativo.</li>
           <li>✅ Senha do admin inicial trocada.</li>
-          <li>✅ Cloud (Supabase) pode ser desativado sem quebrar nada.</li>
         </ul>
       </Section>
 
@@ -412,8 +413,4 @@ sudo nano /etc/caddy/Caddyfile`} />
       </div>
     </div>
   );
-}
-
-function MessageCircleIcon({ className }: { className?: string }) {
-  return <Rocket className={className} />;
 }
