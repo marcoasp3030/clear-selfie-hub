@@ -1,9 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { supabaseAdmin } from "./supabaseAdmin.server";
-import type { Database } from "@/integrations/supabase/types";
 import { assertAdminAccess } from "./admin.server";
 import { uazFetch } from "./uazapi.server";
+import {
+  deleteInstanceById,
+  getLatestInstance,
+  insertInstance,
+  updateInstance,
+  type UazapiUpdate,
+} from "./uazapiRepo.server";
 
 const accessTokenSchema = z.string().trim().min(1);
 
@@ -30,17 +35,12 @@ function pickStatus(raw: unknown): string {
 
 /** Returns the saved instance row (the project uses a single global instance). */
 async function getSavedInstance() {
-  const { data, error } = await supabaseAdmin
-    .from("uazapi_instances")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) {
-    console.error("Failed to load uazapi_instances:", error);
+  try {
+    return await getLatestInstance();
+  } catch (err) {
+    console.error("Failed to load uazapi_instances:", err);
     throw new Response("Erro ao ler instância salva.", { status: 500 });
   }
-  return data;
 }
 
 async function persistFromStatus(
@@ -48,7 +48,7 @@ async function persistFromStatus(
   payload: Instance & Record<string, unknown>
 ) {
   const status = pickStatus(payload);
-  const update: Database["public"]["Tables"]["uazapi_instances"]["Update"] = {
+  const update: UazapiUpdate = {
     status,
     last_status_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -64,11 +64,7 @@ async function persistFromStatus(
   if (typeof payload.id === "string") update.instance_id = payload.id;
   if (typeof payload.token === "string") update.instance_token = payload.token;
 
-  const { error } = await supabaseAdmin
-    .from("uazapi_instances")
-    .update(update)
-    .eq("id", rowId);
-  if (error) console.error("Failed to update uazapi_instances:", error);
+  await updateInstance(rowId, update);
 }
 
 // ------------------------------------------------------------------
@@ -129,26 +125,20 @@ export const createInstance = createServerFn({ method: "POST" })
     // Replace any previous saved instance (single global one).
     const existing = await getSavedInstance();
     if (existing) {
-      await supabaseAdmin
-        .from("uazapi_instances")
-        .delete()
-        .eq("id", existing.id);
+      await deleteInstanceById(existing.id);
     }
 
-    const { data: row, error } = await supabaseAdmin
-      .from("uazapi_instances")
-      .insert({
+    let row;
+    try {
+      row = await insertInstance({
         name: data.name,
         instance_token: instanceToken,
         instance_id: instanceId,
         status: pickStatus(created),
         created_by: userId,
-      })
-      .select("*")
-      .single();
-
-    if (error || !row) {
-      console.error("Failed to save instance:", error);
+      });
+    } catch (err) {
+      console.error("Failed to save instance:", err);
       throw new Response("Erro ao salvar instância.", { status: 500 });
     }
 
@@ -184,14 +174,11 @@ export const connectInstance = createServerFn({ method: "POST" })
       }
     );
 
-    await supabaseAdmin
-      .from("uazapi_instances")
-      .update({
-        last_qr_at: new Date().toISOString(),
-        status: pickStatus(res) || "connecting",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", row.id);
+    await updateInstance(row.id, {
+      last_qr_at: new Date().toISOString(),
+      status: pickStatus(res) || "connecting",
+      updated_at: new Date().toISOString(),
+    });
 
     return {
       status: pickStatus(res),
@@ -263,16 +250,13 @@ export const disconnectInstance = createServerFn({ method: "POST" })
       instanceToken: row.instance_token,
     });
 
-    await supabaseAdmin
-      .from("uazapi_instances")
-      .update({
-        status: "disconnected",
-        owner_jid: null,
-        phone_connected: null,
-        last_status_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", row.id);
+    await updateInstance(row.id, {
+      status: "disconnected",
+      owner_jid: null,
+      phone_connected: null,
+      last_status_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
 
     return { success: true as const };
   });
@@ -299,12 +283,10 @@ export const deleteInstance = createServerFn({ method: "POST" })
       }
     }
 
-    const { error } = await supabaseAdmin
-      .from("uazapi_instances")
-      .delete()
-      .eq("id", row.id);
-    if (error) {
-      console.error("Failed to delete local instance row:", error);
+    try {
+      await deleteInstanceById(row.id);
+    } catch (err) {
+      console.error("Failed to delete local instance row:", err);
       throw new Response("Erro ao remover instância local.", { status: 500 });
     }
 

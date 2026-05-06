@@ -1,7 +1,16 @@
 import { getRequestHeader, getRequestIP } from "@tanstack/react-start/server";
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "crypto";
-import { supabaseAdmin } from "./supabaseAdmin.server";
 import { uazFetch } from "./uazapi.server";
+import {
+  bumpAttempts,
+  deleteUnverifiedByPhone,
+  getActiveCodeForPhone,
+  getLastUnverifiedByPhone,
+  getLastVerifiedAtByPhone,
+  insertPhoneVerification,
+  markVerifiedById,
+} from "./phoneRepo.server";
+import { getActiveInstanceTokenOrNull } from "./uazapiRepo.server";
 
 const RESEND_COOLDOWN_SECONDS = 30;
 const CODE_TTL_SECONDS = 5 * 60; // 5 minutes
@@ -34,23 +43,20 @@ function clientIp(): string | null {
 }
 
 async function getActiveInstanceToken(): Promise<string> {
-  const { data, error } = await supabaseAdmin
-    .from("uazapi_instances")
-    .select("instance_token, status")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) {
-    console.error("getActiveInstanceToken db error:", error);
+  let token: string | null = null;
+  try {
+    token = await getActiveInstanceTokenOrNull();
+  } catch (err) {
+    console.error("getActiveInstanceToken db error:", err);
     throw new Response("Erro ao localizar instância WhatsApp.", { status: 500 });
   }
-  if (!data?.instance_token) {
+  if (!token) {
     throw new Response(
       "Nenhuma instância WhatsApp configurada. Peça a um administrador para conectar a integração.",
       { status: 503 }
     );
   }
-  return data.instance_token;
+  return token;
 }
 
 /**
@@ -135,15 +141,7 @@ export async function sendPhoneVerificationData(input: { phone: string }) {
   }
 
   // Cooldown: prevent spamming the same number
-  const { data: last } = await supabaseAdmin
-    .from("phone_verifications")
-    .select("id, created_at")
-    .eq("phone", phone)
-    .is("verified_at", null)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
+  const last = await getLastUnverifiedByPhone(phone);
   if (last) {
     const ageSec = (Date.now() - new Date(last.created_at).getTime()) / 1000;
     if (ageSec < RESEND_COOLDOWN_SECONDS) {
@@ -159,24 +157,15 @@ export async function sendPhoneVerificationData(input: { phone: string }) {
   const expiresAt = new Date(Date.now() + CODE_TTL_SECONDS * 1000);
   const verifyToken = makeVerifyToken();
 
-  // Invalidate previous unverified codes for this phone
-  await supabaseAdmin
-    .from("phone_verifications")
-    .delete()
-    .eq("phone", phone)
-    .is("verified_at", null);
-
-  const { error: insertError } = await supabaseAdmin
-    .from("phone_verifications")
-    .insert({
-      phone,
-      code_hash: hashCode(code, phone),
-      expires_at: expiresAt.toISOString(),
-      ip_address: clientIp(),
-      verify_token: verifyToken,
-    });
-  if (insertError) {
-    console.error("phone_verifications insert failed:", insertError);
+  await deleteUnverifiedByPhone(phone);
+  const ins = await insertPhoneVerification({
+    phone,
+    code_hash: hashCode(code, phone),
+    expires_at: expiresAt.toISOString(),
+    ip_address: clientIp(),
+    verify_token: verifyToken,
+  });
+  if (!ins.ok) {
     throw new Response("Não foi possível gerar o código.", { status: 500 });
   }
 
@@ -234,11 +223,7 @@ export async function sendPhoneVerificationData(input: { phone: string }) {
 
   if (!sent) {
     // Best-effort cleanup so the user can retry quickly
-    await supabaseAdmin
-      .from("phone_verifications")
-      .delete()
-      .eq("phone", phone)
-      .is("verified_at", null);
+    await deleteUnverifiedByPhone(phone);
     throw new Response(
       "Não foi possível enviar a mensagem no WhatsApp. Verifique o número e tente novamente.",
       { status: 502 }
@@ -254,18 +239,11 @@ export async function sendPhoneVerificationData(input: { phone: string }) {
 
 export async function verifyPhoneCodeData(input: { phone: string; code: string }) {
   const phone = normalizePhone(input.phone);
-
-  const { data: row, error } = await supabaseAdmin
-    .from("phone_verifications")
-    .select("id, code_hash, expires_at, attempts, verified_at")
-    .eq("phone", phone)
-    .is("verified_at", null)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("verifyPhoneCode db error:", error);
+  let row: Awaited<ReturnType<typeof getActiveCodeForPhone>>;
+  try {
+    row = await getActiveCodeForPhone(phone);
+  } catch (err) {
+    console.error("verifyPhoneCode db error:", err);
     throw new Response("Erro ao validar código.", { status: 500 });
   }
   if (!row) {
@@ -296,13 +274,7 @@ export async function verifyPhoneCodeData(input: { phone: string; code: string }
     timingSafeEqual(Buffer.from(provided), Buffer.from(row.code_hash));
 
   if (!ok) {
-    await supabaseAdmin
-      .from("phone_verifications")
-      .update({
-        attempts: row.attempts + 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", row.id);
+    await bumpAttempts(row.id, row.attempts);
     return {
       success: false as const,
       error: "invalid_code" as const,
@@ -311,49 +283,33 @@ export async function verifyPhoneCodeData(input: { phone: string; code: string }
     };
   }
 
-  await supabaseAdmin
-    .from("phone_verifications")
-    .update({
-      verified_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", row.id);
+  await markVerifiedById(row.id);
 
   return { success: true as const };
 }
 
 export async function pollPhoneVerificationData(input: { phone: string }) {
   const phone = normalizePhone(input.phone);
-  const { data: row, error } = await supabaseAdmin
-    .from("phone_verifications")
-    .select("verified_at")
-    .eq("phone", phone)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) {
-    console.error("pollPhoneVerification db error:", error);
+  try {
+    const verifiedAt = await getLastVerifiedAtByPhone(phone);
+    return { verified: Boolean(verifiedAt) };
+  } catch (err) {
+    console.error("pollPhoneVerification db error:", err);
     return { verified: false as const };
   }
-  return { verified: Boolean(row?.verified_at) };
 }
 
 /** Server-side check used by createRegistration to ensure the phone is verified. */
 export async function assertPhoneVerified(phoneRaw: string): Promise<void> {
   const phone = normalizePhone(phoneRaw);
-  const { data, error } = await supabaseAdmin
-    .from("phone_verifications")
-    .select("verified_at")
-    .eq("phone", phone)
-    .not("verified_at", "is", null)
-    .order("verified_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) {
-    console.error("assertPhoneVerified db error:", error);
+  let verifiedAt: string | null = null;
+  try {
+    verifiedAt = await getLastVerifiedAtByPhone(phone);
+  } catch (err) {
+    console.error("assertPhoneVerified db error:", err);
     throw new Response("Erro ao validar telefone.", { status: 500 });
   }
-  if (!data?.verified_at) {
+  if (!verifiedAt) {
     throw new Response(
       "Você precisa validar o número de WhatsApp antes de finalizar o cadastro.",
       { status: 403 }
