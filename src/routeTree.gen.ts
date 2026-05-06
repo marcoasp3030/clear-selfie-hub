@@ -20,8 +20,10 @@ import { Route as AdminDocsRouteImport } from './routes/admin.docs'
 import { Route as AdminDiagnosticsRouteImport } from './routes/admin.diagnostics'
 import { Route as AdminDevicesRouteImport } from './routes/admin.devices'
 import { Route as AdminRegistrationsIndexRouteImport } from './routes/admin.registrations.index'
+import { Route as ApiPublicUploadPhotoRouteImport } from './routes/api/public/upload-photo'
 import { Route as ApiPublicUazapiWebhookRouteImport } from './routes/api/public/uazapi-webhook'
 import { Route as AdminRegistrationsIdRouteImport } from './routes/admin.registrations.$id'
+import { Route as ApiAdminPhotoSplatRouteImport } from './routes/api/admin/photo.$'
 
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
@@ -78,6 +80,11 @@ const AdminRegistrationsIndexRoute = AdminRegistrationsIndexRouteImport.update({
   path: '/registrations/',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiPublicUploadPhotoRoute = ApiPublicUploadPhotoRouteImport.update({
+  id: '/api/public/upload-photo',
+  path: '/api/public/upload-photo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicUazapiWebhookRoute = ApiPublicUazapiWebhookRouteImport.update({
   id: '/api/public/uazapi-webhook',
   path: '/api/public/uazapi-webhook',
@@ -87,6 +94,11 @@ const AdminRegistrationsIdRoute = AdminRegistrationsIdRouteImport.update({
   id: '/registrations/$id',
   path: '/registrations/$id',
   getParentRoute: () => AdminRoute,
+} as any)
+const ApiAdminPhotoSplatRoute = ApiAdminPhotoSplatRouteImport.update({
+  id: '/api/admin/photo/$',
+  path: '/api/admin/photo/$',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -102,7 +114,9 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
   '/api/public/uazapi-webhook': typeof ApiPublicUazapiWebhookRoute
+  '/api/public/upload-photo': typeof ApiPublicUploadPhotoRoute
   '/admin/registrations/': typeof AdminRegistrationsIndexRoute
+  '/api/admin/photo/$': typeof ApiAdminPhotoSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -116,7 +130,9 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
   '/api/public/uazapi-webhook': typeof ApiPublicUazapiWebhookRoute
+  '/api/public/upload-photo': typeof ApiPublicUploadPhotoRoute
   '/admin/registrations': typeof AdminRegistrationsIndexRoute
+  '/api/admin/photo/$': typeof ApiAdminPhotoSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -132,7 +148,9 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
   '/api/public/uazapi-webhook': typeof ApiPublicUazapiWebhookRoute
+  '/api/public/upload-photo': typeof ApiPublicUploadPhotoRoute
   '/admin/registrations/': typeof AdminRegistrationsIndexRoute
+  '/api/admin/photo/$': typeof ApiAdminPhotoSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -149,7 +167,9 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin/registrations/$id'
     | '/api/public/uazapi-webhook'
+    | '/api/public/upload-photo'
     | '/admin/registrations/'
+    | '/api/admin/photo/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -163,7 +183,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/registrations/$id'
     | '/api/public/uazapi-webhook'
+    | '/api/public/upload-photo'
     | '/admin/registrations'
+    | '/api/admin/photo/$'
   id:
     | '__root__'
     | '/'
@@ -178,7 +200,9 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin/registrations/$id'
     | '/api/public/uazapi-webhook'
+    | '/api/public/upload-photo'
     | '/admin/registrations/'
+    | '/api/admin/photo/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -186,6 +210,8 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   RSlugRoute: typeof RSlugRoute
   ApiPublicUazapiWebhookRoute: typeof ApiPublicUazapiWebhookRoute
+  ApiPublicUploadPhotoRoute: typeof ApiPublicUploadPhotoRoute
+  ApiAdminPhotoSplatRoute: typeof ApiAdminPhotoSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -267,6 +293,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRegistrationsIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/public/upload-photo': {
+      id: '/api/public/upload-photo'
+      path: '/api/public/upload-photo'
+      fullPath: '/api/public/upload-photo'
+      preLoaderRoute: typeof ApiPublicUploadPhotoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/uazapi-webhook': {
       id: '/api/public/uazapi-webhook'
       path: '/api/public/uazapi-webhook'
@@ -280,6 +313,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/registrations/$id'
       preLoaderRoute: typeof AdminRegistrationsIdRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/api/admin/photo/$': {
+      id: '/api/admin/photo/$'
+      path: '/api/admin/photo/$'
+      fullPath: '/api/admin/photo/$'
+      preLoaderRoute: typeof ApiAdminPhotoSplatRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -315,7 +355,18 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   RSlugRoute: RSlugRoute,
   ApiPublicUazapiWebhookRoute: ApiPublicUazapiWebhookRoute,
+  ApiPublicUploadPhotoRoute: ApiPublicUploadPhotoRoute,
+  ApiAdminPhotoSplatRoute: ApiAdminPhotoSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
