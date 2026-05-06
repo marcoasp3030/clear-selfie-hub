@@ -45,11 +45,23 @@ function AdminLoginPage() {
     return () => sub.subscription.unsubscribe();
   }, [navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const formData = new FormData(e.currentTarget);
+      const submittedEmail = String(formData.get("email") ?? email).trim().toLowerCase();
+      const submittedPassword = String(formData.get("password") ?? password);
+
+      if (!submittedEmail || !submittedPassword) {
+        toast.error("Informe email e senha para entrar.");
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: submittedEmail,
+        password: submittedPassword,
+      });
       if (error) {
         console.error("[admin-login] signIn error:", error);
         toast.error(error.message || "Email ou senha inválidos");
@@ -113,6 +125,7 @@ function AdminLoginPage() {
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               required
               value={email}
@@ -127,6 +140,7 @@ function AdminLoginPage() {
             <Label htmlFor="password">Senha</Label>
             <Input
               id="password"
+              name="password"
               type="password"
               required
               minLength={6}
