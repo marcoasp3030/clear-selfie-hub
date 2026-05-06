@@ -253,13 +253,18 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
         return;
       }
 
-      const ext = photo.name.split(".").pop()?.toLowerCase() || "jpg";
-      const path = `${crypto.randomUUID()}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("registration-photos")
-        .upload(path, photo, { contentType: photo.type, upsert: false });
-      if (uploadError) throw uploadError;
+      // Upload via endpoint proprio (funciona em Supabase Storage e disco local).
+      const fd = new FormData();
+      fd.append("photo", photo);
+      const uploadRes = await fetch("/api/public/upload-photo", {
+        method: "POST",
+        body: fd,
+      });
+      if (!uploadRes.ok) {
+        const j = await uploadRes.json().catch(() => ({}));
+        throw new Error(`upload failed: ${j.error ?? uploadRes.status}`);
+      }
+      const { photoPath: path } = (await uploadRes.json()) as { photoPath: string };
 
       const response = await submitRegistration({
         data: {
