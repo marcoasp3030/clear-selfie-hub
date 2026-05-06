@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -271,6 +271,14 @@ function WhatsAppPage() {
           Conecte um número do WhatsApp via uazapi para enviar mensagens a partir do
           sistema.
         </p>
+        <div className="mt-1">
+          <Link
+            to="/admin/whatsapp/diagnostics"
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            → Abrir diagnóstico (env, conectividade, instância)
+          </Link>
+        </div>
       </div>
 
       {/* No instance yet */}

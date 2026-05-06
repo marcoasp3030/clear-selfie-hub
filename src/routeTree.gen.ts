@@ -22,6 +22,7 @@ import { Route as AdminDevicesRouteImport } from './routes/admin.devices'
 import { Route as AdminRegistrationsIndexRouteImport } from './routes/admin.registrations.index'
 import { Route as ApiPublicUploadPhotoRouteImport } from './routes/api/public/upload-photo'
 import { Route as ApiPublicUazapiWebhookRouteImport } from './routes/api/public/uazapi-webhook'
+import { Route as AdminWhatsappDiagnosticsRouteImport } from './routes/admin.whatsapp.diagnostics'
 import { Route as AdminRegistrationsIdRouteImport } from './routes/admin.registrations.$id'
 import { Route as ApiAdminPhotoSplatRouteImport } from './routes/api/admin/photo.$'
 
@@ -90,6 +91,12 @@ const ApiPublicUazapiWebhookRoute = ApiPublicUazapiWebhookRouteImport.update({
   path: '/api/public/uazapi-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminWhatsappDiagnosticsRoute =
+  AdminWhatsappDiagnosticsRouteImport.update({
+    id: '/diagnostics',
+    path: '/diagnostics',
+    getParentRoute: () => AdminWhatsappRoute,
+  } as any)
 const AdminRegistrationsIdRoute = AdminRegistrationsIdRouteImport.update({
   id: '/registrations/$id',
   path: '/registrations/$id',
@@ -109,10 +116,11 @@ export interface FileRoutesByFullPath {
   '/admin/docs': typeof AdminDocsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/migration': typeof AdminMigrationRoute
-  '/admin/whatsapp': typeof AdminWhatsappRoute
+  '/admin/whatsapp': typeof AdminWhatsappRouteWithChildren
   '/r/$slug': typeof RSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
+  '/admin/whatsapp/diagnostics': typeof AdminWhatsappDiagnosticsRoute
   '/api/public/uazapi-webhook': typeof ApiPublicUazapiWebhookRoute
   '/api/public/upload-photo': typeof ApiPublicUploadPhotoRoute
   '/admin/registrations/': typeof AdminRegistrationsIndexRoute
@@ -125,10 +133,11 @@ export interface FileRoutesByTo {
   '/admin/docs': typeof AdminDocsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/migration': typeof AdminMigrationRoute
-  '/admin/whatsapp': typeof AdminWhatsappRoute
+  '/admin/whatsapp': typeof AdminWhatsappRouteWithChildren
   '/r/$slug': typeof RSlugRoute
   '/admin': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
+  '/admin/whatsapp/diagnostics': typeof AdminWhatsappDiagnosticsRoute
   '/api/public/uazapi-webhook': typeof ApiPublicUazapiWebhookRoute
   '/api/public/upload-photo': typeof ApiPublicUploadPhotoRoute
   '/admin/registrations': typeof AdminRegistrationsIndexRoute
@@ -143,10 +152,11 @@ export interface FileRoutesById {
   '/admin/docs': typeof AdminDocsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/migration': typeof AdminMigrationRoute
-  '/admin/whatsapp': typeof AdminWhatsappRoute
+  '/admin/whatsapp': typeof AdminWhatsappRouteWithChildren
   '/r/$slug': typeof RSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
+  '/admin/whatsapp/diagnostics': typeof AdminWhatsappDiagnosticsRoute
   '/api/public/uazapi-webhook': typeof ApiPublicUazapiWebhookRoute
   '/api/public/upload-photo': typeof ApiPublicUploadPhotoRoute
   '/admin/registrations/': typeof AdminRegistrationsIndexRoute
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/r/$slug'
     | '/admin/'
     | '/admin/registrations/$id'
+    | '/admin/whatsapp/diagnostics'
     | '/api/public/uazapi-webhook'
     | '/api/public/upload-photo'
     | '/admin/registrations/'
@@ -182,6 +193,7 @@ export interface FileRouteTypes {
     | '/r/$slug'
     | '/admin'
     | '/admin/registrations/$id'
+    | '/admin/whatsapp/diagnostics'
     | '/api/public/uazapi-webhook'
     | '/api/public/upload-photo'
     | '/admin/registrations'
@@ -199,6 +211,7 @@ export interface FileRouteTypes {
     | '/r/$slug'
     | '/admin/'
     | '/admin/registrations/$id'
+    | '/admin/whatsapp/diagnostics'
     | '/api/public/uazapi-webhook'
     | '/api/public/upload-photo'
     | '/admin/registrations/'
@@ -307,6 +320,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicUazapiWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/whatsapp/diagnostics': {
+      id: '/admin/whatsapp/diagnostics'
+      path: '/diagnostics'
+      fullPath: '/admin/whatsapp/diagnostics'
+      preLoaderRoute: typeof AdminWhatsappDiagnosticsRouteImport
+      parentRoute: typeof AdminWhatsappRoute
+    }
     '/admin/registrations/$id': {
       id: '/admin/registrations/$id'
       path: '/registrations/$id'
@@ -324,13 +344,25 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminWhatsappRouteChildren {
+  AdminWhatsappDiagnosticsRoute: typeof AdminWhatsappDiagnosticsRoute
+}
+
+const AdminWhatsappRouteChildren: AdminWhatsappRouteChildren = {
+  AdminWhatsappDiagnosticsRoute: AdminWhatsappDiagnosticsRoute,
+}
+
+const AdminWhatsappRouteWithChildren = AdminWhatsappRoute._addFileChildren(
+  AdminWhatsappRouteChildren,
+)
+
 interface AdminRouteChildren {
   AdminDevicesRoute: typeof AdminDevicesRoute
   AdminDiagnosticsRoute: typeof AdminDiagnosticsRoute
   AdminDocsRoute: typeof AdminDocsRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminMigrationRoute: typeof AdminMigrationRoute
-  AdminWhatsappRoute: typeof AdminWhatsappRoute
+  AdminWhatsappRoute: typeof AdminWhatsappRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
   AdminRegistrationsIdRoute: typeof AdminRegistrationsIdRoute
   AdminRegistrationsIndexRoute: typeof AdminRegistrationsIndexRoute
@@ -342,7 +374,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDocsRoute: AdminDocsRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminMigrationRoute: AdminMigrationRoute,
-  AdminWhatsappRoute: AdminWhatsappRoute,
+  AdminWhatsappRoute: AdminWhatsappRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
   AdminRegistrationsIdRoute: AdminRegistrationsIdRoute,
   AdminRegistrationsIndexRoute: AdminRegistrationsIndexRoute,
