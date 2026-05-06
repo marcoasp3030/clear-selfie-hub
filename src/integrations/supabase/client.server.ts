@@ -11,7 +11,9 @@ function createSupabaseAdminClient() {
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error(
-      'Missing Supabase server environment variables. Ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.'
+      'Missing Supabase server environment variables. Ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set. ' +
+      '(Se voce esta rodando na VPS com Postgres proprio, esse erro indica que DATABASE_URL nao chegou no processo ' +
+      'e o codigo caiu no fallback Supabase. Verifique `docker exec <app> printenv DATABASE_URL` e recrie o container.)'
     );
   }
 
