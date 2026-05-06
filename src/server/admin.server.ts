@@ -3,6 +3,12 @@ import { supabaseAdmin } from "./supabaseAdmin.server";
 import type { Database } from "@/integrations/supabase/types";
 import { getCookie } from "@tanstack/react-start/server";
 import { AUTH_COOKIE_NAME, verifyAdminToken } from "./auth.server";
+import {
+  deleteRegistrationRow,
+  getStats,
+  listRegistrations,
+} from "./registrationsRepo.server";
+import { deletePhoto, getPhotoAccessUrl } from "./storage.server";
 
 export const LOCAL_ACCESS_TOKEN_SENTINEL = "__local_jwt__";
 
@@ -115,102 +121,47 @@ export async function listRegistrationRows(input: {
   offset: number;
 }) {
   await assertAdminAccess(input.accessToken);
-
-  let query = supabaseAdmin
-    .from("registrations")
-    .select("*", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(input.offset, input.offset + input.limit - 1);
-
-  if (input.search) {
-    const term = `%${input.search}%`;
-    query = query.or(
-      `first_name.ilike.${term},last_name.ilike.${term},phone.ilike.${term}`,
-    );
-  }
-
-  const { data: rows, error, count } = await query;
-  if (error) {
-    console.error("List failed:", error);
+  try {
+    return await listRegistrations({
+      search: input.search,
+      limit: input.limit,
+      offset: input.offset,
+    });
+  } catch (err) {
+    console.error("List failed:", err);
     throw new Response("Internal error", { status: 500 });
   }
-
-  return { rows: rows ?? [], total: count ?? 0 };
 }
 
 export async function getRegistrationStatsData(accessToken: string) {
   await assertAdminAccess(accessToken);
-
-  const now = new Date();
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
-  const sevenDaysAgo = new Date(now);
-  sevenDaysAgo.setDate(now.getDate() - 7);
-
-  const [totalRes, todayRes, weekRes] = await Promise.all([
-    supabaseAdmin.from("registrations").select("id", { count: "exact", head: true }),
-    supabaseAdmin
-      .from("registrations")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", startOfDay.toISOString()),
-    supabaseAdmin
-      .from("registrations")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", sevenDaysAgo.toISOString()),
-  ]);
-
-  return {
-    total: totalRes.count ?? 0,
-    today: todayRes.count ?? 0,
-    week: weekRes.count ?? 0,
-  };
+  try {
+    return await getStats();
+  } catch (err) {
+    console.error("Stats failed:", err);
+    throw new Response("Internal error", { status: 500 });
+  }
 }
 
 export async function getPhotoSignedUrlForPath(accessToken: string, path: string) {
   await assertAdminAccess(accessToken);
-
-  const { data: signed, error } = await supabaseAdmin.storage
-    .from("registration-photos")
-    .createSignedUrl(path, 60 * 60);
-
-  if (error || !signed) {
-    console.error("Signed URL failed:", error);
+  try {
+    const url = await getPhotoAccessUrl(path);
+    return { url };
+  } catch (err) {
+    console.error("Signed URL failed:", err);
     throw new Response("Internal error", { status: 500 });
   }
-
-  return { url: signed.signedUrl };
 }
 
 export async function deleteRegistrationById(accessToken: string, id: string) {
   await assertAdminAccess(accessToken);
-
-  const { data: row, error: fetchError } = await supabaseAdmin
-    .from("registrations")
-    .select("photo_path")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (fetchError) {
-    console.error("Fetch before delete failed:", fetchError);
-    throw new Response("Internal error", { status: 500 });
-  }
-  if (!row) {
+  try {
+    const { photo_path } = await deleteRegistrationRow(id);
+    if (photo_path) await deletePhoto(photo_path).catch(() => {});
     return { success: true as const };
-  }
-
-  const { error: deleteError } = await supabaseAdmin
-    .from("registrations")
-    .delete()
-    .eq("id", id);
-
-  if (deleteError) {
-    console.error("Delete failed:", deleteError);
+  } catch (err) {
+    console.error("Delete failed:", err);
     throw new Response("Internal error", { status: 500 });
   }
-
-  if (row.photo_path) {
-    await supabaseAdmin.storage.from("registration-photos").remove([row.photo_path]);
-  }
-
-  return { success: true as const };
 }
