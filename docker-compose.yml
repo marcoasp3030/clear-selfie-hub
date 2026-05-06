@@ -1,3 +1,11 @@
+# docker-compose para a VPS.
+# Conecta o app na MESMA rede Docker do n8n para alcancar o Postgres
+# pelo hostname "postgres" (host informado pelo cliente).
+#
+# Descubra o nome da rede do n8n com:
+#   docker network ls
+# e ajuste a chave "name:" abaixo (ex.: n8n_default, easypanel_default).
+
 services:
   app:
     build:
@@ -11,27 +19,54 @@ services:
     container_name: clear-selfie-hub
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
       HOST: 0.0.0.0
-      # ----- Backend (Lovable Cloud / Supabase) -----
+
+      # ----- Postgres proprio (Etapa 2/3 da migracao) -----
+      # Hostname "postgres" funciona porque entramos na rede do n8n.
+      DATABASE_URL: postgres://postgres:${DB_POSTGRESDB_PASSWORD}@postgres:5432/postgres
+      DB_SSL: "false"
+
+      # ----- Backend Lovable Cloud / Supabase (ainda em uso) -----
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-      # Vite injects these at build time; also passed at runtime for SSR fallback
       VITE_SUPABASE_URL: ${SUPABASE_URL}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
       VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
+
+      # ----- Auth/Storage proprios (cutover final) -----
+      JWT_SECRET: ${JWT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET}
+      UPLOADS_DIR: /var/app/uploads
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+
       # ----- WhatsApp (uazapi) -----
       UAZAPI_BASE_URL: ${UAZAPI_BASE_URL}
       UAZAPI_ADMIN_TOKEN: ${UAZAPI_ADMIN_TOKEN}
+
       # ----- Lovable AI (opcional) -----
       LOVABLE_API_KEY: ${LOVABLE_API_KEY}
+
+    volumes:
+      - ./data/uploads:/var/app/uploads
+
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 20s
+
+    networks:
+      - n8n_network
+
+networks:
+  # Conecta na rede EXISTENTE onde o servico "postgres" do n8n vive.
+  # Troque "n8n_default" pelo nome real (docker network ls).
+  n8n_network:
+    external: true
+    name: n8n_default
