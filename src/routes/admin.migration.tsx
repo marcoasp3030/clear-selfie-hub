@@ -354,6 +354,16 @@ docker compose logs -f app`;
           montada em <code className="font-mono">/var/app/uploads</code>. O campo{" "}
           <code className="font-mono">photo_path</code> continua igual.
         </p>
+        <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-900 dark:text-emerald-200">
+          <strong>✅ Etapa 3 já implementada no código:</strong> upload e leitura de
+          fotos passam por <code className="font-mono">/api/public/upload-photo</code> e{" "}
+          <code className="font-mono">/api/admin/photo/&lt;path&gt;</code>. O backend
+          escolhe automaticamente <code>disk</code> (se{" "}
+          <code className="font-mono">UPLOADS_DIR</code> existir) ou{" "}
+          <code>supabase</code>. Queries de <code>registrations</code> também detectam{" "}
+          <code className="font-mono">DATABASE_URL</code> e usam Postgres direto quando
+          disponível.
+        </p>
         <CopyBlock
           code={`# Backup diario (cron)
 #!/bin/bash
