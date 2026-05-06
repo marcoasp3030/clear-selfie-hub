@@ -304,3 +304,67 @@ export async function getStats(): Promise<{ total: number; today: number; week: 
   ]);
   return { total: a.count ?? 0, today: b.count ?? 0, week: c.count ?? 0 };
 }
+
+export type RegistrationForSync = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  cpf: string | null;
+  photo_path: string;
+  device_id: string | null;
+};
+
+export async function getRegistrationForSync(
+  id: string,
+): Promise<RegistrationForSync | null> {
+  if (getDataBackend() === "pg") {
+    const { rows } = await db.query<RegistrationForSync>(
+      `SELECT id::text, first_name, last_name, phone, cpf, photo_path,
+              device_id::text
+         FROM registrations WHERE id = $1 LIMIT 1`,
+      [id],
+    );
+    return rows[0] ?? null;
+  }
+  const { data } = await supabaseAdmin
+    .from("registrations")
+    .select("id,first_name,last_name,phone,cpf,photo_path,device_id")
+    .eq("id", id)
+    .maybeSingle();
+  return data
+    ? {
+        id: String(data.id),
+        first_name: String(data.first_name),
+        last_name: String(data.last_name),
+        phone: String(data.phone),
+        cpf: (data.cpf as string | null) ?? null,
+        photo_path: String(data.photo_path),
+        device_id: (data.device_id as string | null) ?? null,
+      }
+    : null;
+}
+
+export type DeviceSyncPatch = {
+  device_sync_status: "pending" | "success" | "error";
+  device_sync_user_id?: number | null;
+  device_sync_error?: string | null;
+  device_sync_attempted_at?: string | null;
+};
+
+export async function updateRegistrationSync(
+  id: string,
+  patch: DeviceSyncPatch,
+): Promise<void> {
+  if (getDataBackend() === "pg") {
+    const cols = Object.keys(patch);
+    const values = Object.values(patch);
+    const sets = cols.map((k, i) => `${k} = $${i + 2}`).join(", ");
+    await db.query(`UPDATE registrations SET ${sets} WHERE id = $1`, [
+      id,
+      ...values,
+    ]);
+    return;
+  }
+  await supabaseAdmin.from("registrations").update(patch).eq("id", id);
+}
