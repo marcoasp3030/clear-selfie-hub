@@ -1,6 +1,7 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { localLogin, getLocalSession } from "@/server/auth.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +18,14 @@ export const Route = createFileRoute("/admin/login")({
     const { data } = await supabase.auth.getSession();
     if (data.session) {
       throw redirect({ to: "/admin" });
+    }
+    // Sessao JWT local? (cookie httpOnly)
+    try {
+      const { user } = await getLocalSession();
+      if (user?.isAdmin) throw redirect({ to: "/admin" });
+    } catch (e) {
+      // re-throw redirects, ignora erros de rede
+      if (e && typeof e === "object" && "to" in (e as object)) throw e;
     }
   },
   component: AdminLoginPage,
@@ -56,6 +65,26 @@ function AdminLoginPage() {
       if (!submittedEmail || !submittedPassword) {
         toast.error("Informe email e senha para entrar.");
         return;
+      }
+
+      // 1) Tenta o login local (Postgres + JWT). Se a infra ainda nao existe
+      //    (DATABASE_URL/JWT_SECRET/tabela users), cai pro Supabase.
+      try {
+        const local = await localLogin({
+          data: { email: submittedEmail, password: submittedPassword },
+        });
+        if (local.ok) {
+          toast.success("Login realizado");
+          navigate({ to: "/admin" });
+          return;
+        }
+        if (!local.unavailable) {
+          toast.error("Email ou senha inválidos");
+          return;
+        }
+        // unavailable -> segue pro Supabase
+      } catch (err) {
+        console.warn("[admin-login] local falhou, tentando Supabase:", err);
       }
 
       const { data, error } = await supabase.auth.signInWithPassword({
