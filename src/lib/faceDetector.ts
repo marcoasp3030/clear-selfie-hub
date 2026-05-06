@@ -3,12 +3,35 @@ import { FaceLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 let landmarkerPromise: Promise<FaceLandmarker> | null = null;
 
 async function createLandmarker(): Promise<FaceLandmarker> {
-  const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm",
-  );
-
-  const modelAssetPath =
+  // Servimos os assets do MediaPipe pelo proprio dominio (public/mediapipe/*).
+  // Em CDNs externos (jsdelivr/googleapis) a primeira carga ficava de 5s a 30s
+  // em algumas redes/VPS, fazendo o usuario clicar varias vezes em "Abrir camera".
+  // Mantemos fallback pro CDN caso o asset local nao esteja presente.
+  const LOCAL_WASM = "/mediapipe/wasm";
+  const LOCAL_MODEL = "/mediapipe/face_landmarker.task";
+  const CDN_WASM =
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm";
+  const CDN_MODEL =
     "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+
+  async function head(url: string): Promise<boolean> {
+    try {
+      const r = await fetch(url, { method: "HEAD" });
+      return r.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  const [hasLocalWasm, hasLocalModel] = await Promise.all([
+    head(`${LOCAL_WASM}/vision_wasm_internal.wasm`),
+    head(LOCAL_MODEL),
+  ]);
+
+  const vision = await FilesetResolver.forVisionTasks(
+    hasLocalWasm ? LOCAL_WASM : CDN_WASM,
+  );
+  const modelAssetPath = hasLocalModel ? LOCAL_MODEL : CDN_MODEL;
 
   const baseOpts = {
     runningMode: "VIDEO" as const,
