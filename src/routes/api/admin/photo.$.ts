@@ -20,7 +20,7 @@ export const Route = createFileRoute("/api/admin/photo/$")({
         if (!photoPath) return new Response("Bad Request", { status: 400 });
         try {
           const { body, contentType } = await readPhoto(photoPath);
-          return new Response(body, {
+          return new Response(new Uint8Array(body), {
             status: 200,
             headers: {
               "Content-Type": contentType,
