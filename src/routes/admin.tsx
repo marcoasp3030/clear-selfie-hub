@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { checkAdminAccess } from "@/server/admin.functions";
+import { getLocalSession, localLogout } from "@/server/auth.functions";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
@@ -24,7 +25,17 @@ export const Route = createFileRoute("/admin")({
     }
 
     const { data } = await supabase.auth.getSession();
-    if (!data.session) {
+    if (data.session) return;
+
+    // Sem sessao Supabase -> tenta JWT local em cookie httpOnly.
+    try {
+      const { user } = await getLocalSession();
+      if (user?.isAdmin) return;
+    } catch {
+      // ignore
+    }
+
+    {
       throw redirect({
         to: "/admin/login",
         search: { redirect: location.href },
@@ -74,7 +85,7 @@ function AdminLayout() {
   }, [navigate]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await Promise.allSettled([supabase.auth.signOut(), localLogout()]);
     toast.success("Sessão encerrada");
     navigate({ to: "/admin/login" });
   };
