@@ -1,4 +1,8 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  findByVerifyToken,
+  findUnverifiedByPhoneLooseMatch,
+  markVerifiedById,
+} from "./phoneRepo.server";
 
 type AnyRecord = Record<string, unknown>;
 
@@ -86,17 +90,6 @@ function extractFromNumber(payload: unknown): string | null {
   return null;
 }
 
-async function markVerifiedById(rowId: string): Promise<void> {
-  const { error } = await supabaseAdmin
-    .from("phone_verifications")
-    .update({
-      verified_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", rowId);
-  if (error) console.error("[uazapi-webhook] update error:", error);
-}
-
 export async function handleUazapiWebhook(request: Request): Promise<Response> {
   let payload: unknown = null;
   let raw = "";
@@ -118,11 +111,7 @@ export async function handleUazapiWebhook(request: Request): Promise<Response> {
   console.log("[uazapi-webhook] parsed:", { token, fromPhone });
 
   if (token) {
-    const { data: row } = await supabaseAdmin
-      .from("phone_verifications")
-      .select("id, phone, expires_at, verified_at")
-      .eq("verify_token", token)
-      .maybeSingle();
+    const row = await findByVerifyToken(token);
     if (row && !row.verified_at && new Date(row.expires_at).getTime() >= Date.now()) {
       await markVerifiedById(row.id);
       console.log("[uazapi-webhook] verified by token");
@@ -132,18 +121,8 @@ export async function handleUazapiWebhook(request: Request): Promise<Response> {
   }
 
   if (fromPhone && looksLikeVerifyClick(payload)) {
-    const { data: rows } = await supabaseAdmin
-      .from("phone_verifications")
-      .select("id, phone, expires_at, verified_at")
-      .is("verified_at", null)
-      .order("created_at", { ascending: false })
-      .limit(20);
-    const match = (rows ?? []).find((r) => {
-      const a = r.phone.replace(/\D/g, "");
-      const b = fromPhone.replace(/\D/g, "");
-      return a.endsWith(b) || b.endsWith(a);
-    });
-    if (match && new Date(match.expires_at).getTime() >= Date.now()) {
+    const match = await findUnverifiedByPhoneLooseMatch(fromPhone);
+    if (match) {
       await markVerifiedById(match.id);
       console.log("[uazapi-webhook] verified by phone+text");
       return new Response("ok", { status: 200 });
