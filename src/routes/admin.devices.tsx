@@ -152,9 +152,10 @@ function DevicesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Equipamentos</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Lojas / Equipamentos</h1>
           <p className="text-sm text-muted-foreground">
-            Cada equipamento gera uma URL pública de cadastro exclusiva.
+            Cada loja/equipamento gera uma URL pública de cadastro exclusiva. Use o
+            nome da loja para identificar a origem dos cadastros.
           </p>
         </div>
 
@@ -177,10 +178,10 @@ function DevicesPage() {
 
               <div className="my-5 space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="dev-name">Nome</Label>
+                  <Label htmlFor="dev-name">Nome da loja / equipamento</Label>
                   <Input
                     id="dev-name"
-                    placeholder="Recepção Matriz"
+                    placeholder="Ex.: Loja Centro · Recepção Matriz"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
