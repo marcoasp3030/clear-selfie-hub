@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { assertAdminAccess } from "./admin.server";
-import { getLatestInstance } from "./uazapiRepo.server";
+import { getLatestInstance, getActiveInstanceTokenOrNull } from "./uazapiRepo.server";
 import { getDataBackend } from "./registrationsRepo.server";
+import { logMessageAttempt } from "./messageAttemptsRepo.server";
 
 const accessTokenSchema = z.string().trim().min(1);
 
@@ -103,4 +104,146 @@ export const getUazapiDiagnostics = createServerFn({ method: "POST" })
       probe,
       checkedAt: new Date().toISOString(),
     };
+  });
+
+function normalizePhone(raw: string): string {
+  let digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  if (!digits.startsWith("55")) digits = `55${digits}`;
+  return digits;
+}
+
+/**
+ * Faz um GET autenticado em /instance/all para validar conectividade
+ * e credenciais (admintoken). Retorna debug completo para a UI.
+ */
+export const pingUazapi = createServerFn({ method: "POST" })
+  .inputValidator((input: { accessToken: string }) =>
+    z.object({ accessToken: accessTokenSchema }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    await assertAdminAccess(data.accessToken);
+    const baseUrl = process.env.UAZAPI_BASE_URL;
+    const adminToken = process.env.UAZAPI_ADMIN_TOKEN;
+    if (!baseUrl) {
+      return { ok: false, error: "UAZAPI_BASE_URL não configurado", url: null, status: 0, ms: 0, bodyPreview: null };
+    }
+    if (!adminToken) {
+      return { ok: false, error: "UAZAPI_ADMIN_TOKEN não configurado", url: null, status: 0, ms: 0, bodyPreview: null };
+    }
+    const probe = await probeUazapi(baseUrl, adminToken);
+    return probe;
+  });
+
+/**
+ * Envia uma mensagem de teste pelo WhatsApp via uazapi (/send/text)
+ * usando o token da instância salva. Retorna status e corpo bruto da
+ * resposta para debug. Loga em message_attempts.
+ */
+export const sendTestWhatsApp = createServerFn({ method: "POST" })
+  .inputValidator((input: { accessToken: string; to: string; text: string }) =>
+    z
+      .object({
+        accessToken: accessTokenSchema,
+        to: z.string().trim().min(8).max(20),
+        text: z.string().trim().min(1).max(1000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }): Promise<{
+    success: boolean;
+    status: number;
+    ms: number;
+    url: string | null;
+    requestBody: { number: string; text: string; linkPreview: boolean } | null;
+    responseBody: string | null;
+    error: string | null;
+  }> => {
+    await assertAdminAccess(data.accessToken);
+
+    const baseUrl = process.env.UAZAPI_BASE_URL;
+    if (!baseUrl) {
+      return {
+        success: false,
+        status: 0,
+        ms: 0,
+        url: null,
+        requestBody: null,
+        responseBody: null,
+        error: "UAZAPI_BASE_URL não configurado",
+      };
+    }
+
+    let token: string | null = null;
+    try {
+      token = await getActiveInstanceTokenOrNull();
+    } catch (err) {
+      return {
+        success: false,
+        status: 0,
+        ms: 0,
+        url: null,
+        requestBody: null,
+        responseBody: null,
+        error:
+          "Falha ao ler instância salva: " +
+          (err instanceof Error ? err.message : String(err)),
+      };
+    }
+    if (!token) {
+      return {
+        success: false,
+        status: 0,
+        ms: 0,
+        url: null,
+        requestBody: null,
+        responseBody: null,
+        error:
+          "Nenhuma instância uazapi salva. Crie e conecte uma instância em /admin/whatsapp.",
+      };
+    }
+
+    const phone = normalizePhone(data.to);
+    const url = `${baseUrl.replace(/\/+$/, "")}/send/text`;
+    const body = { number: phone, text: data.text, linkPreview: false };
+
+    const start = Date.now();
+    let status = 0;
+    let responseBody: string | null = null;
+    let error: string | null = null;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          token,
+        },
+        body: JSON.stringify(body),
+      });
+      status = res.status;
+      responseBody = (await res.text()).slice(0, 2000);
+      if (!res.ok) {
+        error = `HTTP ${res.status}`;
+      }
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+    }
+    const ms = Date.now() - start;
+    const success = !error && status >= 200 && status < 300;
+
+    try {
+      await logMessageAttempt({
+        channel: "whatsapp",
+        provider: "uazapi",
+        phone,
+        status: success ? "sent" : "failed",
+        error,
+        metadata: { test: true, status, ms, responseBody: responseBody?.slice(0, 500) ?? null },
+      });
+    } catch {
+      /* noop */
+    }
+
+    return { success, status, ms, url, requestBody: body, responseBody, error };
   });
