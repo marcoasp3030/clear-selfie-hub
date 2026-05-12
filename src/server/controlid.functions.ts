@@ -4,6 +4,7 @@ import { syncRegistrationToControlId } from "./controlid.server";
 import { assertAdminAccess } from "./admin.server";
 import {
   getRegistrationForSync,
+  listPendingSyncRegistrations,
   updateRegistrationSync,
 } from "./registrationsRepo.server";
 import { findDeviceById } from "./devicesRepo.server";
@@ -132,4 +133,68 @@ export const retrySyncRegistration = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await assertAdminAccess(data.accessToken);
     return runSync(data.registrationId);
+  });
+
+/**
+ * Admin: lista cadastros pendentes/com erro de sincronização (offline).
+ */
+export const listPendingSyncs = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z.object({ accessToken: accessTokenSchema }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    await assertAdminAccess(data.accessToken);
+    const rows = await listPendingSyncRegistrations(500);
+    return { rows };
+  });
+
+/**
+ * Admin: reprocessa em massa todos os cadastros pendentes/com erro.
+ * Roda sequencialmente para não sobrecarregar o equipamento.
+ */
+export const bulkRetrySync = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        accessToken: accessTokenSchema,
+        ids: z.array(z.string().uuid()).max(500).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    await assertAdminAccess(data.accessToken);
+
+    let targets = data.ids ?? [];
+    if (targets.length === 0) {
+      const pending = await listPendingSyncRegistrations(500);
+      targets = pending.map((r) => r.id);
+    }
+
+    let success = 0;
+    let failed = 0;
+    const failures: Array<{ id: string; error: string }> = [];
+
+    for (const id of targets) {
+      try {
+        const r = await runSync(id);
+        if (r.success) success++;
+        else {
+          failed++;
+          failures.push({ id, error: r.error });
+        }
+      } catch (err) {
+        failed++;
+        failures.push({
+          id,
+          error: err instanceof Error ? err.message : "Erro inesperado",
+        });
+      }
+    }
+
+    return {
+      total: targets.length,
+      success,
+      failed,
+      failures: failures.slice(0, 20),
+    };
   });
