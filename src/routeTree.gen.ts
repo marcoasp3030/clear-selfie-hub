@@ -27,6 +27,7 @@ import { Route as ApiPublicUazapiWebhookRouteImport } from './routes/api/public/
 import { Route as ApiPublicTwilioPingRouteImport } from './routes/api/public/twilio-ping'
 import { Route as AdminWhatsappLogsRouteImport } from './routes/admin.whatsapp.logs'
 import { Route as AdminWhatsappDiagnosticsRouteImport } from './routes/admin.whatsapp.diagnostics'
+import { Route as AdminWhatsappConfigRouteImport } from './routes/admin.whatsapp.config'
 import { Route as AdminRegistrationsIdRouteImport } from './routes/admin.registrations.$id'
 import { Route as ApiAdminPhotoSplatRouteImport } from './routes/api/admin/photo.$'
 
@@ -121,6 +122,11 @@ const AdminWhatsappDiagnosticsRoute =
     path: '/diagnostics',
     getParentRoute: () => AdminWhatsappRoute,
   } as any)
+const AdminWhatsappConfigRoute = AdminWhatsappConfigRouteImport.update({
+  id: '/config',
+  path: '/config',
+  getParentRoute: () => AdminWhatsappRoute,
+} as any)
 const AdminRegistrationsIdRoute = AdminRegistrationsIdRouteImport.update({
   id: '/registrations/$id',
   path: '/registrations/$id',
@@ -146,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/r/$slug': typeof RSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
+  '/admin/whatsapp/config': typeof AdminWhatsappConfigRoute
   '/admin/whatsapp/diagnostics': typeof AdminWhatsappDiagnosticsRoute
   '/admin/whatsapp/logs': typeof AdminWhatsappLogsRoute
   '/api/public/twilio-ping': typeof ApiPublicTwilioPingRoute
@@ -167,6 +174,7 @@ export interface FileRoutesByTo {
   '/r/$slug': typeof RSlugRoute
   '/admin': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
+  '/admin/whatsapp/config': typeof AdminWhatsappConfigRoute
   '/admin/whatsapp/diagnostics': typeof AdminWhatsappDiagnosticsRoute
   '/admin/whatsapp/logs': typeof AdminWhatsappLogsRoute
   '/api/public/twilio-ping': typeof ApiPublicTwilioPingRoute
@@ -190,6 +198,7 @@ export interface FileRoutesById {
   '/r/$slug': typeof RSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
+  '/admin/whatsapp/config': typeof AdminWhatsappConfigRoute
   '/admin/whatsapp/diagnostics': typeof AdminWhatsappDiagnosticsRoute
   '/admin/whatsapp/logs': typeof AdminWhatsappLogsRoute
   '/api/public/twilio-ping': typeof ApiPublicTwilioPingRoute
@@ -214,6 +223,7 @@ export interface FileRouteTypes {
     | '/r/$slug'
     | '/admin/'
     | '/admin/registrations/$id'
+    | '/admin/whatsapp/config'
     | '/admin/whatsapp/diagnostics'
     | '/admin/whatsapp/logs'
     | '/api/public/twilio-ping'
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/r/$slug'
     | '/admin'
     | '/admin/registrations/$id'
+    | '/admin/whatsapp/config'
     | '/admin/whatsapp/diagnostics'
     | '/admin/whatsapp/logs'
     | '/api/public/twilio-ping'
@@ -257,6 +268,7 @@ export interface FileRouteTypes {
     | '/r/$slug'
     | '/admin/'
     | '/admin/registrations/$id'
+    | '/admin/whatsapp/config'
     | '/admin/whatsapp/diagnostics'
     | '/admin/whatsapp/logs'
     | '/api/public/twilio-ping'
@@ -404,6 +416,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminWhatsappDiagnosticsRouteImport
       parentRoute: typeof AdminWhatsappRoute
     }
+    '/admin/whatsapp/config': {
+      id: '/admin/whatsapp/config'
+      path: '/config'
+      fullPath: '/admin/whatsapp/config'
+      preLoaderRoute: typeof AdminWhatsappConfigRouteImport
+      parentRoute: typeof AdminWhatsappRoute
+    }
     '/admin/registrations/$id': {
       id: '/admin/registrations/$id'
       path: '/registrations/$id'
@@ -422,11 +441,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminWhatsappRouteChildren {
+  AdminWhatsappConfigRoute: typeof AdminWhatsappConfigRoute
   AdminWhatsappDiagnosticsRoute: typeof AdminWhatsappDiagnosticsRoute
   AdminWhatsappLogsRoute: typeof AdminWhatsappLogsRoute
 }
 
 const AdminWhatsappRouteChildren: AdminWhatsappRouteChildren = {
+  AdminWhatsappConfigRoute: AdminWhatsappConfigRoute,
   AdminWhatsappDiagnosticsRoute: AdminWhatsappDiagnosticsRoute,
   AdminWhatsappLogsRoute: AdminWhatsappLogsRoute,
 }
@@ -477,3 +498,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
