@@ -156,6 +156,10 @@ function DevicesPage() {
           <p className="text-sm text-muted-foreground">
             Cada loja/equipamento gera uma URL pública de cadastro exclusiva. Use o
             nome da loja para identificar a origem dos cadastros.
+            <br />
+            <strong>Múltiplos equipamentos por loja:</strong> cadastre cada equipamento
+            usando exatamente o mesmo <em>Nome da loja</em>. O sistema replica
+            automaticamente cada novo cadastro em todos os equipamentos com o mesmo nome.
           </p>
         </div>
 
@@ -188,6 +192,10 @@ function DevicesPage() {
                     minLength={2}
                     maxLength={120}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Use o mesmo nome em equipamentos da mesma loja para sincronizar
+                    cada cadastro em todos eles.
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="dev-slug">
