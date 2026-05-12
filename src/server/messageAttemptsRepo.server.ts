@@ -10,7 +10,6 @@ export type MessageAttemptRow = {
   status: "sent" | "failed";
   error: string | null;
   provider_message_id: string | null;
-  metadata: unknown | null;
   created_at: string;
 };
 
@@ -90,7 +89,7 @@ export async function listMessageAttemptsRows(input: {
     params.push(input.offset);
     const rowsRes = await db.query<MessageAttemptRow>(
       `SELECT id::text, channel, provider, phone, status, error,
-              provider_message_id, metadata, created_at::text
+              provider_message_id, created_at::text
          FROM message_attempts
          ${whereSql}
          ORDER BY created_at DESC
@@ -102,7 +101,10 @@ export async function listMessageAttemptsRows(input: {
 
   let q = supabaseAdmin
     .from("message_attempts" as never)
-    .select("*", { count: "exact" })
+    .select(
+      "id, channel, provider, phone, status, error, provider_message_id, created_at",
+      { count: "exact" },
+    )
     .order("created_at", { ascending: false })
     .range(input.offset, input.offset + input.limit - 1);
   if (channel) q = q.eq("channel", channel);
