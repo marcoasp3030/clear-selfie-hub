@@ -15,6 +15,7 @@ import {
   Sparkles,
   MessageCircle,
   ShieldCheck,
+  Smartphone,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
@@ -96,6 +97,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
   const [code, setCode] = useState("");
   const [resendIn, setResendIn] = useState(0);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [channel, setChannel] = useState<"whatsapp" | "sms">("whatsapp");
 
   const isPhoneVerified =
     verificationStatus === "verified" && verifiedPhone === phone;
@@ -150,10 +152,12 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
     }
     setVerificationStatus("sending");
     try {
-      const res = await sendVerification({ data: { phone } });
+      const res = await sendVerification({ data: { phone, channel } });
       setVerificationStatus("sent");
       setResendIn(res.cooldownSeconds ?? 30);
-      toast.success("Código enviado no WhatsApp.");
+      toast.success(
+        channel === "sms" ? "Código enviado por SMS." : "Código enviado no WhatsApp."
+      );
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Não foi possível enviar o código.";
