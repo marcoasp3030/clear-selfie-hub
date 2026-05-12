@@ -290,6 +290,7 @@ export const disconnectInstance = createServerFn({ method: "POST" })
           error:
             msg ||
             "Não foi possível desconectar na uazapi. Tente novamente em instantes.",
+          warning: null,
         };
       }
 
@@ -303,6 +304,7 @@ export const disconnectInstance = createServerFn({ method: "POST" })
 
       return {
         success: true as const,
+        error: null,
         warning:
           "O token salvo na uazapi está inválido. Marquei a instância como desconectada localmente; se precisar usar WhatsApp novamente, exclua e crie uma nova instância.",
       };
@@ -316,7 +318,7 @@ export const disconnectInstance = createServerFn({ method: "POST" })
       updated_at: new Date().toISOString(),
     });
 
-    return { success: true as const };
+    return { success: true as const, error: null, warning: null };
   });
 
 /** Permanently deletes the instance from uazapi and locally. */
