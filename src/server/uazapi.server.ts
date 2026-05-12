@@ -5,6 +5,8 @@
 //  - `admintoken` header: instance lifecycle (create / list / delete instances)
 //  - `token` header: per-instance operations (connect, status, qrcode, disconnect)
 
+import { logUazapiEvent } from "./uazapiDebug.server";
+
 type UazFetchOptions = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;
@@ -13,8 +15,6 @@ type UazFetchOptions = {
   /** Per-instance token (required when admin=false). */
   instanceToken?: string;
 };
-
-import { logUazapiEvent } from "./uazapiDebug.server";
 
 function getBaseUrl() {
   const raw = process.env.UAZAPI_BASE_URL;
