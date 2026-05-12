@@ -22,11 +22,23 @@ function maskUrl(value: string | undefined | null): string | null {
 async function probeUazapi(baseUrl: string, adminToken: string) {
   const url = `${baseUrl.replace(/\/+$/, "")}/instance/all`;
   const start = Date.now();
+  const request = (authMode: "header" | "query") => {
+    const target = new URL(url);
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (authMode === "header") headers.admintoken = adminToken;
+    else target.searchParams.set("admintoken", adminToken);
+    return fetch(target.toString(), { method: "GET", headers });
+  };
   try {
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { admintoken: adminToken, Accept: "application/json" },
-    });
+    let authMode: "header" | "query" = "header";
+    let res = await request("header");
+    if (res.status === 401 || res.status === 403) {
+      const preview = await res.clone().text().catch(() => "");
+      if (/missing token|invalid token|unauthorized|forbidden|admintoken|token/i.test(preview)) {
+        authMode = "query";
+        res = await request("query");
+      }
+    }
     const ms = Date.now() - start;
     const text = await res.text();
     logUazapiEvent({
@@ -37,6 +49,7 @@ async function probeUazapi(baseUrl: string, adminToken: string) {
       status: res.status,
       ms,
       ok: res.ok,
+      requestBody: { authMode },
       responsePreview: text,
       error: res.ok ? undefined : text.slice(0, 300) || `HTTP ${res.status}`,
     });
@@ -44,7 +57,7 @@ async function probeUazapi(baseUrl: string, adminToken: string) {
       ok: res.ok,
       status: res.status,
       ms,
-      url,
+      url: authMode === "query" ? `${url}?admintoken=***` : url,
       bodyPreview: text.slice(0, 300),
     };
   } catch (err) {
