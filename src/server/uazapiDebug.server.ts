@@ -1,4 +1,6 @@
-type UazapiLogEvent = {
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+export type UazapiLogEvent = {
   id: string;
   at: string;
   level: "info" | "warn" | "error";
@@ -8,16 +10,22 @@ type UazapiLogEvent = {
   status?: number;
   ms?: number;
   ok?: boolean;
-  requestBody?: unknown;
-  responsePreview?: unknown;
+  requestBody?: JsonValue;
+  responsePreview?: JsonValue;
   error?: string;
 };
 
 const MAX_EVENTS = 80;
 const events: UazapiLogEvent[] = [];
 
-function safePreview(value: unknown): unknown {
+type UazapiLogInput = Omit<UazapiLogEvent, "id" | "at" | "requestBody" | "responsePreview"> & {
+  requestBody?: unknown;
+  responsePreview?: unknown;
+};
+
+function safePreview(value: unknown): JsonValue {
   if (value == null) return value;
+  if (typeof value === "number" || typeof value === "boolean") return value;
   if (typeof value === "string") {
     if (value.startsWith("data:image") || value.length > 400) {
       return `${value.slice(0, 120)}… (len=${value.length})`;
@@ -26,7 +34,7 @@ function safePreview(value: unknown): unknown {
   }
   if (Array.isArray(value)) return value.slice(0, 5).map(safePreview);
   if (typeof value === "object") {
-    const out: Record<string, unknown> = {};
+    const out: Record<string, JsonValue> = {};
     for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
       const k = key.toLowerCase();
       if (k.includes("token") || k.includes("secret") || k.includes("password")) {
@@ -39,10 +47,10 @@ function safePreview(value: unknown): unknown {
     }
     return out;
   }
-  return value;
+  return String(value);
 }
 
-export function logUazapiEvent(event: Omit<UazapiLogEvent, "id" | "at">) {
+export function logUazapiEvent(event: UazapiLogInput) {
   const item: UazapiLogEvent = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     at: new Date().toISOString(),
