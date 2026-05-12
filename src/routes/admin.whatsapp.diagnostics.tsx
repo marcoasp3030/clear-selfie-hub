@@ -31,8 +31,39 @@ export const Route = createFileRoute("/admin/whatsapp/diagnostics")({
   component: WhatsAppDiagnosticsPage,
 });
 
-type Diagnostics = Awaited<ReturnType<typeof getUazapiDiagnostics>>;
-type PingResult = Awaited<ReturnType<typeof pingUazapi>>;
+type ProbeResult = {
+  ok: boolean;
+  status: number;
+  ms: number;
+  url: string | null;
+  bodyPreview?: string | null;
+  error?: string | null;
+};
+
+type UazLog = {
+  id: string;
+  at: string;
+  level: "info" | "warn" | "error";
+  action: string;
+  method?: string;
+  path?: string;
+  status?: number;
+  ms?: number;
+  ok?: boolean;
+  requestBody?: unknown;
+  responsePreview?: unknown;
+  error?: string;
+};
+
+type Diagnostics = {
+  env: Record<string, string | boolean | null> & { data_backend: string };
+  instance: Record<string, unknown> | null;
+  instanceError: string | null;
+  probe: ProbeResult | null;
+  logs: UazLog[];
+  checkedAt: string;
+};
+type PingResult = ProbeResult;
 type TestResult = Awaited<ReturnType<typeof sendTestWhatsApp>>;
 
 function StatusPill({ ok, label }: { ok: boolean; label: string }) {
