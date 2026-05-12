@@ -349,6 +349,53 @@ export async function getRegistrationForSync(
     : null;
 }
 
+export type PendingSyncRow = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  device_id: string | null;
+  device_sync_status: string;
+  device_sync_error: string | null;
+  device_sync_attempted_at: string | null;
+  created_at: string;
+};
+
+/**
+ * Lista cadastros que ainda nao foram sincronizados com sucesso ao equipamento
+ * (status pending ou error). Limita a 500 por chamada para reprocessamento em massa.
+ */
+export async function listPendingSyncRegistrations(
+  limit = 500,
+): Promise<PendingSyncRow[]> {
+  if (getDataBackend() === "pg") {
+    const { rows } = await db.query<PendingSyncRow>(
+      `SELECT id::text, first_name, last_name, phone, device_id::text,
+              device_sync_status, device_sync_error,
+              device_sync_attempted_at::text AS device_sync_attempted_at,
+              created_at::text AS created_at
+         FROM registrations
+        WHERE device_id IS NOT NULL
+          AND device_sync_status IN ('pending','error')
+        ORDER BY created_at ASC
+        LIMIT $1`,
+      [limit],
+    );
+    return rows;
+  }
+  const { data, error } = await supabaseAdmin
+    .from("registrations")
+    .select(
+      "id, first_name, last_name, phone, device_id, device_sync_status, device_sync_error, device_sync_attempted_at, created_at",
+    )
+    .not("device_id", "is", null)
+    .in("device_sync_status", ["pending", "error"])
+    .order("created_at", { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return (data as unknown as PendingSyncRow[]) ?? [];
+}
+
 export type DeviceSyncPatch = {
   device_sync_status: "pending" | "success" | "error";
   device_sync_user_id?: number | null;
