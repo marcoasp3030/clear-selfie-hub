@@ -7,6 +7,7 @@ export type UazapiLogEvent = {
   action: string;
   method?: string;
   path?: string;
+  url?: string;
   status?: number;
   ms?: number;
   ok?: boolean;
@@ -64,4 +65,8 @@ export function logUazapiEvent(event: UazapiLogInput) {
 
 export function getUazapiLogEvents() {
   return [...events];
+}
+
+export function clearUazapiLogEvents() {
+  events.length = 0;
 }
