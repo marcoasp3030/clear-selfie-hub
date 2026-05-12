@@ -29,8 +29,39 @@ function pickStatus(raw: unknown): string {
   const candidates = [obj.status, obj.state, obj.connectionStatus];
   for (const c of candidates) {
     if (typeof c === "string" && c.length > 0) return c;
+    if (c && typeof c === "object") {
+      const statusObj = c as Record<string, unknown>;
+      if (statusObj.connected === true || statusObj.loggedIn === true) return "connected";
+    }
   }
+  if (obj.connected === true || obj.loggedIn === true) return "connected";
+  if (typeof obj.qrcode === "string" || typeof obj.paircode === "string") return "connecting";
   return "disconnected";
+}
+
+function extractInstancePayload(raw: unknown): Instance & Record<string, unknown> {
+  if (!raw || typeof raw !== "object") return {};
+  const obj = raw as Record<string, unknown>;
+  const instance = obj.instance && typeof obj.instance === "object" ? obj.instance : obj;
+  return {
+    ...(instance as Instance & Record<string, unknown>),
+    connected: obj.connected,
+    loggedIn: obj.loggedIn,
+    jid: obj.jid,
+    status: (instance as Record<string, unknown>).status ?? obj.status,
+  };
+}
+
+function ownerFromPayload(payload: Record<string, unknown>) {
+  if (typeof payload.owner === "string") return payload.owner;
+  const jid = payload.jid;
+  if (jid && typeof jid === "object") {
+    const obj = jid as Record<string, unknown>;
+    if (typeof obj.user === "string") {
+      return `${obj.user}@${typeof obj.server === "string" ? obj.server : "s.whatsapp.net"}`;
+    }
+  }
+  return null;
 }
 
 /** Returns the saved instance row (the project uses a single global instance). */
@@ -68,9 +99,10 @@ async function persistFromStatus(
     last_status_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
-  if (typeof payload.owner === "string") {
-    update.owner_jid = payload.owner;
-    const phone = payload.owner.split("@")[0]?.replace(/\D/g, "") ?? null;
+  const owner = ownerFromPayload(payload);
+  if (owner) {
+    update.owner_jid = owner;
+    const phone = owner.split("@")[0]?.replace(/\D/g, "") ?? null;
     if (phone) update.phone_connected = phone;
   }
   if (typeof payload.profileName === "string") {
