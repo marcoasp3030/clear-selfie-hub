@@ -22,6 +22,7 @@ import { Route as AdminDevicesRouteImport } from './routes/admin.devices'
 import { Route as AdminRegistrationsIndexRouteImport } from './routes/admin.registrations.index'
 import { Route as ApiPublicUploadPhotoRouteImport } from './routes/api/public/upload-photo'
 import { Route as ApiPublicUazapiWebhookRouteImport } from './routes/api/public/uazapi-webhook'
+import { Route as ApiPublicTwilioPingRouteImport } from './routes/api/public/twilio-ping'
 import { Route as AdminWhatsappDiagnosticsRouteImport } from './routes/admin.whatsapp.diagnostics'
 import { Route as AdminRegistrationsIdRouteImport } from './routes/admin.registrations.$id'
 import { Route as ApiAdminPhotoSplatRouteImport } from './routes/api/admin/photo.$'
@@ -91,6 +92,11 @@ const ApiPublicUazapiWebhookRoute = ApiPublicUazapiWebhookRouteImport.update({
   path: '/api/public/uazapi-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicTwilioPingRoute = ApiPublicTwilioPingRouteImport.update({
+  id: '/api/public/twilio-ping',
+  path: '/api/public/twilio-ping',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminWhatsappDiagnosticsRoute =
   AdminWhatsappDiagnosticsRouteImport.update({
     id: '/diagnostics',
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
   '/admin/whatsapp/diagnostics': typeof AdminWhatsappDiagnosticsRoute
+  '/api/public/twilio-ping': typeof ApiPublicTwilioPingRoute
   '/api/public/uazapi-webhook': typeof ApiPublicUazapiWebhookRoute
   '/api/public/upload-photo': typeof ApiPublicUploadPhotoRoute
   '/admin/registrations/': typeof AdminRegistrationsIndexRoute
@@ -138,6 +145,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
   '/admin/whatsapp/diagnostics': typeof AdminWhatsappDiagnosticsRoute
+  '/api/public/twilio-ping': typeof ApiPublicTwilioPingRoute
   '/api/public/uazapi-webhook': typeof ApiPublicUazapiWebhookRoute
   '/api/public/upload-photo': typeof ApiPublicUploadPhotoRoute
   '/admin/registrations': typeof AdminRegistrationsIndexRoute
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
   '/admin/whatsapp/diagnostics': typeof AdminWhatsappDiagnosticsRoute
+  '/api/public/twilio-ping': typeof ApiPublicTwilioPingRoute
   '/api/public/uazapi-webhook': typeof ApiPublicUazapiWebhookRoute
   '/api/public/upload-photo': typeof ApiPublicUploadPhotoRoute
   '/admin/registrations/': typeof AdminRegistrationsIndexRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin/registrations/$id'
     | '/admin/whatsapp/diagnostics'
+    | '/api/public/twilio-ping'
     | '/api/public/uazapi-webhook'
     | '/api/public/upload-photo'
     | '/admin/registrations/'
@@ -194,6 +204,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/registrations/$id'
     | '/admin/whatsapp/diagnostics'
+    | '/api/public/twilio-ping'
     | '/api/public/uazapi-webhook'
     | '/api/public/upload-photo'
     | '/admin/registrations'
@@ -212,6 +223,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin/registrations/$id'
     | '/admin/whatsapp/diagnostics'
+    | '/api/public/twilio-ping'
     | '/api/public/uazapi-webhook'
     | '/api/public/upload-photo'
     | '/admin/registrations/'
@@ -222,6 +234,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   RSlugRoute: typeof RSlugRoute
+  ApiPublicTwilioPingRoute: typeof ApiPublicTwilioPingRoute
   ApiPublicUazapiWebhookRoute: typeof ApiPublicUazapiWebhookRoute
   ApiPublicUploadPhotoRoute: typeof ApiPublicUploadPhotoRoute
   ApiAdminPhotoSplatRoute: typeof ApiAdminPhotoSplatRoute
@@ -320,6 +333,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicUazapiWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/twilio-ping': {
+      id: '/api/public/twilio-ping'
+      path: '/api/public/twilio-ping'
+      fullPath: '/api/public/twilio-ping'
+      preLoaderRoute: typeof ApiPublicTwilioPingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/whatsapp/diagnostics': {
       id: '/admin/whatsapp/diagnostics'
       path: '/diagnostics'
@@ -386,6 +406,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   RSlugRoute: RSlugRoute,
+  ApiPublicTwilioPingRoute: ApiPublicTwilioPingRoute,
   ApiPublicUazapiWebhookRoute: ApiPublicUazapiWebhookRoute,
   ApiPublicUploadPhotoRoute: ApiPublicUploadPhotoRoute,
   ApiAdminPhotoSplatRoute: ApiAdminPhotoSplatRoute,
