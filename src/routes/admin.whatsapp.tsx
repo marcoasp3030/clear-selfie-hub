@@ -14,13 +14,7 @@ import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Loader2,
@@ -36,10 +30,7 @@ import {
 
 export const Route = createFileRoute("/admin/whatsapp")({
   head: () => ({
-    meta: [
-      { title: "WhatsApp · Admin" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "WhatsApp · Admin" }, { name: "robots", content: "noindex" }],
   }),
   component: WhatsAppPage,
 });
@@ -178,7 +169,12 @@ function WhatsAppPage() {
     setCreating(true);
     try {
       const accessToken = await requireAdminAccessToken();
-      await fnCreate({ data: { accessToken, name: name.trim() } });
+      const res = await fnCreate({ data: { accessToken, name: name.trim() } });
+      const created = (res.instance ?? null) as SavedInstance | null;
+      if (created) {
+        setInstance(created);
+        setStatus(created.status ?? "disconnected");
+      }
       toast.success("Instância criada.");
       await reload();
     } catch (err) {
@@ -242,12 +238,7 @@ function WhatsAppPage() {
   }
 
   async function onDelete() {
-    if (
-      !confirm(
-        "Excluir definitivamente a instância? Esta ação não pode ser desfeita."
-      )
-    )
-      return;
+    if (!confirm("Excluir definitivamente a instância? Esta ação não pode ser desfeita.")) return;
     setBusy(true);
     try {
       const accessToken = await requireAdminAccessToken();
@@ -281,8 +272,7 @@ function WhatsAppPage() {
           WhatsApp
         </h1>
         <p className="text-sm text-muted-foreground">
-          Conecte um número do WhatsApp via uazapi para enviar mensagens a partir do
-          sistema.
+          Conecte um número do WhatsApp via uazapi para enviar mensagens a partir do sistema.
         </p>
         <div className="mt-1">
           <Link
@@ -302,8 +292,8 @@ function WhatsAppPage() {
               <Plug className="h-5 w-5 text-primary" /> Criar instância
             </CardTitle>
             <CardDescription>
-              Dê um nome para sua instância (ex: "WhatsApp Principal"). Depois você
-              poderá conectar via QR Code.
+              Dê um nome para sua instância (ex: "WhatsApp Principal"). Depois você poderá conectar
+              via QR Code.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -369,9 +359,7 @@ function WhatsAppPage() {
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Perfil
                   </p>
-                  <p className="mt-1 text-sm">
-                    {instance.profile_name || "—"}
-                  </p>
+                  <p className="mt-1 text-sm">{instance.profile_name || "—"}</p>
                 </div>
               </div>
 
@@ -389,20 +377,12 @@ function WhatsAppPage() {
                     )}
                   </Button>
                 ) : (
-                  <Button
-                    variant="outline"
-                    onClick={onDisconnect}
-                    disabled={busy}
-                  >
+                  <Button variant="outline" onClick={onDisconnect} disabled={busy}>
                     <Unplug className="mr-2 h-4 w-4" /> Desconectar
                   </Button>
                 )}
 
-                <Button
-                  variant="outline"
-                  onClick={() => void pollOnce()}
-                  disabled={busy}
-                >
+                <Button variant="outline" onClick={() => void pollOnce()} disabled={busy}>
                   <RefreshCw className="mr-2 h-4 w-4" /> Atualizar status
                 </Button>
 
@@ -423,23 +403,17 @@ function WhatsAppPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <QrCode className="h-5 w-5 text-primary" /> Escaneie no
-                  WhatsApp
+                  <QrCode className="h-5 w-5 text-primary" /> Escaneie no WhatsApp
                 </CardTitle>
                 <CardDescription>
-                  Abra o WhatsApp no celular &gt; Aparelhos conectados &gt;
-                  Conectar um aparelho.
+                  Abra o WhatsApp no celular &gt; Aparelhos conectados &gt; Conectar um aparelho.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col items-center gap-4">
                 {qrcode && (
                   <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
                     <img
-                      src={
-                        qrcode.startsWith("data:")
-                          ? qrcode
-                          : `data:image/png;base64,${qrcode}`
-                      }
+                      src={qrcode.startsWith("data:") ? qrcode : `data:image/png;base64,${qrcode}`}
                       alt="QR Code WhatsApp"
                       className="h-64 w-64"
                     />
@@ -450,9 +424,7 @@ function WhatsAppPage() {
                     <p className="text-xs uppercase tracking-wider text-muted-foreground">
                       Ou use o código de pareamento
                     </p>
-                    <p className="mt-1 font-mono text-2xl font-bold tracking-widest">
-                      {paircode}
-                    </p>
+                    <p className="mt-1 font-mono text-2xl font-bold tracking-widest">{paircode}</p>
                   </div>
                 )}
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">

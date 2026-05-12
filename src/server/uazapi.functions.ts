@@ -23,6 +23,38 @@ type Instance = {
   profileName?: string;
 };
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function findString(value: unknown, keys: string[], depth = 3): string | undefined {
+  const obj = asRecord(value);
+  if (!obj || depth < 0) return undefined;
+  for (const key of keys) {
+    const direct = obj[key];
+    if (typeof direct === "string" && direct.length > 0) return direct;
+  }
+  for (const nested of Object.values(obj)) {
+    if (nested && typeof nested === "object") {
+      const found = findString(nested, keys, depth - 1);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+function extractArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  const obj = asRecord(value);
+  if (!obj) return [];
+  for (const key of ["instances", "data", "result", "items"]) {
+    if (Array.isArray(obj[key])) return obj[key] as unknown[];
+  }
+  return [];
+}
+
 function pickStatus(raw: unknown): string {
   if (!raw || typeof raw !== "object") return "disconnected";
   const obj = raw as Record<string, unknown>;
@@ -40,11 +72,19 @@ function pickStatus(raw: unknown): string {
 }
 
 function extractInstancePayload(raw: unknown): Instance & Record<string, unknown> {
-  if (!raw || typeof raw !== "object") return {};
-  const obj = raw as Record<string, unknown>;
-  const instance = obj.instance && typeof obj.instance === "object" ? obj.instance : obj;
+  const obj = asRecord(raw);
+  if (!obj) return {};
+  const data = asRecord(obj.data);
+  const result = asRecord(obj.result);
+  const instance = asRecord(obj.instance) ?? asRecord(data?.instance) ?? data ?? result ?? obj;
   return {
     ...(instance as Instance & Record<string, unknown>),
+    id: findString(raw, ["id", "instance_id", "instanceId"]),
+    token: findString(raw, ["token", "instance_token", "instanceToken"]),
+    qrcode: findString(raw, ["qrcode", "qrCode", "QRCode", "qr", "base64", "base64Qr"]),
+    paircode: findString(raw, ["paircode", "pairCode", "pairingCode", "code"]),
+    owner: findString(raw, ["owner", "ownerJid", "owner_jid"]),
+    profileName: findString(raw, ["profileName", "profile_name", "pushName", "name"]),
     connected: obj.connected,
     loggedIn: obj.loggedIn,
     jid: obj.jid,
@@ -81,7 +121,10 @@ async function getSavedInstance() {
 
 async function describeServerError(err: unknown) {
   if (err instanceof Response) {
-    return await err.clone().text().catch(() => `HTTP ${err.status}`);
+    return await err
+      .clone()
+      .text()
+      .catch(() => `HTTP ${err.status}`);
   }
   if (err instanceof Error) return err.message;
   return String(err);
@@ -92,14 +135,39 @@ async function findRemoteInstanceByName(name: string) {
     method: "GET",
     admin: true,
   });
-  if (!Array.isArray(list)) return null;
-  const match = list.find(
+  const instances = extractArray(list);
+  const match = instances.find(
     (item) =>
       item &&
       typeof item === "object" &&
-      (item as Record<string, unknown>).name === name
+      ((item as Record<string, unknown>).name === name ||
+        asRecord((item as Record<string, unknown>).instance)?.name === name),
   );
   return match ? extractInstancePayload(match) : null;
+}
+
+async function createRemoteInstance(name: string) {
+  const endpoints = ["/instance/init", "/instance/create"];
+  let lastErr: unknown = null;
+  for (const endpoint of endpoints) {
+    try {
+      return await uazFetch<Record<string, unknown>>(endpoint, {
+        method: "POST",
+        admin: true,
+        body: { name },
+      });
+    } catch (err) {
+      const msg = await describeServerError(err);
+      lastErr = err;
+      if (/already exists|já existe|duplicate|duplicad/i.test(msg)) {
+        const remote = await findRemoteInstanceByName(name);
+        if (remote?.token) return { instance: remote };
+      }
+      if (!/not found|404|cannot post|route|endpoint/i.test(msg)) throw err;
+      console.warn(`[uazapi] ${endpoint} failed, trying next endpoint:`, msg);
+    }
+  }
+  throw lastErr ?? new Response("Não foi possível criar instância na uazapi.", { status: 502 });
 }
 
 function isInvalidInstanceToken(err: unknown, message: string) {
@@ -109,10 +177,7 @@ function isInvalidInstanceToken(err: unknown, message: string) {
   );
 }
 
-async function persistFromStatus(
-  rowId: string,
-  payload: Instance & Record<string, unknown>
-) {
+async function persistFromStatus(rowId: string, payload: Instance & Record<string, unknown>) {
   const status = pickStatus(payload);
   const update: UazapiUpdate = {
     status,
@@ -141,7 +206,7 @@ async function persistFromStatus(
 /** Returns the saved instance, if any. */
 export const getInstance = createServerFn({ method: "POST" })
   .inputValidator((input: { accessToken: string }) =>
-    z.object({ accessToken: accessTokenSchema }).parse(input)
+    z.object({ accessToken: accessTokenSchema }).parse(input),
   )
   .handler(async ({ data }) => {
     await assertAdminAccess(data.accessToken);
@@ -157,30 +222,12 @@ export const createInstance = createServerFn({ method: "POST" })
         accessToken: accessTokenSchema,
         name: z.string().trim().min(1).max(120),
       })
-      .parse(input)
+      .parse(input),
   )
   .handler(async ({ data }) => {
     const userId = await assertAdminAccess(data.accessToken);
 
-    let createdRaw: Record<string, unknown> | null = null;
-    try {
-      createdRaw = await uazFetch<Record<string, unknown>>(
-        "/instance/create",
-        {
-          method: "POST",
-          admin: true,
-          body: { name: data.name },
-        }
-      );
-    } catch (err) {
-      const msg = await describeServerError(err);
-      if (!/already exists|já existe|duplicate|duplicad/i.test(msg)) {
-        throw err;
-      }
-      const remote = await findRemoteInstanceByName(data.name);
-      if (!remote?.token) throw err;
-      createdRaw = { instance: remote };
-    }
+    const createdRaw = await createRemoteInstance(data.name);
     const created = extractInstancePayload(createdRaw);
 
     const instanceToken =
@@ -232,7 +279,7 @@ export const connectInstance = createServerFn({ method: "POST" })
         accessToken: accessTokenSchema,
         phone: z.string().trim().max(20).optional(),
       })
-      .parse(input)
+      .parse(input),
   )
   .handler(async ({ data }) => {
     await assertAdminAccess(data.accessToken);
@@ -241,19 +288,16 @@ export const connectInstance = createServerFn({ method: "POST" })
       throw new Response("Nenhuma instância criada.", { status: 400 });
     }
 
-    const body: Record<string, unknown> = { browser: "auto" };
+    const body: Record<string, unknown> = {};
     if (data.phone) body.phone = data.phone.replace(/\D/g, "");
 
     let raw: Record<string, unknown>;
     try {
-      raw = await uazFetch<Record<string, unknown>>(
-        "/instance/connect",
-        {
-          method: "POST",
-          instanceToken: row.instance_token,
-          body,
-        }
-      );
+      raw = await uazFetch<Record<string, unknown>>("/instance/connect", {
+        method: "POST",
+        instanceToken: row.instance_token,
+        body,
+      });
     } catch (err) {
       const msg = await describeServerError(err);
       const isAuthErr = isInvalidInstanceToken(err, msg);
@@ -286,7 +330,7 @@ export const connectInstance = createServerFn({ method: "POST" })
 /** Polls instance status. Auto-syncs status to DB. */
 export const getInstanceStatus = createServerFn({ method: "POST" })
   .inputValidator((input: { accessToken: string }) =>
-    z.object({ accessToken: accessTokenSchema }).parse(input)
+    z.object({ accessToken: accessTokenSchema }).parse(input),
   )
   .handler(async ({ data }) => {
     await assertAdminAccess(data.accessToken);
@@ -325,25 +369,21 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
 
     await persistFromStatus(row.id, inst);
 
-    const qrcode =
-      typeof inst.qrcode === "string" && inst.qrcode.length > 10
-        ? inst.qrcode
-        : null;
+    const qrcode = typeof inst.qrcode === "string" && inst.qrcode.length > 10 ? inst.qrcode : null;
 
     return {
       status: pickStatus(inst),
       qrcode,
       paircode: typeof inst.paircode === "string" ? inst.paircode : null,
       owner: typeof inst.owner === "string" ? inst.owner : null,
-      profileName:
-        typeof inst.profileName === "string" ? inst.profileName : null,
+      profileName: typeof inst.profileName === "string" ? inst.profileName : null,
     };
   });
 
 /** Disconnects (logs out) the WhatsApp session, keeps the instance. */
 export const disconnectInstance = createServerFn({ method: "POST" })
   .inputValidator((input: { accessToken: string }) =>
-    z.object({ accessToken: accessTokenSchema }).parse(input)
+    z.object({ accessToken: accessTokenSchema }).parse(input),
   )
   .handler(async ({ data }) => {
     await assertAdminAccess(data.accessToken);
@@ -364,9 +404,7 @@ export const disconnectInstance = createServerFn({ method: "POST" })
       if (!isInvalidInstanceToken(err, msg)) {
         return {
           success: false as const,
-          error:
-            msg ||
-            "Não foi possível desconectar na uazapi. Tente novamente em instantes.",
+          error: msg || "Não foi possível desconectar na uazapi. Tente novamente em instantes.",
           warning: null,
         };
       }
@@ -401,7 +439,7 @@ export const disconnectInstance = createServerFn({ method: "POST" })
 /** Permanently deletes the instance from uazapi and locally. */
 export const deleteInstance = createServerFn({ method: "POST" })
   .inputValidator((input: { accessToken: string }) =>
-    z.object({ accessToken: accessTokenSchema }).parse(input)
+    z.object({ accessToken: accessTokenSchema }).parse(input),
   )
   .handler(async ({ data }) => {
     await assertAdminAccess(data.accessToken);

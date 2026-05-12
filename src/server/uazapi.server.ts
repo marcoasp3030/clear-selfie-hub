@@ -32,34 +32,65 @@ function getAdminToken() {
   return t;
 }
 
-export async function uazFetch<T = unknown>(
-  path: string,
-  opts: UazFetchOptions = {}
-): Promise<T> {
+export async function uazFetch<T = unknown>(path: string, opts: UazFetchOptions = {}): Promise<T> {
   const base = getBaseUrl();
   const url = `${base}${path.startsWith("/") ? "" : "/"}${path}`;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  };
+  const adminToken = opts.admin ? getAdminToken() : null;
+  const instanceToken = opts.admin ? null : opts.instanceToken;
 
-  if (opts.admin) {
-    headers["admintoken"] = getAdminToken();
-  } else {
-    if (!opts.instanceToken) {
-      throw new Response("Token da instância ausente", { status: 500 });
-    }
-    headers["token"] = opts.instanceToken;
+  if (!opts.admin && !instanceToken) {
+    throw new Response("Token da instância ausente", { status: 500 });
   }
 
-  let res: Response;
-  const start = Date.now();
-  try {
-    res = await fetch(url, {
+  const makeRequest = (authMode: "header" | "query") => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    };
+    let requestUrl = url;
+
+    if (authMode === "header") {
+      if (opts.admin && adminToken) headers["admintoken"] = adminToken;
+      if (!opts.admin && instanceToken) headers["token"] = instanceToken;
+    } else {
+      const u = new URL(url);
+      if (opts.admin && adminToken) u.searchParams.set("admintoken", adminToken);
+      if (!opts.admin && instanceToken) u.searchParams.set("token", instanceToken);
+      requestUrl = u.toString();
+    }
+
+    return fetch(requestUrl, {
       method: opts.method ?? "GET",
       headers,
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     });
+  };
+
+  let res: Response;
+  const start = Date.now();
+  let authMode: "header" | "query" = "header";
+  try {
+    res = await makeRequest("header");
+    if (res.status === 401 || res.status === 403) {
+      const preview = await res
+        .clone()
+        .text()
+        .catch(() => "");
+      if (/missing token|invalid token|unauthorized|forbidden|admintoken|token/i.test(preview)) {
+        authMode = "query";
+        logUazapiEvent({
+          level: "warn",
+          action: "request-auth-fallback",
+          method: opts.method ?? "GET",
+          path,
+          status: res.status,
+          ms: Date.now() - start,
+          ok: false,
+          error: "Retrying with query-string auth required by some uazapi deployments.",
+        });
+        res = await makeRequest("query");
+      }
+    }
   } catch (err) {
     console.error("uazapi network error:", err);
     logUazapiEvent({
@@ -106,7 +137,7 @@ export async function uazFetch<T = unknown>(
       status: res.status,
       ms: Date.now() - start,
       ok: false,
-      requestBody: opts.body,
+      requestBody: { authMode, body: opts.body ?? null },
       responsePreview: data,
       error: message,
     });
@@ -121,7 +152,7 @@ export async function uazFetch<T = unknown>(
     status: res.status,
     ms: Date.now() - start,
     ok: true,
-    requestBody: opts.body,
+    requestBody: { authMode, body: opts.body ?? null },
     responsePreview: data,
   });
 
