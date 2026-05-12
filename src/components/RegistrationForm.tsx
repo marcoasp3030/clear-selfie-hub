@@ -788,7 +788,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                   <div className="mt-2 flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-50 px-3 py-2 text-emerald-900 dark:border-emerald-400/30 dark:bg-emerald-950/30 dark:text-emerald-200">
                     <ShieldCheck className="h-4 w-4 shrink-0" />
                     <p className="text-xs font-semibold">
-                      WhatsApp verificado com sucesso
+                      Número verificado com sucesso
                     </p>
                   </div>
                 )}
