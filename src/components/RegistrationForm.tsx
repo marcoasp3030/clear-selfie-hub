@@ -113,6 +113,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
   useEffect(() => {
     if (verificationStatus !== "sent" && verificationStatus !== "verifying") return;
     if (!phone) return;
+    if (channel !== "whatsapp") return;
     let cancelled = false;
     const interval = setInterval(async () => {
       try {
@@ -132,7 +133,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [verificationStatus, phone, pollVerification]);
+  }, [verificationStatus, phone, pollVerification, channel]);
 
   // Reset verification when phone changes
   useEffect(() => {
