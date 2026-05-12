@@ -24,7 +24,7 @@ type UazapiLogInput = Omit<UazapiLogEvent, "id" | "at" | "requestBody" | "respon
 };
 
 function safePreview(value: unknown): JsonValue {
-  if (value == null) return value;
+  if (value === null || value === undefined) return null;
   if (typeof value === "number" || typeof value === "boolean") return value;
   if (typeof value === "string") {
     if (value.startsWith("data:image") || value.length > 400) {
@@ -38,7 +38,7 @@ function safePreview(value: unknown): JsonValue {
     for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
       const k = key.toLowerCase();
       if (k.includes("token") || k.includes("secret") || k.includes("password")) {
-        out[key] = val ? "***" : val;
+        out[key] = val ? "***" : null;
       } else if (k.includes("qrcode")) {
         out[key] = typeof val === "string" ? `${val.slice(0, 80)}… (len=${val.length})` : safePreview(val);
       } else {
