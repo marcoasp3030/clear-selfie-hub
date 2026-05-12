@@ -10,7 +10,7 @@ export type MessageAttemptRow = {
   status: "sent" | "failed";
   error: string | null;
   provider_message_id: string | null;
-  metadata: unknown;
+  metadata: unknown | null;
   created_at: string;
 };
 
