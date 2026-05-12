@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -32,8 +32,18 @@ export const Route = createFileRoute("/admin/whatsapp")({
   head: () => ({
     meta: [{ title: "WhatsApp · Admin" }, { name: "robots", content: "noindex" }],
   }),
-  component: WhatsAppPage,
+  component: WhatsAppRoute,
 });
+
+function WhatsAppRoute() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+
+  if (pathname !== "/admin/whatsapp") {
+    return <Outlet />;
+  }
+
+  return <WhatsAppPage />;
+}
 
 type SavedInstance = {
   id: string;
