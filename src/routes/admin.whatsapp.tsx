@@ -307,10 +307,9 @@ function WhatsAppPage() {
         </div>
       </div>
 
+      <UazapiConfigCard />
+
       {/* No instance yet */}
-      {!instance && (
-        <UazapiConfigCard />
-      )}
       {!instance && (
         <Card>
           <CardHeader>
