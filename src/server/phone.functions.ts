@@ -7,10 +7,11 @@ import {
 } from "./phone.server";
 
 export const sendPhoneVerification = createServerFn({ method: "POST" })
-  .inputValidator((input: { phone: string }) =>
+  .inputValidator((input: { phone: string; channel?: "whatsapp" | "sms" }) =>
     z
       .object({
         phone: z.string().trim().min(10).max(20),
+        channel: z.enum(["whatsapp", "sms"]).optional(),
       })
       .parse(input)
   )
