@@ -87,6 +87,21 @@ async function describeServerError(err: unknown) {
   return String(err);
 }
 
+async function findRemoteInstanceByName(name: string) {
+  const list = await uazFetch<unknown>("/instance/all", {
+    method: "GET",
+    admin: true,
+  });
+  if (!Array.isArray(list)) return null;
+  const match = list.find(
+    (item) =>
+      item &&
+      typeof item === "object" &&
+      (item as Record<string, unknown>).name === name
+  );
+  return match ? extractInstancePayload(match) : null;
+}
+
 function isInvalidInstanceToken(err: unknown, message: string) {
   return (
     (err instanceof Response && err.status === 401) ||
@@ -147,14 +162,25 @@ export const createInstance = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const userId = await assertAdminAccess(data.accessToken);
 
-    const createdRaw = await uazFetch<Record<string, unknown>>(
-      "/instance/create",
-      {
-        method: "POST",
-        admin: true,
-        body: { name: data.name },
+    let createdRaw: Record<string, unknown> | null = null;
+    try {
+      createdRaw = await uazFetch<Record<string, unknown>>(
+        "/instance/create",
+        {
+          method: "POST",
+          admin: true,
+          body: { name: data.name },
+        }
+      );
+    } catch (err) {
+      const msg = await describeServerError(err);
+      if (!/already exists|já existe|duplicate|duplicad/i.test(msg)) {
+        throw err;
       }
-    );
+      const remote = await findRemoteInstanceByName(data.name);
+      if (!remote?.token) throw err;
+      createdRaw = { instance: remote };
+    }
     const created = extractInstancePayload(createdRaw);
 
     const instanceToken =
