@@ -56,7 +56,21 @@ type UazLog = {
 };
 
 type Diagnostics = {
-  env: Record<string, string | boolean | null> & { data_backend: string };
+  env: {
+    UAZAPI_BASE_URL: string | null;
+    UAZAPI_ADMIN_TOKEN_present: boolean;
+    UAZAPI_ADMIN_TOKEN_masked: string | null;
+    DATABASE_URL_present: boolean;
+    DATABASE_URL_masked: string | null;
+    TWILIO_ACCOUNT_SID_present: boolean;
+    TWILIO_ACCOUNT_SID_masked: string | null;
+    TWILIO_AUTH_TOKEN_present: boolean;
+    TWILIO_FROM_NUMBER: string | null;
+    JWT_SECRET_present: boolean;
+    UPLOADS_DIR: string | null;
+    NODE_ENV: string | null;
+    data_backend: string;
+  };
   instance: Record<string, unknown> | null;
   instanceError: string | null;
   probe: ProbeResult | null;
