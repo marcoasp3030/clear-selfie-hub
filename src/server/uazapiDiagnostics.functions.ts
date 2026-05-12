@@ -313,3 +313,22 @@ export const sendTestWhatsApp = createServerFn({ method: "POST" })
       return { success, status, ms, url, requestBody: body, responseBody, error };
     },
   );
+
+export const getUazapiLogs = createServerFn({ method: "POST" })
+  .inputValidator((input: { accessToken: string }) =>
+    z.object({ accessToken: accessTokenSchema }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    await assertAdminAccess(data.accessToken);
+    return { logs: getUazapiLogEvents(), at: new Date().toISOString() };
+  });
+
+export const clearUazapiLogs = createServerFn({ method: "POST" })
+  .inputValidator((input: { accessToken: string }) =>
+    z.object({ accessToken: accessTokenSchema }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    await assertAdminAccess(data.accessToken);
+    clearUazapiLogEvents();
+    return { success: true };
+  });
