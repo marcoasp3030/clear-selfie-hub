@@ -15,6 +15,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as RSlugRouteImport } from './routes/r.$slug'
 import { Route as AdminWhatsappRouteImport } from './routes/admin.whatsapp'
 import { Route as AdminTwilioRouteImport } from './routes/admin.twilio'
+import { Route as AdminRegisteredDevicesRouteImport } from './routes/admin.registered-devices'
 import { Route as AdminMigrationRouteImport } from './routes/admin.migration'
 import { Route as AdminMessagesRouteImport } from './routes/admin.messages'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
@@ -59,6 +60,11 @@ const AdminWhatsappRoute = AdminWhatsappRouteImport.update({
 const AdminTwilioRoute = AdminTwilioRouteImport.update({
   id: '/twilio',
   path: '/twilio',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRegisteredDevicesRoute = AdminRegisteredDevicesRouteImport.update({
+  id: '/registered-devices',
+  path: '/registered-devices',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminMigrationRoute = AdminMigrationRouteImport.update({
@@ -147,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/migration': typeof AdminMigrationRoute
+  '/admin/registered-devices': typeof AdminRegisteredDevicesRoute
   '/admin/twilio': typeof AdminTwilioRoute
   '/admin/whatsapp': typeof AdminWhatsappRouteWithChildren
   '/r/$slug': typeof RSlugRoute
@@ -169,6 +176,7 @@ export interface FileRoutesByTo {
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/migration': typeof AdminMigrationRoute
+  '/admin/registered-devices': typeof AdminRegisteredDevicesRoute
   '/admin/twilio': typeof AdminTwilioRoute
   '/admin/whatsapp': typeof AdminWhatsappRouteWithChildren
   '/r/$slug': typeof RSlugRoute
@@ -193,6 +201,7 @@ export interface FileRoutesById {
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/migration': typeof AdminMigrationRoute
+  '/admin/registered-devices': typeof AdminRegisteredDevicesRoute
   '/admin/twilio': typeof AdminTwilioRoute
   '/admin/whatsapp': typeof AdminWhatsappRouteWithChildren
   '/r/$slug': typeof RSlugRoute
@@ -218,6 +227,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/messages'
     | '/admin/migration'
+    | '/admin/registered-devices'
     | '/admin/twilio'
     | '/admin/whatsapp'
     | '/r/$slug'
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/messages'
     | '/admin/migration'
+    | '/admin/registered-devices'
     | '/admin/twilio'
     | '/admin/whatsapp'
     | '/r/$slug'
@@ -263,6 +274,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/messages'
     | '/admin/migration'
+    | '/admin/registered-devices'
     | '/admin/twilio'
     | '/admin/whatsapp'
     | '/r/$slug'
@@ -330,6 +342,13 @@ declare module '@tanstack/react-router' {
       path: '/twilio'
       fullPath: '/admin/twilio'
       preLoaderRoute: typeof AdminTwilioRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/registered-devices': {
+      id: '/admin/registered-devices'
+      path: '/registered-devices'
+      fullPath: '/admin/registered-devices'
+      preLoaderRoute: typeof AdminRegisteredDevicesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/migration': {
@@ -463,6 +482,7 @@ interface AdminRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AdminMessagesRoute: typeof AdminMessagesRoute
   AdminMigrationRoute: typeof AdminMigrationRoute
+  AdminRegisteredDevicesRoute: typeof AdminRegisteredDevicesRoute
   AdminTwilioRoute: typeof AdminTwilioRoute
   AdminWhatsappRoute: typeof AdminWhatsappRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
@@ -477,6 +497,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AdminMessagesRoute: AdminMessagesRoute,
   AdminMigrationRoute: AdminMigrationRoute,
+  AdminRegisteredDevicesRoute: AdminRegisteredDevicesRoute,
   AdminTwilioRoute: AdminTwilioRoute,
   AdminWhatsappRoute: AdminWhatsappRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
