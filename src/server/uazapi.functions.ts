@@ -180,14 +180,29 @@ export const connectInstance = createServerFn({ method: "POST" })
     const body: Record<string, unknown> = {};
     if (data.phone) body.phone = data.phone.replace(/\D/g, "");
 
-    const res = await uazFetch<Instance & Record<string, unknown>>(
-      "/instance/connect",
-      {
-        method: "POST",
-        instanceToken: row.instance_token,
-        body,
-      }
-    );
+    let res: Instance & Record<string, unknown>;
+    try {
+      res = await uazFetch<Instance & Record<string, unknown>>(
+        "/instance/connect",
+        {
+          method: "POST",
+          instanceToken: row.instance_token,
+          body,
+        }
+      );
+    } catch (err) {
+      const msg = await describeServerError(err);
+      const isAuthErr = isInvalidInstanceToken(err, msg);
+      console.warn("[uazapi] connectInstance failed:", msg);
+      return {
+        status: isAuthErr ? "invalid_token" : "error",
+        qrcode: null,
+        paircode: null,
+        error: isAuthErr
+          ? "O token salvo na uazapi está inválido. Exclua a instância atual e crie uma nova para gerar um novo QR Code."
+          : msg || "Não foi possível conectar na uazapi. Tente novamente em instantes.",
+      };
+    }
 
     await updateInstance(row.id, {
       last_qr_at: new Date().toISOString(),
@@ -199,6 +214,7 @@ export const connectInstance = createServerFn({ method: "POST" })
       status: pickStatus(res),
       qrcode: typeof res.qrcode === "string" ? res.qrcode : null,
       paircode: typeof res.paircode === "string" ? res.paircode : null,
+      error: null,
     };
   });
 
