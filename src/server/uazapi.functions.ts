@@ -48,7 +48,12 @@ function extractInstancePayload(raw: unknown): Instance & Record<string, unknown
     connected: obj.connected,
     loggedIn: obj.loggedIn,
     jid: obj.jid,
-    status: (instance as Record<string, unknown>).status ?? obj.status,
+    status:
+      typeof (instance as Record<string, unknown>).status === "string"
+        ? ((instance as Record<string, unknown>).status as string)
+        : typeof obj.status === "string"
+          ? obj.status
+          : undefined,
   };
 }
 
@@ -142,14 +147,15 @@ export const createInstance = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const userId = await assertAdminAccess(data.accessToken);
 
-    const created = await uazFetch<Instance & Record<string, unknown>>(
-      "/instance/init",
+    const createdRaw = await uazFetch<Record<string, unknown>>(
+      "/instance/create",
       {
         method: "POST",
         admin: true,
         body: { name: data.name },
       }
     );
+    const created = extractInstancePayload(createdRaw);
 
     const instanceToken =
       (typeof created?.token === "string" && created.token) ||
@@ -163,7 +169,7 @@ export const createInstance = createServerFn({ method: "POST" })
         : null);
 
     if (!instanceToken) {
-      console.error("uazapi /instance/init missing token:", created);
+      console.error("uazapi /instance/create missing token:", createdRaw);
       throw new Response("Resposta inesperada da uazapi (sem token).", {
         status: 502,
       });
