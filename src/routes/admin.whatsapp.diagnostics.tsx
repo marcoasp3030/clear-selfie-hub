@@ -115,7 +115,22 @@ function WhatsAppDiagnosticsPage() {
               <Row
                 label="DATABASE_URL"
                 ok={data.env.DATABASE_URL_present}
-                value={data.env.DATABASE_URL_present ? "(definida)" : "(ausente)"}
+                value={data.env.DATABASE_URL_masked ?? "(ausente)"}
+              />
+              <Row
+                label="TWILIO_ACCOUNT_SID"
+                ok={data.env.TWILIO_ACCOUNT_SID_present}
+                value={data.env.TWILIO_ACCOUNT_SID_masked ?? "(ausente)"}
+              />
+              <Row
+                label="TWILIO_AUTH_TOKEN"
+                ok={data.env.TWILIO_AUTH_TOKEN_present}
+                value={data.env.TWILIO_AUTH_TOKEN_present ? "(definida)" : "(ausente)"}
+              />
+              <Row
+                label="TWILIO_FROM_NUMBER"
+                ok={Boolean(data.env.TWILIO_FROM_NUMBER)}
+                value={data.env.TWILIO_FROM_NUMBER ?? "(ausente)"}
               />
               <Row
                 label="JWT_SECRET"
