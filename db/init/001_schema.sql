@@ -121,3 +121,11 @@ CREATE INDEX IF NOT EXISTS idx_message_attempts_created_at
   ON message_attempts (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_message_attempts_phone
   ON message_attempts (phone);
+
+-- ----- Configurações administrativas (chave/valor) -----------------------
+CREATE TABLE IF NOT EXISTS app_settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by UUID
+);
