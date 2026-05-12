@@ -1421,7 +1421,7 @@ function CameraFullscreen({
             type="button"
             onClick={doCapture}
             aria-label="Capturar foto"
-            className="absolute bottom-24 left-1/2 -translate-x-1/2 flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-white/15 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition active:scale-95 hover:bg-white/25"
+            className="absolute bottom-32 left-1/2 -translate-x-1/2 flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-white/15 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition active:scale-95 hover:bg-white/25"
           >
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white">
               <Camera className="h-6 w-6 text-black" strokeWidth={2.5} />
