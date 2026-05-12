@@ -196,6 +196,11 @@ function WhatsAppPage() {
     try {
       const accessToken = await requireAdminAccessToken();
       const res = await fnConnect({ data: { accessToken } });
+      if (res.error) {
+        toast.error(res.error);
+        setStatus(res.status || "error");
+        return;
+      }
       if (res.qrcode) setQrcode(res.qrcode);
       if (res.paircode) setPaircode(res.paircode);
       setStatus(res.status || "connecting");
