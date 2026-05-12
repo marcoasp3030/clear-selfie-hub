@@ -205,10 +205,32 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
       };
     }
 
-    const res = await uazFetch<Record<string, unknown>>("/instance/status", {
-      method: "GET",
-      instanceToken: row.instance_token,
-    });
+    let res: Record<string, unknown>;
+    try {
+      res = await uazFetch<Record<string, unknown>>("/instance/status", {
+        method: "GET",
+        instanceToken: row.instance_token,
+      });
+    } catch (err) {
+      const msg =
+        err instanceof Response
+          ? await err.clone().text().catch(() => "")
+          : err instanceof Error
+            ? err.message
+            : String(err);
+      const isAuthErr =
+        (err instanceof Response && err.status === 401) ||
+        /invalid token|unauthorized|401/i.test(msg);
+      console.warn("[uazapi] getInstanceStatus failed:", msg);
+      return {
+        status: isAuthErr ? "invalid_token" : "error",
+        qrcode: null,
+        paircode: null,
+        owner: null,
+        profileName: null,
+        error: msg || "uazapi unavailable",
+      };
+    }
 
     // uazapi often nests under "instance"
     const inst =
