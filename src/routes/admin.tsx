@@ -14,7 +14,7 @@ import { getLocalSession, localLogout } from "@/server/auth.functions";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
-import { LayoutDashboard, Users, LogOut, Loader2, ShieldAlert, Cpu, Stethoscope, MessageCircle, MessageSquare, MessageSquareText, BookOpen, Server, ScrollText, Settings } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, Loader2, ShieldAlert, Cpu, Stethoscope, MessageCircle, MessageSquare, MessageSquareText, BookOpen, Server, ScrollText, Settings, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import nutricarLogo from "@/assets/nutricar-logo.png";
 
@@ -171,6 +171,17 @@ function AdminLayout() {
             >
               <Cpu className="h-4 w-4" />
               <span className="hidden sm:inline">Equipamentos</span>
+            </Link>
+            <Link
+              to="/admin/registered-devices"
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                path.startsWith("/admin/registered-devices")
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <Smartphone className="h-4 w-4" />
+              <span className="hidden sm:inline">Dispositivos</span>
             </Link>
             <Link
               to="/admin/diagnostics"
