@@ -32,10 +32,7 @@ function getAdminToken() {
   return t;
 }
 
-export async function uazFetch<T = unknown>(
-  path: string,
-  opts: UazFetchOptions = {}
-): Promise<T> {
+export async function uazFetch<T = unknown>(path: string, opts: UazFetchOptions = {}): Promise<T> {
   const base = getBaseUrl();
   const url = `${base}${path.startsWith("/") ? "" : "/"}${path}`;
   const adminToken = opts.admin ? getAdminToken() : null;
@@ -75,7 +72,10 @@ export async function uazFetch<T = unknown>(
   try {
     res = await makeRequest("header");
     if (res.status === 401 || res.status === 403) {
-      const preview = await res.clone().text().catch(() => "");
+      const preview = await res
+        .clone()
+        .text()
+        .catch(() => "");
       if (/missing token|invalid token|unauthorized|forbidden|admintoken|token/i.test(preview)) {
         authMode = "query";
         logUazapiEvent({

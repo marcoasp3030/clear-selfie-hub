@@ -121,7 +121,10 @@ async function getSavedInstance() {
 
 async function describeServerError(err: unknown) {
   if (err instanceof Response) {
-    return await err.clone().text().catch(() => `HTTP ${err.status}`);
+    return await err
+      .clone()
+      .text()
+      .catch(() => `HTTP ${err.status}`);
   }
   if (err instanceof Error) return err.message;
   return String(err);
@@ -138,7 +141,7 @@ async function findRemoteInstanceByName(name: string) {
       item &&
       typeof item === "object" &&
       ((item as Record<string, unknown>).name === name ||
-        (asRecord((item as Record<string, unknown>).instance)?.name === name))
+        asRecord((item as Record<string, unknown>).instance)?.name === name),
   );
   return match ? extractInstancePayload(match) : null;
 }
@@ -174,10 +177,7 @@ function isInvalidInstanceToken(err: unknown, message: string) {
   );
 }
 
-async function persistFromStatus(
-  rowId: string,
-  payload: Instance & Record<string, unknown>
-) {
+async function persistFromStatus(rowId: string, payload: Instance & Record<string, unknown>) {
   const status = pickStatus(payload);
   const update: UazapiUpdate = {
     status,
@@ -206,7 +206,7 @@ async function persistFromStatus(
 /** Returns the saved instance, if any. */
 export const getInstance = createServerFn({ method: "POST" })
   .inputValidator((input: { accessToken: string }) =>
-    z.object({ accessToken: accessTokenSchema }).parse(input)
+    z.object({ accessToken: accessTokenSchema }).parse(input),
   )
   .handler(async ({ data }) => {
     await assertAdminAccess(data.accessToken);
@@ -222,7 +222,7 @@ export const createInstance = createServerFn({ method: "POST" })
         accessToken: accessTokenSchema,
         name: z.string().trim().min(1).max(120),
       })
-      .parse(input)
+      .parse(input),
   )
   .handler(async ({ data }) => {
     const userId = await assertAdminAccess(data.accessToken);
@@ -279,7 +279,7 @@ export const connectInstance = createServerFn({ method: "POST" })
         accessToken: accessTokenSchema,
         phone: z.string().trim().max(20).optional(),
       })
-      .parse(input)
+      .parse(input),
   )
   .handler(async ({ data }) => {
     await assertAdminAccess(data.accessToken);
@@ -293,14 +293,11 @@ export const connectInstance = createServerFn({ method: "POST" })
 
     let raw: Record<string, unknown>;
     try {
-      raw = await uazFetch<Record<string, unknown>>(
-        "/instance/connect",
-        {
-          method: "POST",
-          instanceToken: row.instance_token,
-          body,
-        }
-      );
+      raw = await uazFetch<Record<string, unknown>>("/instance/connect", {
+        method: "POST",
+        instanceToken: row.instance_token,
+        body,
+      });
     } catch (err) {
       const msg = await describeServerError(err);
       const isAuthErr = isInvalidInstanceToken(err, msg);
@@ -333,7 +330,7 @@ export const connectInstance = createServerFn({ method: "POST" })
 /** Polls instance status. Auto-syncs status to DB. */
 export const getInstanceStatus = createServerFn({ method: "POST" })
   .inputValidator((input: { accessToken: string }) =>
-    z.object({ accessToken: accessTokenSchema }).parse(input)
+    z.object({ accessToken: accessTokenSchema }).parse(input),
   )
   .handler(async ({ data }) => {
     await assertAdminAccess(data.accessToken);
@@ -372,25 +369,21 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
 
     await persistFromStatus(row.id, inst);
 
-    const qrcode =
-      typeof inst.qrcode === "string" && inst.qrcode.length > 10
-        ? inst.qrcode
-        : null;
+    const qrcode = typeof inst.qrcode === "string" && inst.qrcode.length > 10 ? inst.qrcode : null;
 
     return {
       status: pickStatus(inst),
       qrcode,
       paircode: typeof inst.paircode === "string" ? inst.paircode : null,
       owner: typeof inst.owner === "string" ? inst.owner : null,
-      profileName:
-        typeof inst.profileName === "string" ? inst.profileName : null,
+      profileName: typeof inst.profileName === "string" ? inst.profileName : null,
     };
   });
 
 /** Disconnects (logs out) the WhatsApp session, keeps the instance. */
 export const disconnectInstance = createServerFn({ method: "POST" })
   .inputValidator((input: { accessToken: string }) =>
-    z.object({ accessToken: accessTokenSchema }).parse(input)
+    z.object({ accessToken: accessTokenSchema }).parse(input),
   )
   .handler(async ({ data }) => {
     await assertAdminAccess(data.accessToken);
@@ -411,9 +404,7 @@ export const disconnectInstance = createServerFn({ method: "POST" })
       if (!isInvalidInstanceToken(err, msg)) {
         return {
           success: false as const,
-          error:
-            msg ||
-            "Não foi possível desconectar na uazapi. Tente novamente em instantes.",
+          error: msg || "Não foi possível desconectar na uazapi. Tente novamente em instantes.",
           warning: null,
         };
       }
@@ -448,7 +439,7 @@ export const disconnectInstance = createServerFn({ method: "POST" })
 /** Permanently deletes the instance from uazapi and locally. */
 export const deleteInstance = createServerFn({ method: "POST" })
   .inputValidator((input: { accessToken: string }) =>
-    z.object({ accessToken: accessTokenSchema }).parse(input)
+    z.object({ accessToken: accessTokenSchema }).parse(input),
   )
   .handler(async ({ data }) => {
     await assertAdminAccess(data.accessToken);
