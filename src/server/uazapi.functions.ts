@@ -43,6 +43,21 @@ async function getSavedInstance() {
   }
 }
 
+async function describeServerError(err: unknown) {
+  if (err instanceof Response) {
+    return await err.clone().text().catch(() => `HTTP ${err.status}`);
+  }
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
+function isInvalidInstanceToken(err: unknown, message: string) {
+  return (
+    (err instanceof Response && err.status === 401) ||
+    /invalid token|unauthorized|401/i.test(message)
+  );
+}
+
 async function persistFromStatus(
   rowId: string,
   payload: Instance & Record<string, unknown>
@@ -212,15 +227,8 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
         instanceToken: row.instance_token,
       });
     } catch (err) {
-      const msg =
-        err instanceof Response
-          ? await err.clone().text().catch(() => "")
-          : err instanceof Error
-            ? err.message
-            : String(err);
-      const isAuthErr =
-        (err instanceof Response && err.status === 401) ||
-        /invalid token|unauthorized|401/i.test(msg);
+      const msg = await describeServerError(err);
+      const isAuthErr = isInvalidInstanceToken(err, msg);
       console.warn("[uazapi] getInstanceStatus failed:", msg);
       return {
         status: isAuthErr ? "invalid_token" : "error",
@@ -267,10 +275,40 @@ export const disconnectInstance = createServerFn({ method: "POST" })
       throw new Response("Nenhuma instância para desconectar.", { status: 400 });
     }
 
-    await uazFetch("/instance/disconnect", {
-      method: "POST",
-      instanceToken: row.instance_token,
-    });
+    try {
+      await uazFetch("/instance/disconnect", {
+        method: "POST",
+        instanceToken: row.instance_token,
+      });
+    } catch (err) {
+      const msg = await describeServerError(err);
+      console.warn("[uazapi] disconnectInstance failed:", msg);
+
+      if (!isInvalidInstanceToken(err, msg)) {
+        return {
+          success: false as const,
+          error:
+            msg ||
+            "Não foi possível desconectar na uazapi. Tente novamente em instantes.",
+          warning: null,
+        };
+      }
+
+      await updateInstance(row.id, {
+        status: "disconnected",
+        owner_jid: null,
+        phone_connected: null,
+        last_status_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      return {
+        success: true as const,
+        error: null,
+        warning:
+          "O token salvo na uazapi está inválido. Marquei a instância como desconectada localmente; se precisar usar WhatsApp novamente, exclua e crie uma nova instância.",
+      };
+    }
 
     await updateInstance(row.id, {
       status: "disconnected",
@@ -280,7 +318,7 @@ export const disconnectInstance = createServerFn({ method: "POST" })
       updated_at: new Date().toISOString(),
     });
 
-    return { success: true as const };
+    return { success: true as const, error: null, warning: null };
   });
 
 /** Permanently deletes the instance from uazapi and locally. */
