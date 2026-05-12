@@ -632,16 +632,49 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                 {!isPhoneVerified ? (
                   <div className="mt-2 rounded-xl border border-emerald-500/30 bg-emerald-50/60 p-3 dark:border-emerald-400/30 dark:bg-emerald-950/20">
                     <div className="flex items-start gap-2">
-                      <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      {channel === "sms" ? (
+                        <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      )}
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">
-                          Verifique seu WhatsApp
+                          Verifique seu número
                         </p>
                         <p className="mt-0.5 text-[11px] leading-relaxed text-emerald-900/80 dark:text-emerald-200/80">
-                          Enviaremos um código de 6 dígitos no número informado.
+                          Escolha como receber o código de 6 dígitos.
                         </p>
                       </div>
                     </div>
+
+                    {verificationStatus === "idle" && (
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setChannel("whatsapp")}
+                          className={`flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-medium transition ${
+                            channel === "whatsapp"
+                              ? "border-emerald-600 bg-emerald-600 text-white"
+                              : "border-emerald-500/30 bg-white/70 text-emerald-900 hover:bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-100"
+                          }`}
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" />
+                          WhatsApp
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setChannel("sms")}
+                          className={`flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-medium transition ${
+                            channel === "sms"
+                              ? "border-emerald-600 bg-emerald-600 text-white"
+                              : "border-emerald-500/30 bg-white/70 text-emerald-900 hover:bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-100"
+                          }`}
+                        >
+                          <Smartphone className="h-3.5 w-3.5" />
+                          SMS
+                        </button>
+                      </div>
+                    )}
 
                     {verificationStatus === "idle" && (
                       <Button
@@ -651,8 +684,14 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                         disabled={!isValidMobile(phone) || submitting}
                         className="mt-3 h-10 w-full rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
                       >
-                        <MessageCircle className="mr-1.5 h-4 w-4" />
-                        Enviar código no WhatsApp
+                        {channel === "sms" ? (
+                          <Smartphone className="mr-1.5 h-4 w-4" />
+                        ) : (
+                          <MessageCircle className="mr-1.5 h-4 w-4" />
+                        )}
+                        {channel === "sms"
+                          ? "Enviar código por SMS"
+                          : "Enviar código no WhatsApp"}
                       </Button>
                     )}
 
@@ -674,18 +713,25 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                         <div className="rounded-lg border border-emerald-500/30 bg-white/70 p-2.5 text-[11px] leading-relaxed text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
                           <div className="flex items-start gap-1.5">
                             <Loader2 className="mt-0.5 h-3 w-3 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
-                            <p>
-                              Mensagem enviada! Toque em{" "}
-                              <span className="font-semibold">✅ Já verifiquei</span>{" "}
-                              dentro do WhatsApp para confirmar automaticamente — ou
-                              use{" "}
-                              <span className="font-semibold">📋 Copiar código</span>{" "}
-                              e cole abaixo.
-                            </p>
+                            {channel === "sms" ? (
+                              <p>
+                                SMS enviado! Digite abaixo os 6 dígitos que você
+                                recebeu.
+                              </p>
+                            ) : (
+                              <p>
+                                Mensagem enviada! Toque em{" "}
+                                <span className="font-semibold">✅ Já verifiquei</span>{" "}
+                                dentro do WhatsApp para confirmar automaticamente — ou
+                                use{" "}
+                                <span className="font-semibold">📋 Copiar código</span>{" "}
+                                e cole abaixo.
+                              </p>
+                            )}
                           </div>
                         </div>
                         <Label htmlFor="otp" className="text-xs font-medium">
-                          Código recebido no WhatsApp
+                          Código recebido {channel === "sms" ? "por SMS" : "no WhatsApp"}
                         </Label>
                         <div className="flex gap-2">
                           <Input
