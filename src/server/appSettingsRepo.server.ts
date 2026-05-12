@@ -2,9 +2,32 @@ import { db } from "./db.server";
 import { supabaseAdmin } from "./supabaseAdmin.server";
 import { getDataBackend } from "./registrationsRepo.server";
 
+let ensuredAppSettingsTable = false;
+async function ensureAppSettingsTable(): Promise<void> {
+  if (ensuredAppSettingsTable) return;
+  if (getDataBackend() !== "pg") {
+    ensuredAppSettingsTable = true;
+    return;
+  }
+  try {
+    await db.query(
+      `CREATE TABLE IF NOT EXISTS app_settings (
+         key        TEXT PRIMARY KEY,
+         value      TEXT,
+         updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+         updated_by UUID
+       )`,
+    );
+    ensuredAppSettingsTable = true;
+  } catch (err) {
+    console.error("ensureAppSettingsTable failed:", err);
+  }
+}
+
 export async function getSetting(key: string): Promise<string | null> {
   try {
     if (getDataBackend() === "pg") {
+      await ensureAppSettingsTable();
       const { rows } = await db.query<{ value: string | null }>(
         `SELECT value FROM app_settings WHERE key = $1 LIMIT 1`,
         [key],
@@ -34,6 +57,7 @@ export async function getSettings(
   for (const k of keys) out[k] = null;
   try {
     if (getDataBackend() === "pg") {
+      await ensureAppSettingsTable();
       const { rows } = await db.query<{ key: string; value: string | null }>(
         `SELECT key, value FROM app_settings WHERE key = ANY($1::text[])`,
         [keys],
@@ -65,6 +89,7 @@ export async function upsertSetting(
   updatedBy: string | null,
 ): Promise<void> {
   if (getDataBackend() === "pg") {
+    await ensureAppSettingsTable();
     await db.query(
       `INSERT INTO app_settings (key, value, updated_at, updated_by)
          VALUES ($1, $2, now(), $3)
