@@ -93,6 +93,30 @@ export async function findDeviceById(id: string): Promise<DeviceFull | null> {
   return (data as DeviceFull | null) ?? null;
 }
 
+export async function listDevicesByName(name: string): Promise<DeviceFull[]> {
+  const trimmed = name.trim();
+  if (!trimmed) return [];
+  if (getDataBackend() === "pg") {
+    const { rows } = await db.query<DeviceFull>(
+      `SELECT id::text, name, slug, api_base_url, api_login, api_password,
+              created_at::text AS created_at
+         FROM devices
+        WHERE LOWER(TRIM(name)) = LOWER($1)
+        ORDER BY created_at ASC`,
+      [trimmed],
+    );
+    return rows;
+  }
+  const { data, error } = await supabaseAdmin
+    .from("devices")
+    .select("id, name, slug, api_base_url, api_login, api_password, created_at")
+    .ilike("name", trimmed);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as DeviceFull[]).filter(
+    (d) => d.name.trim().toLowerCase() === trimmed.toLowerCase(),
+  );
+}
+
 export async function slugExists(slug: string): Promise<boolean> {
   if (getDataBackend() === "pg") {
     const { rows } = await db.query<{ ok: boolean }>(
