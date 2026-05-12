@@ -30,6 +30,7 @@ import {
   Check,
   Cpu,
   ExternalLink,
+  X,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/devices")({
@@ -53,9 +54,19 @@ function DevicesPage() {
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
-  const [apiBaseUrl, setApiBaseUrl] = useState("");
-  const [apiLogin, setApiLogin] = useState("");
-  const [apiPassword, setApiPassword] = useState("");
+  type Endpoint = { apiBaseUrl: string; apiLogin: string; apiPassword: string };
+  const emptyEndpoint = (): Endpoint => ({ apiBaseUrl: "", apiLogin: "", apiPassword: "" });
+  const [endpoints, setEndpoints] = useState<Endpoint[]>([emptyEndpoint()]);
+
+  function updateEndpoint(idx: number, patch: Partial<Endpoint>) {
+    setEndpoints((prev) => prev.map((e, i) => (i === idx ? { ...e, ...patch } : e)));
+  }
+  function addEndpoint() {
+    setEndpoints((prev) => [...prev, emptyEndpoint()]);
+  }
+  function removeEndpoint(idx: number) {
+    setEndpoints((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== idx)));
+  }
 
   async function reload() {
     try {
@@ -81,28 +92,51 @@ function DevicesPage() {
     setSubmitting(true);
     try {
       const accessToken = await requireAdminAccessToken();
-      const res = await create({
-        data: {
-          accessToken,
-          name: name.trim(),
-          slug: slug.trim() || undefined,
-          apiBaseUrl: apiBaseUrl.trim(),
-          apiLogin: apiLogin.trim(),
-          apiPassword: apiPassword,
-        },
-      });
-      if (!res.success) {
-        if (res.error === "duplicate_slug") toast.error("Esse slug já está em uso");
-        else if (res.error === "invalid_slug") toast.error("Slug inválido (use letras, números e hífen)");
-        else toast.error("Não foi possível salvar");
+      const baseSlugInput = slug.trim();
+      let okCount = 0;
+      const errors: string[] = [];
+      for (let i = 0; i < endpoints.length; i++) {
+        const ep = endpoints[i];
+        if (!ep.apiBaseUrl.trim() || !ep.apiLogin.trim() || !ep.apiPassword) continue;
+        const slugForThis =
+          baseSlugInput.length > 0
+            ? i === 0
+              ? baseSlugInput
+              : `${baseSlugInput}-${i + 1}`
+            : undefined;
+        const res = await create({
+          data: {
+            accessToken,
+            name: name.trim(),
+            slug: slugForThis,
+            apiBaseUrl: ep.apiBaseUrl.trim(),
+            apiLogin: ep.apiLogin.trim(),
+            apiPassword: ep.apiPassword,
+          },
+        });
+        if (res.success) okCount++;
+        else {
+          if (res.error === "duplicate_slug") errors.push(`URL #${i + 1}: slug em uso`);
+          else if (res.error === "invalid_slug") errors.push(`URL #${i + 1}: slug inválido`);
+          else errors.push(`URL #${i + 1}: falha ao salvar`);
+        }
+      }
+      if (okCount === 0) {
+        toast.error(errors[0] ?? "Nenhum equipamento foi cadastrado");
         return;
       }
-      toast.success("Equipamento cadastrado");
+      if (errors.length > 0) {
+        toast.warning(`${okCount} cadastrado(s). ${errors.join("; ")}`);
+      } else {
+        toast.success(
+          okCount === 1
+            ? "Equipamento cadastrado"
+            : `${okCount} equipamentos cadastrados nesta loja`,
+        );
+      }
       setName("");
       setSlug("");
-      setApiBaseUrl("");
-      setApiLogin("");
-      setApiPassword("");
+      setEndpoints([emptyEndpoint()]);
       setOpenCreate(false);
       reload();
     } catch (err) {
@@ -214,46 +248,84 @@ function DevicesPage() {
                   />
                   <p className="text-xs text-muted-foreground">
                     A URL pública ficará: <span className="font-mono">/r/{slug || "<slug>"}</span>
+                    {endpoints.length > 1 && slug && (
+                      <> · equipamentos extras receberão sufixo automático (ex.: <span className="font-mono">{slug}-2</span>)</>
+                    )}
                   </p>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="dev-url">URL base da API do equipamento</Label>
-                  <Input
-                    id="dev-url"
-                    type="url"
-                    placeholder="https://192.168.1.50"
-                    value={apiBaseUrl}
-                    onChange={(e) => setApiBaseUrl(e.target.value)}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Ex: <span className="font-mono">http://177.67.71.26:8186</span>
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="dev-login">Login (admin)</Label>
-                    <Input
-                      id="dev-login"
-                      placeholder="admin"
-                      value={apiLogin}
-                      onChange={(e) => setApiLogin(e.target.value)}
-                      required
-                      autoComplete="off"
-                    />
+
+                <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold">Equipamentos da loja</p>
+                      <p className="text-xs text-muted-foreground">
+                        Adicione uma ou mais URLs de equipamento. Todo cadastro será replicado
+                        em cada URL; equipamentos offline são ignorados rapidamente.
+                      </p>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={addEndpoint}>
+                      <Plus className="h-4 w-4" />
+                      URL
+                    </Button>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="dev-password">Senha</Label>
-                    <Input
-                      id="dev-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={apiPassword}
-                      onChange={(e) => setApiPassword(e.target.value)}
-                      required
-                      autoComplete="new-password"
-                    />
-                  </div>
+
+                  {endpoints.map((ep, idx) => (
+                    <div key={idx} className="space-y-2 rounded-md border bg-background p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-muted-foreground">
+                          Equipamento #{idx + 1}
+                        </p>
+                        {endpoints.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => removeEndpoint(idx)}
+                            aria-label="Remover URL"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`dev-url-${idx}`}>URL base da API</Label>
+                        <Input
+                          id={`dev-url-${idx}`}
+                          type="url"
+                          placeholder="http://177.67.71.26:8186"
+                          value={ep.apiBaseUrl}
+                          onChange={(e) => updateEndpoint(idx, { apiBaseUrl: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`dev-login-${idx}`}>Login (admin)</Label>
+                          <Input
+                            id={`dev-login-${idx}`}
+                            placeholder="admin"
+                            value={ep.apiLogin}
+                            onChange={(e) => updateEndpoint(idx, { apiLogin: e.target.value })}
+                            required
+                            autoComplete="off"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`dev-password-${idx}`}>Senha</Label>
+                          <Input
+                            id={`dev-password-${idx}`}
+                            type="password"
+                            placeholder="••••••••"
+                            value={ep.apiPassword}
+                            onChange={(e) => updateEndpoint(idx, { apiPassword: e.target.value })}
+                            required
+                            autoComplete="new-password"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 

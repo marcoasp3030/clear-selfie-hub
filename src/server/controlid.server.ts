@@ -22,7 +22,7 @@ export async function probeDeviceOnline(
   if (!apiLogin || !apiPassword) {
     return { online: false, error: "sem credenciais" };
   }
-  const r = await login(normalizeBase(apiBaseUrl), apiLogin, apiPassword);
+  const r = await login(normalizeBase(apiBaseUrl), apiLogin, apiPassword, 4000);
   if (typeof r === "string") return { online: true };
   return { online: false, error: r.error };
 }
@@ -30,12 +30,16 @@ export async function probeDeviceOnline(
 async function fcgi<T = unknown>(
   url: string,
   body: unknown,
+  timeoutMs: number = 8000,
 ): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal: ctrl.signal,
     });
     const text = await res.text();
     if (!res.ok) {
@@ -47,8 +51,13 @@ async function fcgi<T = unknown>(
       return { ok: false, error: `Resposta inválida do equipamento: ${text.slice(0, 200)}` };
     }
   } catch (err) {
+    if ((err as { name?: string })?.name === "AbortError") {
+      return { ok: false, error: `Equipamento offline (timeout ${timeoutMs}ms)` };
+    }
     const msg = err instanceof Error ? err.message : String(err);
     return { ok: false, error: `Falha de comunicação: ${msg}` };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -56,11 +65,12 @@ async function login(
   base: string,
   loginUser: string,
   password: string,
+  timeoutMs: number = 5000,
 ): Promise<string | { error: string }> {
   const r = await fcgi<{ session?: string }>(`${base}/login.fcgi`, {
     login: loginUser,
     password,
-  });
+  }, timeoutMs);
   if (!r.ok) return { error: `Login no equipamento falhou — ${r.error}` };
   if (!r.data.session) return { error: "Equipamento não retornou sessão (verifique login/senha)." };
   return r.data.session;
