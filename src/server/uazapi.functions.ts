@@ -215,12 +215,12 @@ export const connectInstance = createServerFn({ method: "POST" })
       throw new Response("Nenhuma instância criada.", { status: 400 });
     }
 
-    const body: Record<string, unknown> = {};
+    const body: Record<string, unknown> = { browser: "auto" };
     if (data.phone) body.phone = data.phone.replace(/\D/g, "");
 
-    let res: Instance & Record<string, unknown>;
+    let raw: Record<string, unknown>;
     try {
-      res = await uazFetch<Instance & Record<string, unknown>>(
+      raw = await uazFetch<Record<string, unknown>>(
         "/instance/connect",
         {
           method: "POST",
@@ -241,6 +241,7 @@ export const connectInstance = createServerFn({ method: "POST" })
           : msg || "Não foi possível conectar na uazapi. Tente novamente em instantes.",
       };
     }
+    const res = extractInstancePayload(raw);
 
     await updateInstance(row.id, {
       last_qr_at: new Date().toISOString(),
@@ -294,11 +295,7 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
       };
     }
 
-    // uazapi often nests under "instance"
-    const inst =
-      (res.instance && typeof res.instance === "object"
-        ? (res.instance as Instance & Record<string, unknown>)
-        : (res as Instance & Record<string, unknown>)) || {};
+    const inst = extractInstancePayload(res);
 
     await persistFromStatus(row.id, inst);
 
