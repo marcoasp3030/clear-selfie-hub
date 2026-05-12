@@ -132,14 +132,39 @@ async function findRemoteInstanceByName(name: string) {
     method: "GET",
     admin: true,
   });
-  if (!Array.isArray(list)) return null;
-  const match = list.find(
+  const instances = extractArray(list);
+  const match = instances.find(
     (item) =>
       item &&
       typeof item === "object" &&
-      (item as Record<string, unknown>).name === name
+      ((item as Record<string, unknown>).name === name ||
+        (asRecord((item as Record<string, unknown>).instance)?.name === name))
   );
   return match ? extractInstancePayload(match) : null;
+}
+
+async function createRemoteInstance(name: string) {
+  const endpoints = ["/instance/init", "/instance/create"];
+  let lastErr: unknown = null;
+  for (const endpoint of endpoints) {
+    try {
+      return await uazFetch<Record<string, unknown>>(endpoint, {
+        method: "POST",
+        admin: true,
+        body: { name },
+      });
+    } catch (err) {
+      const msg = await describeServerError(err);
+      lastErr = err;
+      if (/already exists|já existe|duplicate|duplicad/i.test(msg)) {
+        const remote = await findRemoteInstanceByName(name);
+        if (remote?.token) return { instance: remote };
+      }
+      if (!/not found|404|cannot post|route|endpoint/i.test(msg)) throw err;
+      console.warn(`[uazapi] ${endpoint} failed, trying next endpoint:`, msg);
+    }
+  }
+  throw lastErr ?? new Response("Não foi possível criar instância na uazapi.", { status: 502 });
 }
 
 function isInvalidInstanceToken(err: unknown, message: string) {
@@ -202,25 +227,7 @@ export const createInstance = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const userId = await assertAdminAccess(data.accessToken);
 
-    let createdRaw: Record<string, unknown> | null = null;
-    try {
-      createdRaw = await uazFetch<Record<string, unknown>>(
-        "/instance/create",
-        {
-          method: "POST",
-          admin: true,
-          body: { name: data.name },
-        }
-      );
-    } catch (err) {
-      const msg = await describeServerError(err);
-      if (!/already exists|já existe|duplicate|duplicad/i.test(msg)) {
-        throw err;
-      }
-      const remote = await findRemoteInstanceByName(data.name);
-      if (!remote?.token) throw err;
-      createdRaw = { instance: remote };
-    }
+    const createdRaw = await createRemoteInstance(data.name);
     const created = extractInstancePayload(createdRaw);
 
     const instanceToken =
@@ -281,7 +288,7 @@ export const connectInstance = createServerFn({ method: "POST" })
       throw new Response("Nenhuma instância criada.", { status: 400 });
     }
 
-    const body: Record<string, unknown> = { browser: "auto" };
+    const body: Record<string, unknown> = {};
     if (data.phone) body.phone = data.phone.replace(/\D/g, "");
 
     let raw: Record<string, unknown>;
