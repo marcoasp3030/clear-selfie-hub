@@ -1,10 +1,22 @@
 // Server-only Twilio SMS sender (Account SID + Auth Token).
 // Used as an alternative channel to WhatsApp for phone verification.
+import { getSettings } from "./appSettingsRepo.server";
 
-function getTwilioConfig() {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_FROM_NUMBER;
+export const TWILIO_SETTING_KEYS = {
+  sid: "twilio.account_sid",
+  token: "twilio.auth_token",
+  from: "twilio.from_number",
+} as const;
+
+async function getTwilioConfig() {
+  const dbVals = await getSettings([
+    TWILIO_SETTING_KEYS.sid,
+    TWILIO_SETTING_KEYS.token,
+    TWILIO_SETTING_KEYS.from,
+  ]);
+  const sid = dbVals[TWILIO_SETTING_KEYS.sid] || process.env.TWILIO_ACCOUNT_SID;
+  const token = dbVals[TWILIO_SETTING_KEYS.token] || process.env.TWILIO_AUTH_TOKEN;
+  const from = dbVals[TWILIO_SETTING_KEYS.from] || process.env.TWILIO_FROM_NUMBER;
   if (!sid || !token || !from) {
     console.error("[twilio] missing config", {
       hasSid: Boolean(sid),
@@ -12,7 +24,7 @@ function getTwilioConfig() {
       hasFrom: Boolean(from),
     });
     throw new Response(
-      "Twilio não configurado. Defina TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN e TWILIO_FROM_NUMBER.",
+      "Twilio não configurado. Configure Account SID, Auth Token e número remetente em Admin → Twilio.",
       { status: 500 }
     );
   }
@@ -26,7 +38,7 @@ function getTwilioConfig() {
 
 /** Send an SMS via Twilio REST API. `to` must be E.164 (e.g. +5511912345678). */
 export async function sendTwilioSms(to: string, body: string): Promise<void> {
-  const { sid, token, from } = getTwilioConfig();
+  const { sid, token, from } = await getTwilioConfig();
   const url = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
   // Use btoa for portability across Node + Cloudflare Worker runtimes.
   const auth = btoa(`${sid}:${token}`);
