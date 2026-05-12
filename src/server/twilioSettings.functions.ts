@@ -5,7 +5,11 @@ import {
   getSettings,
   upsertSetting,
 } from "./appSettingsRepo.server";
-import { TWILIO_SETTING_KEYS } from "./twilio.server";
+const TWILIO_SETTING_KEYS = {
+  sid: "twilio.account_sid",
+  token: "twilio.auth_token",
+  from: "twilio.from_number",
+} as const;
 
 const accessTokenSchema = z.string().trim().min(1);
 
