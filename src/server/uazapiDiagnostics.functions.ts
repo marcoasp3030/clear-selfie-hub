@@ -336,3 +336,60 @@ export const clearUazapiLogs = createServerFn({ method: "POST" })
     clearUazapiLogEvents();
     return { success: true };
   });
+
+export const getUazapiConfig = createServerFn({ method: "POST" })
+  .inputValidator((input: { accessToken: string }) =>
+    z.object({ accessToken: accessTokenSchema }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    await assertAdminAccess(data.accessToken);
+    const cfg = await resolveUazapiConfig();
+    return {
+      baseUrl: cfg.baseUrl,
+      adminTokenMasked: mask(cfg.adminToken),
+      adminTokenPresent: Boolean(cfg.adminToken),
+      baseUrlSource: cfg.baseUrlSource,
+      adminTokenSource: cfg.adminTokenSource,
+      envBaseUrl: process.env.UAZAPI_BASE_URL ?? null,
+      envAdminTokenPresent: Boolean(process.env.UAZAPI_ADMIN_TOKEN),
+    };
+  });
+
+export const saveUazapiConfig = createServerFn({ method: "POST" })
+  .inputValidator((input: { accessToken: string; baseUrl?: string | null; adminToken?: string | null }) =>
+    z
+      .object({
+        accessToken: accessTokenSchema,
+        baseUrl: z
+          .string()
+          .trim()
+          .max(500)
+          .url("URL inválida")
+          .optional()
+          .nullable(),
+        adminToken: z.string().trim().max(500).optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const ctx = await assertAdminAccess(data.accessToken);
+    const updatedBy =
+      (ctx as unknown as { adminId?: string; userId?: string })?.adminId ??
+      (ctx as unknown as { userId?: string })?.userId ??
+      null;
+    if (data.baseUrl !== undefined) {
+      const v = (data.baseUrl ?? "").trim();
+      await upsertSetting("uazapi_base_url", v ? v.replace(/\/+$/, "") : null, updatedBy);
+    }
+    if (data.adminToken !== undefined) {
+      const v = (data.adminToken ?? "").trim();
+      await upsertSetting("uazapi_admin_token", v || null, updatedBy);
+    }
+    const cfg = await resolveUazapiConfig();
+    return {
+      success: true,
+      baseUrl: cfg.baseUrl,
+      adminTokenMasked: mask(cfg.adminToken),
+      adminTokenPresent: Boolean(cfg.adminToken),
+    };
+  });
