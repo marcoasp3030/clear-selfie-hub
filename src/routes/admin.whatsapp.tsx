@@ -492,7 +492,7 @@ function WhatsAppPage() {
   );
 }
 
-function UazapiConfigCard() {
+export function UazapiConfigCard() {
   const fnGet = useServerFn(getUazapiConfig);
   const fnSave = useServerFn(saveUazapiConfig);
   const [loading, setLoading] = useState(true);
