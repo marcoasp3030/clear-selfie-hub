@@ -15,6 +15,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as RSlugRouteImport } from './routes/r.$slug'
 import { Route as AdminWhatsappRouteImport } from './routes/admin.whatsapp'
 import { Route as AdminMigrationRouteImport } from './routes/admin.migration'
+import { Route as AdminMessagesRouteImport } from './routes/admin.messages'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminDocsRouteImport } from './routes/admin.docs'
 import { Route as AdminDiagnosticsRouteImport } from './routes/admin.diagnostics'
@@ -55,6 +56,11 @@ const AdminWhatsappRoute = AdminWhatsappRouteImport.update({
 const AdminMigrationRoute = AdminMigrationRouteImport.update({
   id: '/migration',
   path: '/migration',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMessagesRoute = AdminMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/docs': typeof AdminDocsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/messages': typeof AdminMessagesRoute
   '/admin/migration': typeof AdminMigrationRoute
   '/admin/whatsapp': typeof AdminWhatsappRouteWithChildren
   '/r/$slug': typeof RSlugRoute
@@ -139,6 +146,7 @@ export interface FileRoutesByTo {
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/docs': typeof AdminDocsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/messages': typeof AdminMessagesRoute
   '/admin/migration': typeof AdminMigrationRoute
   '/admin/whatsapp': typeof AdminWhatsappRouteWithChildren
   '/r/$slug': typeof RSlugRoute
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/docs': typeof AdminDocsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/messages': typeof AdminMessagesRoute
   '/admin/migration': typeof AdminMigrationRoute
   '/admin/whatsapp': typeof AdminWhatsappRouteWithChildren
   '/r/$slug': typeof RSlugRoute
@@ -180,6 +189,7 @@ export interface FileRouteTypes {
     | '/admin/diagnostics'
     | '/admin/docs'
     | '/admin/login'
+    | '/admin/messages'
     | '/admin/migration'
     | '/admin/whatsapp'
     | '/r/$slug'
@@ -198,6 +208,7 @@ export interface FileRouteTypes {
     | '/admin/diagnostics'
     | '/admin/docs'
     | '/admin/login'
+    | '/admin/messages'
     | '/admin/migration'
     | '/admin/whatsapp'
     | '/r/$slug'
@@ -217,6 +228,7 @@ export interface FileRouteTypes {
     | '/admin/diagnostics'
     | '/admin/docs'
     | '/admin/login'
+    | '/admin/messages'
     | '/admin/migration'
     | '/admin/whatsapp'
     | '/r/$slug'
@@ -282,6 +294,13 @@ declare module '@tanstack/react-router' {
       path: '/migration'
       fullPath: '/admin/migration'
       preLoaderRoute: typeof AdminMigrationRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/messages': {
+      id: '/admin/messages'
+      path: '/messages'
+      fullPath: '/admin/messages'
+      preLoaderRoute: typeof AdminMessagesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/login': {
@@ -381,6 +400,7 @@ interface AdminRouteChildren {
   AdminDiagnosticsRoute: typeof AdminDiagnosticsRoute
   AdminDocsRoute: typeof AdminDocsRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  AdminMessagesRoute: typeof AdminMessagesRoute
   AdminMigrationRoute: typeof AdminMigrationRoute
   AdminWhatsappRoute: typeof AdminWhatsappRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
@@ -393,6 +413,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDiagnosticsRoute: AdminDiagnosticsRoute,
   AdminDocsRoute: AdminDocsRoute,
   AdminLoginRoute: AdminLoginRoute,
+  AdminMessagesRoute: AdminMessagesRoute,
   AdminMigrationRoute: AdminMigrationRoute,
   AdminWhatsappRoute: AdminWhatsappRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
