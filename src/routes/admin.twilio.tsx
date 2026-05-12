@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, MessageSquareText, Save, RefreshCw, KeyRound } from "lucide-react";
+import { Loader2, MessageSquareText, Save, RefreshCw, KeyRound, Send, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   getTwilioSettings,
   updateTwilioSettings,
+  sendTestSms,
 } from "@/server/twilioSettings.functions";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/admin/twilio")({
 function AdminTwilioPage() {
   const fnGet = useServerFn(getTwilioSettings);
   const fnUpdate = useServerFn(updateTwilioSettings);
+  const fnSendTest = useServerFn(sendTestSms);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,6 +36,17 @@ function AdminTwilioPage() {
     token: false,
     from: false,
   });
+
+  const [testTo, setTestTo] = useState("");
+  const [testBody, setTestBody] = useState("Teste de envio Twilio (Admin).");
+  const [sending, setSending] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    status: number;
+    error: string | null;
+    sid: string | null;
+    responseBody: string | null;
+  } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -219,6 +232,121 @@ function AdminTwilioPage() {
             Salvar
           </Button>
         </div>
+      </div>
+
+      <div className="space-y-4 rounded-lg border bg-card p-6">
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <Send className="h-5 w-5 text-primary" />
+            Enviar SMS de teste
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Use as credenciais salvas para enviar uma mensagem real e ver o
+            status retornado pela API do Twilio.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="test-to">Para (E.164)</Label>
+          <Input
+            id="test-to"
+            placeholder="+5511912345678"
+            value={testTo}
+            onChange={(e) => setTestTo(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="test-body">Mensagem</Label>
+          <Input
+            id="test-body"
+            value={testBody}
+            onChange={(e) => setTestBody(e.target.value)}
+            maxLength={480}
+          />
+        </div>
+        <div className="flex justify-end">
+          <Button
+            onClick={async () => {
+              if (!testTo.trim()) {
+                toast.error("Informe o número de destino.");
+                return;
+              }
+              setSending(true);
+              setTestResult(null);
+              try {
+                const accessToken = await requireAdminAccessToken();
+                const res = await fnSendTest({
+                  data: {
+                    accessToken,
+                    to: testTo.trim(),
+                    body: testBody.trim() || undefined,
+                  },
+                });
+                setTestResult(res);
+                if (res.success) toast.success("SMS enviado.");
+                else toast.error(res.error ?? "Falha no envio.");
+              } catch (err) {
+                const msg =
+                  err instanceof Error ? err.message : "Falha no envio.";
+                setTestResult({
+                  success: false,
+                  status: 0,
+                  error: msg,
+                  sid: null,
+                  responseBody: null,
+                });
+                toast.error(msg);
+              } finally {
+                setSending(false);
+              }
+            }}
+            disabled={sending}
+          >
+            {sending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="mr-2 h-4 w-4" />
+            )}
+            Enviar teste
+          </Button>
+        </div>
+        {testResult ? (
+          <div
+            className={`rounded-md border p-3 text-sm ${
+              testResult.success
+                ? "border-green-500/40 bg-green-500/10"
+                : "border-destructive/40 bg-destructive/10"
+            }`}
+          >
+            <div className="mb-2 flex items-center gap-2 font-medium">
+              {testResult.success ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  Sucesso (HTTP {testResult.status})
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-4 w-4 text-destructive" />
+                  Falhou{testResult.status ? ` (HTTP ${testResult.status})` : ""}
+                </>
+              )}
+            </div>
+            {testResult.sid ? (
+              <p>
+                Message SID: <code className="font-mono">{testResult.sid}</code>
+              </p>
+            ) : null}
+            {testResult.error ? (
+              <p className="text-destructive">{testResult.error}</p>
+            ) : null}
+            {testResult.responseBody ? (
+              <pre className="mt-2 max-h-48 overflow-auto rounded bg-background/60 p-2 text-xs">
+                {testResult.responseBody}
+              </pre>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
