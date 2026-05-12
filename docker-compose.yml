@@ -27,7 +27,8 @@ services:
 
       # ----- Postgres proprio (Etapa 2/3 da migracao) -----
       # Hostname "postgres" funciona porque entramos na rede do n8n.
-      DATABASE_URL: postgres://postgres:${DB_POSTGRESDB_PASSWORD}@postgres:5432/postgres
+      # Use o database onde db/init/001_schema.sql foi aplicado.
+      DATABASE_URL: postgres://postgres:${DB_POSTGRESDB_PASSWORD}@postgres:5432/${DB_NAME:-nutricar}
       DB_SSL: "false"
 
       # ----- Backend Lovable Cloud / Supabase (ainda em uso) -----
@@ -47,6 +48,11 @@ services:
       # ----- WhatsApp (uazapi) -----
       UAZAPI_BASE_URL: ${UAZAPI_BASE_URL}
       UAZAPI_ADMIN_TOKEN: ${UAZAPI_ADMIN_TOKEN}
+
+      # ----- SMS (Twilio) -----
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER}
 
       # ----- Lovable AI (opcional) -----
       LOVABLE_API_KEY: ${LOVABLE_API_KEY}
