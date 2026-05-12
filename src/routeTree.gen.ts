@@ -25,6 +25,7 @@ import { Route as AdminRegistrationsIndexRouteImport } from './routes/admin.regi
 import { Route as ApiPublicUploadPhotoRouteImport } from './routes/api/public/upload-photo'
 import { Route as ApiPublicUazapiWebhookRouteImport } from './routes/api/public/uazapi-webhook'
 import { Route as ApiPublicTwilioPingRouteImport } from './routes/api/public/twilio-ping'
+import { Route as AdminWhatsappLogsRouteImport } from './routes/admin.whatsapp.logs'
 import { Route as AdminWhatsappDiagnosticsRouteImport } from './routes/admin.whatsapp.diagnostics'
 import { Route as AdminRegistrationsIdRouteImport } from './routes/admin.registrations.$id'
 import { Route as ApiAdminPhotoSplatRouteImport } from './routes/api/admin/photo.$'
@@ -109,6 +110,11 @@ const ApiPublicTwilioPingRoute = ApiPublicTwilioPingRouteImport.update({
   path: '/api/public/twilio-ping',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminWhatsappLogsRoute = AdminWhatsappLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => AdminWhatsappRoute,
+} as any)
 const AdminWhatsappDiagnosticsRoute =
   AdminWhatsappDiagnosticsRouteImport.update({
     id: '/diagnostics',
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
   '/admin/whatsapp/diagnostics': typeof AdminWhatsappDiagnosticsRoute
+  '/admin/whatsapp/logs': typeof AdminWhatsappLogsRoute
   '/api/public/twilio-ping': typeof ApiPublicTwilioPingRoute
   '/api/public/uazapi-webhook': typeof ApiPublicUazapiWebhookRoute
   '/api/public/upload-photo': typeof ApiPublicUploadPhotoRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
   '/admin/whatsapp/diagnostics': typeof AdminWhatsappDiagnosticsRoute
+  '/admin/whatsapp/logs': typeof AdminWhatsappLogsRoute
   '/api/public/twilio-ping': typeof ApiPublicTwilioPingRoute
   '/api/public/uazapi-webhook': typeof ApiPublicUazapiWebhookRoute
   '/api/public/upload-photo': typeof ApiPublicUploadPhotoRoute
@@ -183,6 +191,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/admin/registrations/$id': typeof AdminRegistrationsIdRoute
   '/admin/whatsapp/diagnostics': typeof AdminWhatsappDiagnosticsRoute
+  '/admin/whatsapp/logs': typeof AdminWhatsappLogsRoute
   '/api/public/twilio-ping': typeof ApiPublicTwilioPingRoute
   '/api/public/uazapi-webhook': typeof ApiPublicUazapiWebhookRoute
   '/api/public/upload-photo': typeof ApiPublicUploadPhotoRoute
@@ -206,6 +215,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin/registrations/$id'
     | '/admin/whatsapp/diagnostics'
+    | '/admin/whatsapp/logs'
     | '/api/public/twilio-ping'
     | '/api/public/uazapi-webhook'
     | '/api/public/upload-photo'
@@ -226,6 +236,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/registrations/$id'
     | '/admin/whatsapp/diagnostics'
+    | '/admin/whatsapp/logs'
     | '/api/public/twilio-ping'
     | '/api/public/uazapi-webhook'
     | '/api/public/upload-photo'
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin/registrations/$id'
     | '/admin/whatsapp/diagnostics'
+    | '/admin/whatsapp/logs'
     | '/api/public/twilio-ping'
     | '/api/public/uazapi-webhook'
     | '/api/public/upload-photo'
@@ -378,6 +390,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTwilioPingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/whatsapp/logs': {
+      id: '/admin/whatsapp/logs'
+      path: '/logs'
+      fullPath: '/admin/whatsapp/logs'
+      preLoaderRoute: typeof AdminWhatsappLogsRouteImport
+      parentRoute: typeof AdminWhatsappRoute
+    }
     '/admin/whatsapp/diagnostics': {
       id: '/admin/whatsapp/diagnostics'
       path: '/diagnostics'
@@ -404,10 +423,12 @@ declare module '@tanstack/react-router' {
 
 interface AdminWhatsappRouteChildren {
   AdminWhatsappDiagnosticsRoute: typeof AdminWhatsappDiagnosticsRoute
+  AdminWhatsappLogsRoute: typeof AdminWhatsappLogsRoute
 }
 
 const AdminWhatsappRouteChildren: AdminWhatsappRouteChildren = {
   AdminWhatsappDiagnosticsRoute: AdminWhatsappDiagnosticsRoute,
+  AdminWhatsappLogsRoute: AdminWhatsappLogsRoute,
 }
 
 const AdminWhatsappRouteWithChildren = AdminWhatsappRoute._addFileChildren(
