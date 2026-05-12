@@ -29,8 +29,44 @@ function pickStatus(raw: unknown): string {
   const candidates = [obj.status, obj.state, obj.connectionStatus];
   for (const c of candidates) {
     if (typeof c === "string" && c.length > 0) return c;
+    if (c && typeof c === "object") {
+      const statusObj = c as Record<string, unknown>;
+      if (statusObj.connected === true || statusObj.loggedIn === true) return "connected";
+    }
   }
+  if (obj.connected === true || obj.loggedIn === true) return "connected";
+  if (typeof obj.qrcode === "string" || typeof obj.paircode === "string") return "connecting";
   return "disconnected";
+}
+
+function extractInstancePayload(raw: unknown): Instance & Record<string, unknown> {
+  if (!raw || typeof raw !== "object") return {};
+  const obj = raw as Record<string, unknown>;
+  const instance = obj.instance && typeof obj.instance === "object" ? obj.instance : obj;
+  return {
+    ...(instance as Instance & Record<string, unknown>),
+    connected: obj.connected,
+    loggedIn: obj.loggedIn,
+    jid: obj.jid,
+    status:
+      typeof (instance as Record<string, unknown>).status === "string"
+        ? ((instance as Record<string, unknown>).status as string)
+        : typeof obj.status === "string"
+          ? obj.status
+          : undefined,
+  };
+}
+
+function ownerFromPayload(payload: Record<string, unknown>) {
+  if (typeof payload.owner === "string") return payload.owner;
+  const jid = payload.jid;
+  if (jid && typeof jid === "object") {
+    const obj = jid as Record<string, unknown>;
+    if (typeof obj.user === "string") {
+      return `${obj.user}@${typeof obj.server === "string" ? obj.server : "s.whatsapp.net"}`;
+    }
+  }
+  return null;
 }
 
 /** Returns the saved instance row (the project uses a single global instance). */
@@ -51,6 +87,21 @@ async function describeServerError(err: unknown) {
   return String(err);
 }
 
+async function findRemoteInstanceByName(name: string) {
+  const list = await uazFetch<unknown>("/instance/all", {
+    method: "GET",
+    admin: true,
+  });
+  if (!Array.isArray(list)) return null;
+  const match = list.find(
+    (item) =>
+      item &&
+      typeof item === "object" &&
+      (item as Record<string, unknown>).name === name
+  );
+  return match ? extractInstancePayload(match) : null;
+}
+
 function isInvalidInstanceToken(err: unknown, message: string) {
   return (
     (err instanceof Response && err.status === 401) ||
@@ -68,9 +119,10 @@ async function persistFromStatus(
     last_status_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
-  if (typeof payload.owner === "string") {
-    update.owner_jid = payload.owner;
-    const phone = payload.owner.split("@")[0]?.replace(/\D/g, "") ?? null;
+  const owner = ownerFromPayload(payload);
+  if (owner) {
+    update.owner_jid = owner;
+    const phone = owner.split("@")[0]?.replace(/\D/g, "") ?? null;
     if (phone) update.phone_connected = phone;
   }
   if (typeof payload.profileName === "string") {
@@ -110,14 +162,26 @@ export const createInstance = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const userId = await assertAdminAccess(data.accessToken);
 
-    const created = await uazFetch<Instance & Record<string, unknown>>(
-      "/instance/init",
-      {
-        method: "POST",
-        admin: true,
-        body: { name: data.name },
+    let createdRaw: Record<string, unknown> | null = null;
+    try {
+      createdRaw = await uazFetch<Record<string, unknown>>(
+        "/instance/create",
+        {
+          method: "POST",
+          admin: true,
+          body: { name: data.name },
+        }
+      );
+    } catch (err) {
+      const msg = await describeServerError(err);
+      if (!/already exists|já existe|duplicate|duplicad/i.test(msg)) {
+        throw err;
       }
-    );
+      const remote = await findRemoteInstanceByName(data.name);
+      if (!remote?.token) throw err;
+      createdRaw = { instance: remote };
+    }
+    const created = extractInstancePayload(createdRaw);
 
     const instanceToken =
       (typeof created?.token === "string" && created.token) ||
@@ -131,7 +195,7 @@ export const createInstance = createServerFn({ method: "POST" })
         : null);
 
     if (!instanceToken) {
-      console.error("uazapi /instance/init missing token:", created);
+      console.error("uazapi /instance/create missing token:", createdRaw);
       throw new Response("Resposta inesperada da uazapi (sem token).", {
         status: 502,
       });
@@ -177,12 +241,12 @@ export const connectInstance = createServerFn({ method: "POST" })
       throw new Response("Nenhuma instância criada.", { status: 400 });
     }
 
-    const body: Record<string, unknown> = {};
+    const body: Record<string, unknown> = { browser: "auto" };
     if (data.phone) body.phone = data.phone.replace(/\D/g, "");
 
-    let res: Instance & Record<string, unknown>;
+    let raw: Record<string, unknown>;
     try {
-      res = await uazFetch<Instance & Record<string, unknown>>(
+      raw = await uazFetch<Record<string, unknown>>(
         "/instance/connect",
         {
           method: "POST",
@@ -203,6 +267,7 @@ export const connectInstance = createServerFn({ method: "POST" })
           : msg || "Não foi possível conectar na uazapi. Tente novamente em instantes.",
       };
     }
+    const res = extractInstancePayload(raw);
 
     await updateInstance(row.id, {
       last_qr_at: new Date().toISOString(),
@@ -256,11 +321,7 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
       };
     }
 
-    // uazapi often nests under "instance"
-    const inst =
-      (res.instance && typeof res.instance === "object"
-        ? (res.instance as Instance & Record<string, unknown>)
-        : (res as Instance & Record<string, unknown>)) || {};
+    const inst = extractInstancePayload(res);
 
     await persistFromStatus(row.id, inst);
 
@@ -351,8 +412,7 @@ export const deleteInstance = createServerFn({ method: "POST" })
       try {
         await uazFetch("/instance", {
           method: "DELETE",
-          admin: true,
-          body: { token: row.instance_token },
+          instanceToken: row.instance_token,
         });
       } catch (err) {
         console.warn("uazapi delete instance failed (continuing):", err);

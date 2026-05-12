@@ -31,8 +31,53 @@ export const Route = createFileRoute("/admin/whatsapp/diagnostics")({
   component: WhatsAppDiagnosticsPage,
 });
 
-type Diagnostics = Awaited<ReturnType<typeof getUazapiDiagnostics>>;
-type PingResult = Awaited<ReturnType<typeof pingUazapi>>;
+type ProbeResult = {
+  ok: boolean;
+  status: number;
+  ms: number;
+  url: string | null;
+  bodyPreview?: string | null;
+  error?: string | null;
+};
+
+type UazLog = {
+  id: string;
+  at: string;
+  level: "info" | "warn" | "error";
+  action: string;
+  method?: string;
+  path?: string;
+  status?: number;
+  ms?: number;
+  ok?: boolean;
+  requestBody?: unknown;
+  responsePreview?: unknown;
+  error?: string;
+};
+
+type Diagnostics = {
+  env: {
+    UAZAPI_BASE_URL: string | null;
+    UAZAPI_ADMIN_TOKEN_present: boolean;
+    UAZAPI_ADMIN_TOKEN_masked: string | null;
+    DATABASE_URL_present: boolean;
+    DATABASE_URL_masked: string | null;
+    TWILIO_ACCOUNT_SID_present: boolean;
+    TWILIO_ACCOUNT_SID_masked: string | null;
+    TWILIO_AUTH_TOKEN_present: boolean;
+    TWILIO_FROM_NUMBER: string | null;
+    JWT_SECRET_present: boolean;
+    UPLOADS_DIR: string | null;
+    NODE_ENV: string | null;
+    data_backend: string;
+  };
+  instance: Record<string, unknown> | null;
+  instanceError: string | null;
+  probe: ProbeResult | null;
+  logs: UazLog[];
+  checkedAt: string;
+};
+type PingResult = ProbeResult;
 type TestResult = Awaited<ReturnType<typeof sendTestWhatsApp>>;
 
 function StatusPill({ ok, label }: { ok: boolean; label: string }) {
@@ -405,6 +450,42 @@ function WhatsAppDiagnosticsPage() {
                 <pre className="overflow-auto rounded-md border border-border bg-muted/40 p-3 text-xs">
                   {JSON.stringify(data.instance, null, 2)}
                 </pre>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Logs uazapi do processo</CardTitle>
+              <CardDescription>
+                Últimas chamadas feitas por criação, conexão, status, teste e probe.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              {!data.logs.length ? (
+                <p className="text-muted-foreground">Nenhum log capturado neste processo ainda.</p>
+              ) : (
+                <div className="space-y-2">
+                  {data.logs.slice(0, 12).map((log) => (
+                    <div key={log.id} className="rounded-md border border-border bg-muted/30 p-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusPill ok={log.ok !== false && log.level !== "error"} label={log.level.toUpperCase()} />
+                        <span className="font-mono text-xs">{log.method ?? "—"} {log.path ?? log.action}</span>
+                        {typeof log.status === "number" && <span className="text-xs text-muted-foreground">HTTP {log.status}</span>}
+                        {typeof log.ms === "number" && <span className="text-xs text-muted-foreground">{log.ms} ms</span>}
+                        <span className="ml-auto text-xs text-muted-foreground">{new Date(log.at).toLocaleString("pt-BR")}</span>
+                      </div>
+                      {log.error && (
+                        <pre className="mt-2 overflow-auto rounded border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">{log.error}</pre>
+                      )}
+                      {(Boolean(log.requestBody) || Boolean(log.responsePreview)) && (
+                        <pre className="mt-2 overflow-auto rounded bg-background p-2 text-xs">
+                          {JSON.stringify({ requestBody: log.requestBody, responsePreview: log.responsePreview }, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
