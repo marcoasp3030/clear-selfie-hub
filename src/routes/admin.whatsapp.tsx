@@ -274,8 +274,20 @@ function WhatsAppPage() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-7 w-7 animate-spin text-primary" />
+      <div className="space-y-6">
+        <div className="flex flex-col gap-1">
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+            <MessageCircle className="h-6 w-6 text-primary" />
+            WhatsApp
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Configure as credenciais da uazapi abaixo. As demais opções aparecem após carregar.
+          </p>
+        </div>
+        <UazapiConfigCard />
+        <div className="flex h-32 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
       </div>
     );
   }
