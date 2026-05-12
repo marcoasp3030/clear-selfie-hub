@@ -123,7 +123,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
           setVerificationStatus("verified");
           setVerifiedPhone(phone);
           setVerifyError(null);
-          toast.success("WhatsApp verificado automaticamente!");
+          toast.success("Número verificado automaticamente!");
         }
       } catch {
         /* keep polling silently */
@@ -180,7 +180,9 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
       if (res.success) {
         setVerificationStatus("verified");
         setVerifiedPhone(phone);
-        toast.success("WhatsApp verificado!");
+        toast.success(
+          channel === "sms" ? "Número verificado!" : "WhatsApp verificado!"
+        );
       } else {
         setVerificationStatus("sent");
         setVerifyError(res.message || "Código inválido.");
@@ -216,7 +218,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
       return;
     }
     if (!isPhoneVerified) {
-      toast.error("Verifique seu WhatsApp antes de finalizar.");
+      toast.error("Verifique seu número antes de finalizar.");
       return;
     }
     if (!photo) {
