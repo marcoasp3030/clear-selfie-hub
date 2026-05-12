@@ -6,6 +6,7 @@
 //  - `token` header: per-instance operations (connect, status, qrcode, disconnect)
 
 import { logUazapiEvent } from "./uazapiDebug.server";
+import { getSettings } from "./appSettingsRepo.server";
 
 type UazFetchOptions = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
@@ -16,26 +17,53 @@ type UazFetchOptions = {
   instanceToken?: string;
 };
 
-function getBaseUrl() {
-  const raw = process.env.UAZAPI_BASE_URL;
-  if (!raw) {
-    throw new Response("UAZAPI_BASE_URL não configurado", { status: 500 });
+export async function resolveUazapiConfig(): Promise<{
+  baseUrl: string | null;
+  adminToken: string | null;
+  baseUrlSource: "db" | "env" | null;
+  adminTokenSource: "db" | "env" | null;
+}> {
+  let dbBase: string | null = null;
+  let dbToken: string | null = null;
+  try {
+    const s = await getSettings(["uazapi_base_url", "uazapi_admin_token"]);
+    dbBase = (s["uazapi_base_url"] || "").trim() || null;
+    dbToken = (s["uazapi_admin_token"] || "").trim() || null;
+  } catch {
+    /* ignore — fallback to env */
   }
-  return raw.replace(/\/+$/, "");
+  const envBase = (process.env.UAZAPI_BASE_URL || "").trim() || null;
+  const envToken = (process.env.UAZAPI_ADMIN_TOKEN || "").trim() || null;
+  const baseUrl = dbBase ?? envBase;
+  const adminToken = dbToken ?? envToken;
+  return {
+    baseUrl: baseUrl ? baseUrl.replace(/\/+$/, "") : null,
+    adminToken,
+    baseUrlSource: dbBase ? "db" : envBase ? "env" : null,
+    adminTokenSource: dbToken ? "db" : envToken ? "env" : null,
+  };
 }
 
-function getAdminToken() {
-  const t = process.env.UAZAPI_ADMIN_TOKEN;
-  if (!t) {
-    throw new Response("UAZAPI_ADMIN_TOKEN não configurado", { status: 500 });
+async function getBaseUrl(): Promise<string> {
+  const cfg = await resolveUazapiConfig();
+  if (!cfg.baseUrl) {
+    throw new Response("UAZAPI_BASE_URL não configurado (configure em /admin/whatsapp)", { status: 500 });
   }
-  return t;
+  return cfg.baseUrl;
+}
+
+async function getAdminToken(): Promise<string> {
+  const cfg = await resolveUazapiConfig();
+  if (!cfg.adminToken) {
+    throw new Response("UAZAPI_ADMIN_TOKEN não configurado (configure em /admin/whatsapp)", { status: 500 });
+  }
+  return cfg.adminToken;
 }
 
 export async function uazFetch<T = unknown>(path: string, opts: UazFetchOptions = {}): Promise<T> {
-  const base = getBaseUrl();
+  const base = await getBaseUrl();
   const url = `${base}${path.startsWith("/") ? "" : "/"}${path}`;
-  const adminToken = opts.admin ? getAdminToken() : null;
+  const adminToken = opts.admin ? await getAdminToken() : null;
   const instanceToken = opts.admin ? null : opts.instanceToken;
 
   if (!opts.admin && !instanceToken) {

@@ -10,6 +10,10 @@ import {
   disconnectInstance,
   deleteInstance,
 } from "@/server/uazapi.functions";
+import {
+  getUazapiConfig,
+  saveUazapiConfig,
+} from "@/server/uazapiDiagnostics.functions";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +30,8 @@ import {
   CheckCircle2,
   RefreshCw,
   Smartphone,
+  Settings,
+  Save,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/whatsapp")({
@@ -301,6 +307,8 @@ function WhatsAppPage() {
         </div>
       </div>
 
+      <UazapiConfigCard />
+
       {/* No instance yet */}
       {!instance && (
         <Card>
@@ -469,5 +477,161 @@ function WhatsAppPage() {
         </>
       )}
     </div>
+  );
+}
+
+function UazapiConfigCard() {
+  const fnGet = useServerFn(getUazapiConfig);
+  const fnSave = useServerFn(saveUazapiConfig);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [baseUrl, setBaseUrl] = useState("");
+  const [adminToken, setAdminToken] = useState("");
+  const [info, setInfo] = useState<{
+    baseUrl: string | null;
+    adminTokenMasked: string | null;
+    adminTokenPresent: boolean;
+    baseUrlSource: "db" | "env" | null;
+    adminTokenSource: "db" | "env" | null;
+  } | null>(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const accessToken = await requireAdminAccessToken();
+      const res = await fnGet({ data: { accessToken } });
+      setInfo(res);
+      setBaseUrl(res.baseUrl ?? "");
+      setAdminToken("");
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao carregar configuração uazapi.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function onSave() {
+    if (!baseUrl.trim()) {
+      toast.error("Informe o Server URL.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const accessToken = await requireAdminAccessToken();
+      await fnSave({
+        data: {
+          accessToken,
+          baseUrl: baseUrl.trim(),
+          adminToken: adminToken.trim() ? adminToken.trim() : undefined,
+        },
+      });
+      toast.success("Configuração salva.");
+      await load();
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const baseOk = Boolean(info?.baseUrl);
+  const tokenOk = Boolean(info?.adminTokenPresent);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Settings className="h-5 w-5 text-primary" /> Configuração da uazapi
+        </CardTitle>
+        <CardDescription>
+          Defina o endereço do servidor uazapi e o admin token. Os valores ficam salvos no banco e
+          têm prioridade sobre as variáveis de ambiente.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap gap-2 text-xs">
+          <Badge
+            variant="outline"
+            className={
+              baseOk
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                : "border-destructive/30 bg-destructive/10 text-destructive"
+            }
+          >
+            UAZAPI_BASE_URL: {baseOk ? `OK (${info?.baseUrlSource})` : "Faltando"}
+          </Badge>
+          <Badge
+            variant="outline"
+            className={
+              tokenOk
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                : "border-destructive/30 bg-destructive/10 text-destructive"
+            }
+          >
+            UAZAPI_ADMIN_TOKEN: {tokenOk ? `OK (${info?.adminTokenSource})` : "Faltando"}
+          </Badge>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="uaz-url">Server URL</Label>
+            <Input
+              id="uaz-url"
+              placeholder="https://sua-instancia.uazapi.com"
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              disabled={loading || saving}
+              autoComplete="off"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Endereço base, sem barra final. Ex: <code>https://api.uazapi.com</code>.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="uaz-token">Admin Token</Label>
+            <Input
+              id="uaz-token"
+              type="password"
+              placeholder={
+                info?.adminTokenMasked
+                  ? `Atual: ${info.adminTokenMasked} — deixe vazio para manter`
+                  : "cole o admintoken aqui"
+              }
+              value={adminToken}
+              onChange={(e) => setAdminToken(e.target.value)}
+              disabled={loading || saving}
+              autoComplete="off"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Usado no header <code>admintoken</code> nas chamadas administrativas.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={onSave} disabled={loading || saving}>
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" /> Salvar configuração
+              </>
+            )}
+          </Button>
+          <Button variant="outline" onClick={() => void load()} disabled={loading || saving}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Recarregar
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

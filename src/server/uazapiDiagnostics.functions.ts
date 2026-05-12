@@ -5,6 +5,8 @@ import { getLatestInstance, getActiveInstanceTokenOrNull } from "./uazapiRepo.se
 import { getDataBackend } from "./registrationsRepo.server";
 import { logMessageAttempt } from "./messageAttemptsRepo.server";
 import { getUazapiLogEvents, logUazapiEvent, clearUazapiLogEvents } from "./uazapiDebug.server";
+import { resolveUazapiConfig } from "./uazapi.server";
+import { upsertSetting } from "./appSettingsRepo.server";
 
 const accessTokenSchema = z.string().trim().min(1);
 
@@ -91,9 +93,9 @@ export const getUazapiDiagnostics = createServerFn({ method: "POST" })
     await assertAdminAccess(data.accessToken);
 
     const env = {
-      UAZAPI_BASE_URL: process.env.UAZAPI_BASE_URL ?? null,
-      UAZAPI_ADMIN_TOKEN_present: Boolean(process.env.UAZAPI_ADMIN_TOKEN),
-      UAZAPI_ADMIN_TOKEN_masked: mask(process.env.UAZAPI_ADMIN_TOKEN),
+      UAZAPI_BASE_URL: (await resolveUazapiConfig()).baseUrl,
+      UAZAPI_ADMIN_TOKEN_present: Boolean((await resolveUazapiConfig()).adminToken),
+      UAZAPI_ADMIN_TOKEN_masked: mask((await resolveUazapiConfig()).adminToken),
       DATABASE_URL_present: Boolean(process.env.DATABASE_URL),
       DATABASE_URL_masked: maskUrl(process.env.DATABASE_URL),
       TWILIO_ACCOUNT_SID_present: Boolean(process.env.TWILIO_ACCOUNT_SID),
@@ -115,8 +117,9 @@ export const getUazapiDiagnostics = createServerFn({ method: "POST" })
     }
 
     let probe: Awaited<ReturnType<typeof probeUazapi>> | null = null;
-    if (env.UAZAPI_BASE_URL && process.env.UAZAPI_ADMIN_TOKEN) {
-      probe = await probeUazapi(env.UAZAPI_BASE_URL, process.env.UAZAPI_ADMIN_TOKEN);
+    const cfgForProbe = await resolveUazapiConfig();
+    if (cfgForProbe.baseUrl && cfgForProbe.adminToken) {
+      probe = await probeUazapi(cfgForProbe.baseUrl, cfgForProbe.adminToken);
     }
 
     return {
@@ -161,8 +164,9 @@ export const pingUazapi = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await assertAdminAccess(data.accessToken);
-    const baseUrl = process.env.UAZAPI_BASE_URL;
-    const adminToken = process.env.UAZAPI_ADMIN_TOKEN;
+    const cfg = await resolveUazapiConfig();
+    const baseUrl = cfg.baseUrl;
+    const adminToken = cfg.adminToken;
     if (!baseUrl) {
       return {
         ok: false,
@@ -216,7 +220,7 @@ export const sendTestWhatsApp = createServerFn({ method: "POST" })
     }> => {
       await assertAdminAccess(data.accessToken);
 
-      const baseUrl = process.env.UAZAPI_BASE_URL;
+      const baseUrl = (await resolveUazapiConfig()).baseUrl;
       if (!baseUrl) {
         return {
           success: false,
@@ -331,4 +335,58 @@ export const clearUazapiLogs = createServerFn({ method: "POST" })
     await assertAdminAccess(data.accessToken);
     clearUazapiLogEvents();
     return { success: true };
+  });
+
+export const getUazapiConfig = createServerFn({ method: "POST" })
+  .inputValidator((input: { accessToken: string }) =>
+    z.object({ accessToken: accessTokenSchema }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    await assertAdminAccess(data.accessToken);
+    const cfg = await resolveUazapiConfig();
+    return {
+      baseUrl: cfg.baseUrl,
+      adminTokenMasked: mask(cfg.adminToken),
+      adminTokenPresent: Boolean(cfg.adminToken),
+      baseUrlSource: cfg.baseUrlSource,
+      adminTokenSource: cfg.adminTokenSource,
+      envBaseUrl: process.env.UAZAPI_BASE_URL ?? null,
+      envAdminTokenPresent: Boolean(process.env.UAZAPI_ADMIN_TOKEN),
+    };
+  });
+
+export const saveUazapiConfig = createServerFn({ method: "POST" })
+  .inputValidator((input: { accessToken: string; baseUrl?: string | null; adminToken?: string | null }) =>
+    z
+      .object({
+        accessToken: accessTokenSchema,
+        baseUrl: z
+          .string()
+          .trim()
+          .max(500)
+          .url("URL inválida")
+          .optional()
+          .nullable(),
+        adminToken: z.string().trim().max(500).optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const userId = await assertAdminAccess(data.accessToken);
+    const updatedBy = typeof userId === "string" ? userId : null;
+    if (data.baseUrl !== undefined) {
+      const v = (data.baseUrl ?? "").trim();
+      await upsertSetting("uazapi_base_url", v ? v.replace(/\/+$/, "") : null, updatedBy);
+    }
+    if (data.adminToken !== undefined) {
+      const v = (data.adminToken ?? "").trim();
+      await upsertSetting("uazapi_admin_token", v || null, updatedBy);
+    }
+    const cfg = await resolveUazapiConfig();
+    return {
+      success: true,
+      baseUrl: cfg.baseUrl,
+      adminTokenMasked: mask(cfg.adminToken),
+      adminTokenPresent: Boolean(cfg.adminToken),
+    };
   });
