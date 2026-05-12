@@ -117,6 +117,9 @@ networks:
       VITE_SUPABASE_PROJECT_ID: \${VITE_SUPABASE_PROJECT_ID}
       UAZAPI_BASE_URL: \${UAZAPI_BASE_URL}
       UAZAPI_ADMIN_TOKEN: \${UAZAPI_ADMIN_TOKEN}
+      TWILIO_ACCOUNT_SID: \${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: \${TWILIO_AUTH_TOKEN}
+      TWILIO_FROM_NUMBER: \${TWILIO_FROM_NUMBER}
       LOVABLE_API_KEY: \${LOVABLE_API_KEY}
     networks:
       - web
@@ -142,6 +145,11 @@ VITE_SUPABASE_PROJECT_ID=hffbxygfvdkvtrjtxrba
 # WhatsApp (uazapi)
 UAZAPI_BASE_URL=https://sua-instancia.uazapi.com
 UAZAPI_ADMIN_TOKEN=seu-admin-token
+
+# SMS (Twilio)
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=seu-auth-token
+TWILIO_FROM_NUMBER=+5511999999999
 
 # Lovable AI (opcional)
 LOVABLE_API_KEY=`;
