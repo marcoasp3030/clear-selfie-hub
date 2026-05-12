@@ -1,6 +1,7 @@
 import { getRequestHeader, getRequestIP } from "@tanstack/react-start/server";
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "crypto";
 import { uazFetch } from "./uazapi.server";
+import { sendTwilioSms } from "./twilio.server";
 import {
   bumpAttempts,
   deleteUnverifiedByPhone,
@@ -134,8 +135,12 @@ function makeVerifyToken(): string {
   return randomBytes(12).toString("base64url");
 }
 
-export async function sendPhoneVerificationData(input: { phone: string }) {
+export async function sendPhoneVerificationData(input: {
+  phone: string;
+  channel?: "whatsapp" | "sms";
+}) {
   const phone = normalizePhone(input.phone);
+  const channel = input.channel ?? "whatsapp";
   if (phone.length < 12) {
     throw new Response("Número de celular inválido.", { status: 400 });
   }
@@ -169,7 +174,31 @@ export async function sendPhoneVerificationData(input: { phone: string }) {
     throw new Response("Não foi possível gerar o código.", { status: 500 });
   }
 
-  // Send WhatsApp message via uazapi.
+  // ----- SMS (Twilio) branch -----
+  if (channel === "sms") {
+    const smsBody =
+      `Seu codigo Nutricar Brasil: ${code}\n` +
+      `Expira em 5 minutos. Nao compartilhe com ninguem.`;
+    try {
+      await sendTwilioSms(`+${phone}`, smsBody);
+    } catch (err) {
+      console.error("twilio send failed:", err);
+      await deleteUnverifiedByPhone(phone);
+      if (err instanceof Response) throw err;
+      throw new Response(
+        "Não foi possível enviar o SMS. Verifique o número e tente novamente.",
+        { status: 502 }
+      );
+    }
+    return {
+      success: true as const,
+      channel: "sms" as const,
+      expiresAt: expiresAt.toISOString(),
+      cooldownSeconds: RESEND_COOLDOWN_SECONDS,
+    };
+  }
+
+  // ----- WhatsApp (uazapi) branch -----
   // We try the interactive menu (button) endpoint first — it gives the user
   // a "Copiar código" button and a "Já verifiquei" reply button that the
   // server will detect via webhook. If the server / WhatsApp client doesn't
@@ -232,6 +261,7 @@ export async function sendPhoneVerificationData(input: { phone: string }) {
 
   return {
     success: true as const,
+    channel: "whatsapp" as const,
     expiresAt: expiresAt.toISOString(),
     cooldownSeconds: RESEND_COOLDOWN_SECONDS,
   };
