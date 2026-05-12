@@ -4,6 +4,7 @@ import { assertAdminAccess } from "./admin.server";
 import { getLatestInstance, getActiveInstanceTokenOrNull } from "./uazapiRepo.server";
 import { getDataBackend } from "./registrationsRepo.server";
 import { logMessageAttempt } from "./messageAttemptsRepo.server";
+import { getUazapiLogEvents, logUazapiEvent } from "./uazapiDebug.server";
 
 const accessTokenSchema = z.string().trim().min(1);
 
@@ -28,6 +29,17 @@ async function probeUazapi(baseUrl: string, adminToken: string) {
     });
     const ms = Date.now() - start;
     const text = await res.text();
+    logUazapiEvent({
+      level: res.ok ? "info" : "error",
+      action: "diagnostic-probe",
+      method: "GET",
+      path: "/instance/all",
+      status: res.status,
+      ms,
+      ok: res.ok,
+      responsePreview: text,
+      error: res.ok ? undefined : text.slice(0, 300) || `HTTP ${res.status}`,
+    });
     return {
       ok: res.ok,
       status: res.status,
@@ -36,6 +48,15 @@ async function probeUazapi(baseUrl: string, adminToken: string) {
       bodyPreview: text.slice(0, 300),
     };
   } catch (err) {
+    logUazapiEvent({
+      level: "error",
+      action: "diagnostic-probe",
+      method: "GET",
+      path: "/instance/all",
+      ms: Date.now() - start,
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return {
       ok: false,
       status: 0,
@@ -102,6 +123,7 @@ export const getUazapiDiagnostics = createServerFn({ method: "POST" })
         : null,
       instanceError,
       probe,
+      logs: getUazapiLogEvents(),
       checkedAt: new Date().toISOString(),
     };
   });
