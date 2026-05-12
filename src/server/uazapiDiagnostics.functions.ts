@@ -372,11 +372,8 @@ export const saveUazapiConfig = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const ctx = await assertAdminAccess(data.accessToken);
-    const updatedBy =
-      (ctx as unknown as { adminId?: string; userId?: string })?.adminId ??
-      (ctx as unknown as { userId?: string })?.userId ??
-      null;
+    const userId = await assertAdminAccess(data.accessToken);
+    const updatedBy = typeof userId === "string" ? userId : null;
     if (data.baseUrl !== undefined) {
       const v = (data.baseUrl ?? "").trim();
       await upsertSetting("uazapi_base_url", v ? v.replace(/\/+$/, "") : null, updatedBy);
