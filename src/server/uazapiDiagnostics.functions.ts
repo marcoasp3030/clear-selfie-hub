@@ -5,6 +5,8 @@ import { getLatestInstance, getActiveInstanceTokenOrNull } from "./uazapiRepo.se
 import { getDataBackend } from "./registrationsRepo.server";
 import { logMessageAttempt } from "./messageAttemptsRepo.server";
 import { getUazapiLogEvents, logUazapiEvent, clearUazapiLogEvents } from "./uazapiDebug.server";
+import { resolveUazapiConfig } from "./uazapi.server";
+import { upsertSetting } from "./appSettingsRepo.server";
 
 const accessTokenSchema = z.string().trim().min(1);
 
@@ -91,9 +93,9 @@ export const getUazapiDiagnostics = createServerFn({ method: "POST" })
     await assertAdminAccess(data.accessToken);
 
     const env = {
-      UAZAPI_BASE_URL: process.env.UAZAPI_BASE_URL ?? null,
-      UAZAPI_ADMIN_TOKEN_present: Boolean(process.env.UAZAPI_ADMIN_TOKEN),
-      UAZAPI_ADMIN_TOKEN_masked: mask(process.env.UAZAPI_ADMIN_TOKEN),
+      UAZAPI_BASE_URL: (await resolveUazapiConfig()).baseUrl,
+      UAZAPI_ADMIN_TOKEN_present: Boolean((await resolveUazapiConfig()).adminToken),
+      UAZAPI_ADMIN_TOKEN_masked: mask((await resolveUazapiConfig()).adminToken),
       DATABASE_URL_present: Boolean(process.env.DATABASE_URL),
       DATABASE_URL_masked: maskUrl(process.env.DATABASE_URL),
       TWILIO_ACCOUNT_SID_present: Boolean(process.env.TWILIO_ACCOUNT_SID),
@@ -115,8 +117,9 @@ export const getUazapiDiagnostics = createServerFn({ method: "POST" })
     }
 
     let probe: Awaited<ReturnType<typeof probeUazapi>> | null = null;
-    if (env.UAZAPI_BASE_URL && process.env.UAZAPI_ADMIN_TOKEN) {
-      probe = await probeUazapi(env.UAZAPI_BASE_URL, process.env.UAZAPI_ADMIN_TOKEN);
+    const cfgForProbe = await resolveUazapiConfig();
+    if (cfgForProbe.baseUrl && cfgForProbe.adminToken) {
+      probe = await probeUazapi(cfgForProbe.baseUrl, cfgForProbe.adminToken);
     }
 
     return {
