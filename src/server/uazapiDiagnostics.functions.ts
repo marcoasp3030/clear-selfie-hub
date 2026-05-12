@@ -50,7 +50,15 @@ export const getUazapiDiagnostics = createServerFn({ method: "POST" })
   .inputValidator((input: { accessToken: string }) =>
     z.object({ accessToken: accessTokenSchema }).parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<{
+    success: boolean;
+    status: number;
+    ms: number;
+    url: string | null;
+    requestBody: unknown;
+    responseBody: string | null;
+    error: string | null;
+  }> => {
     await assertAdminAccess(data.accessToken);
 
     const env = {
@@ -228,10 +236,10 @@ export const sendTestWhatsApp = createServerFn({ method: "POST" })
       await logMessageAttempt({
         channel: "whatsapp",
         provider: "uazapi",
-        to_phone: phone,
+        phone,
         status: success ? "sent" : "failed",
-        error_message: error,
-        meta: { test: true, status, ms, responseBody: responseBody?.slice(0, 500) ?? null },
+        error,
+        metadata: { test: true, status, ms, responseBody: responseBody?.slice(0, 500) ?? null },
       });
     } catch {
       /* noop */
