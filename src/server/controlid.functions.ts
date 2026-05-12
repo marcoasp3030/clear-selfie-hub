@@ -7,7 +7,7 @@ import {
   listPendingSyncRegistrations,
   updateRegistrationSync,
 } from "./registrationsRepo.server";
-import { findDeviceById } from "./devicesRepo.server";
+import { findDeviceById, listDevicesByName } from "./devicesRepo.server";
 import { readPhoto } from "./storage.server";
 
 const accessTokenSchema = z.string().trim().min(1);
@@ -56,15 +56,10 @@ async function runSync(registrationId: string): Promise<
     return { success: false, error: msg };
   }
 
-  if (!device.api_login || !device.api_password) {
-    const msg = "Equipamento sem credenciais (login/senha) configuradas.";
-    await updateRegistrationSync(registrationId, {
-      device_sync_status: "error",
-      device_sync_error: msg,
-      device_sync_attempted_at: new Date().toISOString(),
-    });
-    return { success: false, error: msg };
-  }
+  // Agrupa todos os equipamentos da mesma "loja" (mesmo nome).
+  // Se não encontrar nenhum por nome (caso raro), cai de volta no device atual.
+  const siblings = await listDevicesByName(device.name).catch(() => [] as typeof device[]);
+  const targets = siblings.length > 0 ? siblings : [device];
 
   const photo = await downloadPhotoBase64(reg.photo_path);
   if (typeof photo !== "string") {
@@ -76,33 +71,60 @@ async function runSync(registrationId: string): Promise<
     return { success: false, error: photo.error };
   }
 
-  const result = await syncRegistrationToControlId({
-    apiBaseUrl: device.api_base_url,
-    apiLogin: device.api_login,
-    apiPassword: device.api_password,
-    firstName: reg.first_name,
-    lastName: reg.last_name,
-    phone: reg.phone,
-    cpf: reg.cpf ?? "",
-    imageBase64: photo,
-  });
-
-  if (result.success) {
-    await updateRegistrationSync(registrationId, {
-      device_sync_status: "success",
-      device_sync_user_id: result.deviceUserId,
-      device_sync_error: null,
-      device_sync_attempted_at: new Date().toISOString(),
-    });
-    return { success: true, deviceUserId: result.deviceUserId };
+  const perDevice: Array<{ name: string; ok: boolean; userId?: number; error?: string }> = [];
+  for (const t of targets) {
+    if (!t.api_login || !t.api_password) {
+      perDevice.push({ name: t.name, ok: false, error: "sem credenciais (login/senha)" });
+      continue;
+    }
+    try {
+      const r = await syncRegistrationToControlId({
+        apiBaseUrl: t.api_base_url,
+        apiLogin: t.api_login,
+        apiPassword: t.api_password,
+        firstName: reg.first_name,
+        lastName: reg.last_name,
+        phone: reg.phone,
+        cpf: reg.cpf ?? "",
+        imageBase64: photo,
+      });
+      if (r.success) perDevice.push({ name: t.name, ok: true, userId: r.deviceUserId });
+      else perDevice.push({ name: t.name, ok: false, error: r.error });
+    } catch (err) {
+      perDevice.push({
+        name: t.name,
+        ok: false,
+        error: err instanceof Error ? err.message : "erro inesperado",
+      });
+    }
   }
 
+  const okCount = perDevice.filter((p) => p.ok).length;
+  const failed = perDevice.filter((p) => !p.ok);
+  const firstUserId = perDevice.find((p) => p.ok)?.userId;
+  const now = new Date().toISOString();
+
+  if (failed.length === 0) {
+    await updateRegistrationSync(registrationId, {
+      device_sync_status: "success",
+      device_sync_user_id: firstUserId ?? null,
+      device_sync_error:
+        targets.length > 1 ? `Sincronizado em ${okCount} equipamentos` : null,
+      device_sync_attempted_at: now,
+    });
+    return { success: true, deviceUserId: firstUserId ?? 0 };
+  }
+
+  const summary = `${okCount}/${targets.length} OK. Falhas: ${failed
+    .map((f) => `${f.name} (${f.error})`)
+    .join("; ")}`;
   await updateRegistrationSync(registrationId, {
     device_sync_status: "error",
-    device_sync_error: result.error,
-    device_sync_attempted_at: new Date().toISOString(),
+    device_sync_user_id: firstUserId ?? null,
+    device_sync_error: summary,
+    device_sync_attempted_at: now,
   });
-  return { success: false, error: result.error };
+  return { success: false, error: summary };
 }
 
 /**
