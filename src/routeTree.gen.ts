@@ -16,6 +16,7 @@ import { Route as RSlugRouteImport } from './routes/r.$slug'
 import { Route as AdminWhatsappRouteImport } from './routes/admin.whatsapp'
 import { Route as AdminTwilioRouteImport } from './routes/admin.twilio'
 import { Route as AdminRegisteredDevicesRouteImport } from './routes/admin.registered-devices'
+import { Route as AdminPendingSyncsRouteImport } from './routes/admin.pending-syncs'
 import { Route as AdminMigrationRouteImport } from './routes/admin.migration'
 import { Route as AdminMessagesRouteImport } from './routes/admin.messages'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
@@ -65,6 +66,11 @@ const AdminTwilioRoute = AdminTwilioRouteImport.update({
 const AdminRegisteredDevicesRoute = AdminRegisteredDevicesRouteImport.update({
   id: '/registered-devices',
   path: '/registered-devices',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPendingSyncsRoute = AdminPendingSyncsRouteImport.update({
+  id: '/pending-syncs',
+  path: '/pending-syncs',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminMigrationRoute = AdminMigrationRouteImport.update({
@@ -153,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/migration': typeof AdminMigrationRoute
+  '/admin/pending-syncs': typeof AdminPendingSyncsRoute
   '/admin/registered-devices': typeof AdminRegisteredDevicesRoute
   '/admin/twilio': typeof AdminTwilioRoute
   '/admin/whatsapp': typeof AdminWhatsappRouteWithChildren
@@ -176,6 +183,7 @@ export interface FileRoutesByTo {
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/migration': typeof AdminMigrationRoute
+  '/admin/pending-syncs': typeof AdminPendingSyncsRoute
   '/admin/registered-devices': typeof AdminRegisteredDevicesRoute
   '/admin/twilio': typeof AdminTwilioRoute
   '/admin/whatsapp': typeof AdminWhatsappRouteWithChildren
@@ -201,6 +209,7 @@ export interface FileRoutesById {
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/migration': typeof AdminMigrationRoute
+  '/admin/pending-syncs': typeof AdminPendingSyncsRoute
   '/admin/registered-devices': typeof AdminRegisteredDevicesRoute
   '/admin/twilio': typeof AdminTwilioRoute
   '/admin/whatsapp': typeof AdminWhatsappRouteWithChildren
@@ -227,6 +236,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/messages'
     | '/admin/migration'
+    | '/admin/pending-syncs'
     | '/admin/registered-devices'
     | '/admin/twilio'
     | '/admin/whatsapp'
@@ -250,6 +260,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/messages'
     | '/admin/migration'
+    | '/admin/pending-syncs'
     | '/admin/registered-devices'
     | '/admin/twilio'
     | '/admin/whatsapp'
@@ -274,6 +285,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/messages'
     | '/admin/migration'
+    | '/admin/pending-syncs'
     | '/admin/registered-devices'
     | '/admin/twilio'
     | '/admin/whatsapp'
@@ -349,6 +361,13 @@ declare module '@tanstack/react-router' {
       path: '/registered-devices'
       fullPath: '/admin/registered-devices'
       preLoaderRoute: typeof AdminRegisteredDevicesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/pending-syncs': {
+      id: '/admin/pending-syncs'
+      path: '/pending-syncs'
+      fullPath: '/admin/pending-syncs'
+      preLoaderRoute: typeof AdminPendingSyncsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/migration': {
@@ -482,6 +501,7 @@ interface AdminRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AdminMessagesRoute: typeof AdminMessagesRoute
   AdminMigrationRoute: typeof AdminMigrationRoute
+  AdminPendingSyncsRoute: typeof AdminPendingSyncsRoute
   AdminRegisteredDevicesRoute: typeof AdminRegisteredDevicesRoute
   AdminTwilioRoute: typeof AdminTwilioRoute
   AdminWhatsappRoute: typeof AdminWhatsappRouteWithChildren
@@ -497,6 +517,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AdminMessagesRoute: AdminMessagesRoute,
   AdminMigrationRoute: AdminMigrationRoute,
+  AdminPendingSyncsRoute: AdminPendingSyncsRoute,
   AdminRegisteredDevicesRoute: AdminRegisteredDevicesRoute,
   AdminTwilioRoute: AdminTwilioRoute,
   AdminWhatsappRoute: AdminWhatsappRouteWithChildren,

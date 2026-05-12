@@ -32,6 +32,7 @@ import {
   Smartphone,
   ChevronDown,
   Wrench,
+  RefreshCw,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -181,9 +182,15 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Cadastros",
     icon: Users,
-    matchPrefixes: ["/admin/registrations", "/admin/devices", "/admin/registered-devices"],
+    matchPrefixes: [
+      "/admin/registrations",
+      "/admin/devices",
+      "/admin/registered-devices",
+      "/admin/pending-syncs",
+    ],
     items: [
       { to: "/admin/registrations", label: "Cadastros", icon: Users },
+      { to: "/admin/pending-syncs", label: "Pendentes de sincronização", icon: RefreshCw },
       { to: "/admin/devices", label: "Lojas / Equipamentos", icon: Cpu },
       { to: "/admin/registered-devices", label: "Dispositivos cadastrados", icon: Smartphone },
     ],
