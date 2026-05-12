@@ -214,11 +214,19 @@ function WhatsAppPage() {
     setBusy(true);
     try {
       const accessToken = await requireAdminAccessToken();
-      await fnDisconnect({ data: { accessToken } });
+      const res = await fnDisconnect({ data: { accessToken } });
+      if (!res.success) {
+        toast.error(res.error || "Erro ao desconectar.");
+        return;
+      }
       stopPolling();
       setQrcode(null);
       setPaircode(null);
-      toast.success("WhatsApp desconectado.");
+      if (res.warning) {
+        toast.warning(res.warning);
+      } else {
+        toast.success("WhatsApp desconectado.");
+      }
       await reload();
     } catch (err) {
       console.error(err);
