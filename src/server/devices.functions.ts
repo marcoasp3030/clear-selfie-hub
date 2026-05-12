@@ -9,6 +9,8 @@ import {
   slugExists,
   type DeviceRow,
 } from "./devicesRepo.server";
+import { listDevicesByName } from "./devicesRepo.server";
+import { probeDeviceOnline } from "./controlid.server";
 
 const slugRegex = /^[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?$/;
 
@@ -95,4 +97,34 @@ export const getDeviceBySlug = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const device = await findDeviceBySlug(data.slug.toLowerCase());
     return { device };
+  });
+
+/**
+ * Público: lista os equipamentos da mesma "loja" (mesmo nome) e o status
+ * online/offline de cada um. Usado na tela de cadastro pra mostrar onde o
+ * cadastro será replicado.
+ */
+export const getStoreDevicesStatus = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z.object({ slug: z.string().trim().min(1).max(60) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const device = await findDeviceBySlug(data.slug.toLowerCase());
+    if (!device) return { storeName: "", devices: [] as Array<{
+      id: string; name: string; online: boolean; error?: string;
+    }> };
+    const siblings = await listDevicesByName(device.name).catch(() => []);
+    const targets = siblings.length > 0 ? siblings : [];
+    const results = await Promise.all(
+      targets.map(async (t) => {
+        const r = await probeDeviceOnline(t.api_base_url, t.api_login, t.api_password);
+        return {
+          id: t.id,
+          name: t.name,
+          online: r.online,
+          error: r.online ? undefined : r.error,
+        };
+      }),
+    );
+    return { storeName: device.name, devices: results };
   });

@@ -10,6 +10,23 @@ function normalizeBase(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
+/**
+ * Probe rápido: tenta autenticar no equipamento pra saber se ele está online
+ * e com credenciais válidas. Não cria nada, apenas testa /login.fcgi.
+ */
+export async function probeDeviceOnline(
+  apiBaseUrl: string,
+  apiLogin: string | null,
+  apiPassword: string | null,
+): Promise<{ online: true } | { online: false; error: string }> {
+  if (!apiLogin || !apiPassword) {
+    return { online: false, error: "sem credenciais" };
+  }
+  const r = await login(normalizeBase(apiBaseUrl), apiLogin, apiPassword);
+  if (typeof r === "string") return { online: true };
+  return { online: false, error: r.error };
+}
+
 async function fcgi<T = unknown>(
   url: string,
   body: unknown,
