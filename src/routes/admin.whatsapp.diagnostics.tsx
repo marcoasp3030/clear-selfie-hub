@@ -5,22 +5,13 @@ import { toast } from "sonner";
 import { getUazapiDiagnostics } from "@/server/uazapiDiagnostics.functions";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, RefreshCw, Stethoscope, CheckCircle2, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/admin/whatsapp/diagnostics")({
   head: () => ({
-    meta: [
-      { title: "Diagnóstico WhatsApp · Admin" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Diagnóstico WhatsApp · Admin" }, { name: "robots", content: "noindex" }],
   }),
   component: WhatsAppDiagnosticsPage,
 });
@@ -115,7 +106,22 @@ function WhatsAppDiagnosticsPage() {
               <Row
                 label="DATABASE_URL"
                 ok={data.env.DATABASE_URL_present}
-                value={data.env.DATABASE_URL_present ? "(definida)" : "(ausente)"}
+                value={data.env.DATABASE_URL_masked ?? "(ausente)"}
+              />
+              <Row
+                label="TWILIO_ACCOUNT_SID"
+                ok={data.env.TWILIO_ACCOUNT_SID_present}
+                value={data.env.TWILIO_ACCOUNT_SID_masked ?? "(ausente)"}
+              />
+              <Row
+                label="TWILIO_AUTH_TOKEN"
+                ok={data.env.TWILIO_AUTH_TOKEN_present}
+                value={data.env.TWILIO_AUTH_TOKEN_present ? "(definida)" : "(ausente)"}
+              />
+              <Row
+                label="TWILIO_FROM_NUMBER"
+                ok={Boolean(data.env.TWILIO_FROM_NUMBER)}
+                value={data.env.TWILIO_FROM_NUMBER ?? "(ausente)"}
               />
               <Row
                 label="JWT_SECRET"
@@ -153,7 +159,11 @@ function WhatsAppDiagnosticsPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusPill
                       ok={data.probe.ok}
-                      label={data.probe.ok ? `OK (${data.probe.status})` : `Falhou (${data.probe.status || "rede"})`}
+                      label={
+                        data.probe.ok
+                          ? `OK (${data.probe.status})`
+                          : `Falhou (${data.probe.status || "rede"})`
+                      }
                     />
                     <span className="text-muted-foreground">{data.probe.ms} ms</span>
                     <code className="text-xs text-muted-foreground">{data.probe.url}</code>

@@ -12,6 +12,11 @@ function mask(value: string | undefined | null): string | null {
   return `${value.slice(0, 4)}…${value.slice(-4)} (len=${value.length})`;
 }
 
+function maskUrl(value: string | undefined | null): string | null {
+  if (!value) return null;
+  return value.replace(/(:\/\/[^:/]+:)[^@]+(@)/, "$1***$2");
+}
+
 async function probeUazapi(baseUrl: string, adminToken: string) {
   const url = `${baseUrl.replace(/\/+$/, "")}/instance/all`;
   const start = Date.now();
@@ -52,6 +57,11 @@ export const getUazapiDiagnostics = createServerFn({ method: "POST" })
       UAZAPI_ADMIN_TOKEN_present: Boolean(process.env.UAZAPI_ADMIN_TOKEN),
       UAZAPI_ADMIN_TOKEN_masked: mask(process.env.UAZAPI_ADMIN_TOKEN),
       DATABASE_URL_present: Boolean(process.env.DATABASE_URL),
+      DATABASE_URL_masked: maskUrl(process.env.DATABASE_URL),
+      TWILIO_ACCOUNT_SID_present: Boolean(process.env.TWILIO_ACCOUNT_SID),
+      TWILIO_ACCOUNT_SID_masked: mask(process.env.TWILIO_ACCOUNT_SID),
+      TWILIO_AUTH_TOKEN_present: Boolean(process.env.TWILIO_AUTH_TOKEN),
+      TWILIO_FROM_NUMBER: process.env.TWILIO_FROM_NUMBER ?? null,
       JWT_SECRET_present: Boolean(process.env.JWT_SECRET),
       UPLOADS_DIR: process.env.UPLOADS_DIR ?? null,
       NODE_ENV: process.env.NODE_ENV ?? null,

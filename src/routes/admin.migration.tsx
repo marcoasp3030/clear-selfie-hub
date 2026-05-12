@@ -21,10 +21,7 @@ import { pingPostgresFromClient } from "@/server/dbHealth.functions";
 
 export const Route = createFileRoute("/admin/migration")({
   head: () => ({
-    meta: [
-      { title: "Migração VPS · Admin Nutricar" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Migração VPS · Admin Nutricar" }, { name: "robots", content: "noindex" }],
   }),
   component: MigrationPage,
 });
@@ -188,6 +185,9 @@ services:
       PUBLIC_BASE_URL: https://facial.nutricarbrasil.com.br
       UAZAPI_BASE_URL: \${UAZAPI_BASE_URL}
       UAZAPI_ADMIN_TOKEN: \${UAZAPI_ADMIN_TOKEN}
+      TWILIO_ACCOUNT_SID: \${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: \${TWILIO_AUTH_TOKEN}
+      TWILIO_FROM_NUMBER: \${TWILIO_FROM_NUMBER}
       # Mantenha enquanto o cutover nao terminar:
       SUPABASE_URL: \${SUPABASE_URL}
       SUPABASE_PUBLISHABLE_KEY: \${SUPABASE_PUBLISHABLE_KEY}
@@ -208,6 +208,9 @@ SESSION_SECRET=gere-com-openssl-rand-base64-48
 PUBLIC_BASE_URL=https://facial.nutricarbrasil.com.br
 UAZAPI_BASE_URL=https://sua-instancia.uazapi.com
 UAZAPI_ADMIN_TOKEN=seu-admin-token
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=seu-auth-token
+TWILIO_FROM_NUMBER=+5511999999999
 # Mantidos durante o cutover:
 SUPABASE_URL=https://hffbxygfvdkvtrjtxrba.supabase.co
 SUPABASE_PUBLISHABLE_KEY=...
@@ -280,26 +283,24 @@ docker compose logs -f app`;
           Migração para VPS (Postgres + JWT próprio)
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Guia em 3 etapas para sair do Supabase. <strong>Etapa 1 (esta):</strong> infra +
-          conexão Postgres validada.{" "}
-          <strong>Etapa 2:</strong> migrar autenticação para JWT/bcrypt.{" "}
+          Guia em 3 etapas para sair do Supabase. <strong>Etapa 1 (esta):</strong> infra + conexão
+          Postgres validada. <strong>Etapa 2:</strong> migrar autenticação para JWT/bcrypt.{" "}
           <strong>Etapa 3:</strong> migrar storage e queries.
         </p>
       </header>
 
       <Section icon={PlugZap} step="Status" title="Conexão com seu Postgres">
         <p>
-          Suas credenciais foram salvas no secret{" "}
-          <code className="font-mono">DATABASE_URL</code>. Hostname{" "}
-          <code className="font-mono">postgres</code>, usuário{" "}
-          <code className="font-mono">postgres</code>, porta{" "}
-          <code className="font-mono">5432</code>.
+          Suas credenciais foram salvas no secret <code className="font-mono">DATABASE_URL</code>.
+          Hostname <code className="font-mono">postgres</code>, usuário{" "}
+          <code className="font-mono">postgres</code>, porta <code className="font-mono">5432</code>
+          .
         </p>
         <p className="text-xs">
-          ⚠️ O hostname <code className="font-mono">postgres</code> só resolve <strong>de
-          dentro</strong> da rede Docker do n8n. O teste abaixo só funcionará após o app
-          estar rodando na VPS na mesma rede. Em desenvolvimento aqui no Lovable, ele falha —
-          é o esperado.
+          ⚠️ O hostname <code className="font-mono">postgres</code> só resolve{" "}
+          <strong>de dentro</strong> da rede Docker do n8n. O teste abaixo só funcionará após o app
+          estar rodando na VPS na mesma rede. Em desenvolvimento aqui no Lovable, ele falha — é o
+          esperado.
         </p>
         <ConnectionTester />
       </Section>
@@ -311,8 +312,8 @@ docker compose logs -f app`;
             <p className="font-semibold">Antes de começar</p>
             <p className="mt-1 opacity-90">
               Faça <strong>backup completo</strong> do banco e do bucket{" "}
-              <code className="font-mono">registration-photos</code> no Lovable Cloud antes
-              do cutover final.
+              <code className="font-mono">registration-photos</code> no Lovable Cloud antes do
+              cutover final.
             </p>
           </div>
         </div>
@@ -320,21 +321,21 @@ docker compose logs -f app`;
 
       <Section icon={Server} step={1} title="Identificar a rede Docker do n8n">
         <p>
-          Como o Postgres já roda no docker-compose do n8n, vamos conectar o app à mesma
-          rede em vez de subir um Postgres novo.
+          Como o Postgres já roda no docker-compose do n8n, vamos conectar o app à mesma rede em vez
+          de subir um Postgres novo.
         </p>
         <CopyBlock code={findNetwork} />
         <p>
-          Anote o nome da rede (ex.: <code className="font-mono">n8n_default</code>) e
-          ajuste no <code className="font-mono">docker-compose.yml</code> abaixo.
+          Anote o nome da rede (ex.: <code className="font-mono">n8n_default</code>) e ajuste no{" "}
+          <code className="font-mono">docker-compose.yml</code> abaixo.
         </p>
         <CopyBlock code={psqlCheck} />
       </Section>
 
       <Section icon={Database} step={2} title="Criar database e schema">
         <p>
-          Crie um database <code className="font-mono">nutricar</code> separado no mesmo
-          Postgres (não use o database do n8n) e aplique o schema (já está em{" "}
+          Crie um database <code className="font-mono">nutricar</code> separado no mesmo Postgres
+          (não use o database do n8n) e aplique o schema (já está em{" "}
           <code className="font-mono">db/init/001_schema.sql</code> no repo):
         </p>
         <CopyBlock code={schemaSql} lang="sql" />
@@ -342,27 +343,26 @@ docker compose logs -f app`;
 
       <Section icon={Lock} step={3} title="Auth JWT próprio + admin inicial">
         <p>
-          No cutover (Etapa 2), <code className="font-mono">supabase.auth</code> é
-          substituído por bcrypt + JWT. Crie o admin inicial:
+          No cutover (Etapa 2), <code className="font-mono">supabase.auth</code> é substituído por
+          bcrypt + JWT. Crie o admin inicial:
         </p>
         <CopyBlock code={seedAdmin} lang="sql" />
       </Section>
 
       <Section icon={HardDrive} step={4} title="Storage em disco local">
         <p>
-          Supabase Storage vira pasta no host (<code className="font-mono">/opt/nutricar/data/uploads</code>),
-          montada em <code className="font-mono">/var/app/uploads</code>. O campo{" "}
+          Supabase Storage vira pasta no host (
+          <code className="font-mono">/opt/nutricar/data/uploads</code>), montada em{" "}
+          <code className="font-mono">/var/app/uploads</code>. O campo{" "}
           <code className="font-mono">photo_path</code> continua igual.
         </p>
         <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-900 dark:text-emerald-200">
-          <strong>✅ Etapa 3 já implementada no código:</strong> upload e leitura de
-          fotos passam por <code className="font-mono">/api/public/upload-photo</code> e{" "}
-          <code className="font-mono">/api/admin/photo/&lt;path&gt;</code>. O backend
-          escolhe automaticamente <code>disk</code> (se{" "}
-          <code className="font-mono">UPLOADS_DIR</code> existir) ou{" "}
-          <code>supabase</code>. Queries de <code>registrations</code> também detectam{" "}
-          <code className="font-mono">DATABASE_URL</code> e usam Postgres direto quando
-          disponível.
+          <strong>✅ Etapa 3 já implementada no código:</strong> upload e leitura de fotos passam
+          por <code className="font-mono">/api/public/upload-photo</code> e{" "}
+          <code className="font-mono">/api/admin/photo/&lt;path&gt;</code>. O backend escolhe
+          automaticamente <code>disk</code> (se <code className="font-mono">UPLOADS_DIR</code>{" "}
+          existir) ou <code>supabase</code>. Queries de <code>registrations</code> também detectam{" "}
+          <code className="font-mono">DATABASE_URL</code> e usam Postgres direto quando disponível.
         </p>
         <CopyBlock
           code={`# Backup diario (cron)
@@ -395,7 +395,9 @@ find $OUT -mtime +14 -delete`}
       </Section>
 
       <Section icon={ShieldCheck} step={8} title="HTTPS com Caddy + domínio">
-        <p>Aponte o DNS A de <code>facial.nutricarbrasil.com.br</code> para o IP da VPS.</p>
+        <p>
+          Aponte o DNS A de <code>facial.nutricarbrasil.com.br</code> para o IP da VPS.
+        </p>
         <CopyBlock code={caddyfile} lang="caddy" />
         <CopyBlock code={`sudo systemctl reload caddy`} />
       </Section>
@@ -408,8 +410,13 @@ find $OUT -mtime +14 -delete`}
         <ul className="ml-5 list-disc space-y-1.5">
           <li>✅ Botão "Testar agora" acima retorna conectado.</li>
           <li>✅ Login admin funciona com email + bcrypt.</li>
-          <li>✅ Cadastro salva foto em <code>data/uploads/</code> e linha em <code>registrations</code>.</li>
-          <li>✅ <code>docker compose logs -f app</code> sem erros.</li>
+          <li>
+            ✅ Cadastro salva foto em <code>data/uploads/</code> e linha em{" "}
+            <code>registrations</code>.
+          </li>
+          <li>
+            ✅ <code>docker compose logs -f app</code> sem erros.
+          </li>
           <li>✅ Backup diário ativo.</li>
           <li>✅ Senha do admin inicial trocada.</li>
         </ul>

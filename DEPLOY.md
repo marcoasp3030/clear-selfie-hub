@@ -28,7 +28,7 @@ cd app
 
 ```bash
 cp .env.example .env
-nano .env   # preencha SUPABASE_SERVICE_ROLE_KEY, UAZAPI_*, etc.
+nano .env   # preencha SUPABASE_SERVICE_ROLE_KEY, UAZAPI_* e TWILIO_*
 ```
 
 > A `SUPABASE_SERVICE_ROLE_KEY` está no painel do Lovable Cloud → Backend.
@@ -48,6 +48,12 @@ Logs em tempo real:
 docker compose logs -f app
 ```
 
+Se SMS/WhatsApp não enviar, confira primeiro se o container recebeu as variáveis:
+
+```bash
+docker compose exec app node -e "console.log({db:process.env.DATABASE_URL?.replace(/:[^:@]+@/, ':***@'), uazapi:!!process.env.UAZAPI_BASE_URL, twilioSid:!!process.env.TWILIO_ACCOUNT_SID, twilioToken:!!process.env.TWILIO_AUTH_TOKEN, twilioFrom:process.env.TWILIO_FROM_NUMBER})"
+```
+
 ## 5. Atualizar (deploy de nova versão)
 
 ```bash
@@ -62,9 +68,9 @@ docker compose up -d --build
 No painel do seu registrador (onde está `nutricarbrasil.com.br`), crie um
 registro **A**:
 
-| Tipo | Nome     | Valor              | TTL  |
-|------|----------|--------------------|------|
-| A    | facial   | IP_PUBLICO_DA_VPS  | 3600 |
+| Tipo | Nome   | Valor             | TTL  |
+| ---- | ------ | ----------------- | ---- |
+| A    | facial | IP_PUBLICO_DA_VPS | 3600 |
 
 Aguarde a propagação (verifique em https://dnschecker.org buscando
 `facial.nutricarbrasil.com.br`).
