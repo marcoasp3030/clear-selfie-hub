@@ -478,7 +478,7 @@ function WhatsAppDiagnosticsPage() {
                       {log.error && (
                         <pre className="mt-2 overflow-auto rounded border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">{log.error}</pre>
                       )}
-                      {(log.requestBody || log.responsePreview) && (
+                      {(Boolean(log.requestBody) || Boolean(log.responsePreview)) && (
                         <pre className="mt-2 overflow-auto rounded bg-background p-2 text-xs">
                           {JSON.stringify({ requestBody: log.requestBody, responsePreview: log.responsePreview }, null, 2)}
                         </pre>
