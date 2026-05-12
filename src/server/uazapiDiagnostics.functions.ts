@@ -253,6 +253,18 @@ export const sendTestWhatsApp = createServerFn({ method: "POST" })
     }
     const ms = Date.now() - start;
     const success = !error && status >= 200 && status < 300;
+    logUazapiEvent({
+      level: success ? "info" : "error",
+      action: "send-test-whatsapp",
+      method: "POST",
+      path: "/send/text",
+      status,
+      ms,
+      ok: success,
+      requestBody: body,
+      responsePreview: responseBody,
+      error: error ?? undefined,
+    });
 
     try {
       await logMessageAttempt({
