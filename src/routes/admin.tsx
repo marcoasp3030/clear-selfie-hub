@@ -14,7 +14,33 @@ import { getLocalSession, localLogout } from "@/server/auth.functions";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
-import { LayoutDashboard, Users, LogOut, Loader2, ShieldAlert, Cpu, Stethoscope, MessageCircle, MessageSquare, MessageSquareText, BookOpen, Server, ScrollText, Settings, Smartphone } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  LogOut,
+  Loader2,
+  ShieldAlert,
+  Cpu,
+  Stethoscope,
+  MessageCircle,
+  MessageSquare,
+  MessageSquareText,
+  BookOpen,
+  Server,
+  ScrollText,
+  Settings,
+  Smartphone,
+  ChevronDown,
+  Wrench,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import nutricarLogo from "@/assets/nutricar-logo.png";
 
@@ -137,159 +163,7 @@ function AdminLayout() {
             </span>
           </div>
 
-          <nav className="flex items-center gap-1">
-            <Link
-              to="/admin"
-              activeOptions={{ exact: true }}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                path === "/admin"
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </Link>
-            <Link
-              to="/admin/registrations"
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                path.startsWith("/admin/registrations")
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Cadastros</span>
-            </Link>
-            <Link
-              to="/admin/devices"
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                path.startsWith("/admin/devices")
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <Cpu className="h-4 w-4" />
-              <span className="hidden sm:inline">Equipamentos</span>
-            </Link>
-            <Link
-              to="/admin/registered-devices"
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                path.startsWith("/admin/registered-devices")
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <Smartphone className="h-4 w-4" />
-              <span className="hidden sm:inline">Dispositivos</span>
-            </Link>
-            <Link
-              to="/admin/diagnostics"
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                path.startsWith("/admin/diagnostics")
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <Stethoscope className="h-4 w-4" />
-              <span className="hidden sm:inline">Diagnósticos</span>
-            </Link>
-            <Link
-              to="/admin/whatsapp"
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                path === "/admin/whatsapp"
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <MessageCircle className="h-4 w-4" />
-              <span className="hidden sm:inline">WhatsApp</span>
-            </Link>
-            <Link
-              to="/admin/whatsapp/diagnostics"
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                path.startsWith("/admin/whatsapp/diagnostics")
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <Stethoscope className="h-4 w-4" />
-              <span className="hidden sm:inline">Diag. uazapi</span>
-            </Link>
-            <Link
-              to="/admin/whatsapp/config"
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                path.startsWith("/admin/whatsapp/config")
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Config. uazapi</span>
-            </Link>
-            <Link
-              to="/admin/whatsapp/logs"
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                path.startsWith("/admin/whatsapp/logs")
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <ScrollText className="h-4 w-4" />
-              <span className="hidden sm:inline">Logs uazapi</span>
-            </Link>
-            <Link
-              to="/admin/messages"
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                path.startsWith("/admin/messages")
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <MessageSquare className="h-4 w-4" />
-              <span className="hidden sm:inline">Envios</span>
-            </Link>
-            <Link
-              to="/admin/twilio"
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                path.startsWith("/admin/twilio")
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <MessageSquareText className="h-4 w-4" />
-              <span className="hidden sm:inline">Twilio</span>
-            </Link>
-            <Link
-              to="/admin/docs"
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                path.startsWith("/admin/docs")
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <BookOpen className="h-4 w-4" />
-              <span className="hidden sm:inline">Docs</span>
-            </Link>
-            <Link
-              to="/admin/migration"
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                path.startsWith("/admin/migration")
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <Server className="h-4 w-4" />
-              <span className="hidden sm:inline">Migração VPS</span>
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Sair</span>
-            </button>
-          </nav>
+          <AdminNav path={path} onLogout={handleLogout} />
         </div>
       </header>
 
@@ -297,5 +171,121 @@ function AdminLayout() {
         <Outlet />
       </main>
     </div>
+  );
+}
+
+type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
+type NavGroup = { label: string; icon: React.ComponentType<{ className?: string }>; matchPrefixes: string[]; items: NavItem[] };
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Cadastros",
+    icon: Users,
+    matchPrefixes: ["/admin/registrations", "/admin/devices", "/admin/registered-devices"],
+    items: [
+      { to: "/admin/registrations", label: "Cadastros", icon: Users },
+      { to: "/admin/devices", label: "Lojas / Equipamentos", icon: Cpu },
+      { to: "/admin/registered-devices", label: "Dispositivos cadastrados", icon: Smartphone },
+    ],
+  },
+  {
+    label: "WhatsApp",
+    icon: MessageCircle,
+    matchPrefixes: ["/admin/whatsapp"],
+    items: [
+      { to: "/admin/whatsapp", label: "Status / Conexão", icon: MessageCircle },
+      { to: "/admin/whatsapp/config", label: "Configuração uazapi", icon: Settings },
+      { to: "/admin/whatsapp/diagnostics", label: "Diagnósticos uazapi", icon: Stethoscope },
+      { to: "/admin/whatsapp/logs", label: "Logs uazapi", icon: ScrollText },
+    ],
+  },
+  {
+    label: "Mensageria",
+    icon: MessageSquare,
+    matchPrefixes: ["/admin/messages", "/admin/twilio"],
+    items: [
+      { to: "/admin/messages", label: "Envios", icon: MessageSquare },
+      { to: "/admin/twilio", label: "Twilio", icon: MessageSquareText },
+    ],
+  },
+  {
+    label: "Sistema",
+    icon: Wrench,
+    matchPrefixes: ["/admin/diagnostics", "/admin/migration", "/admin/docs"],
+    items: [
+      { to: "/admin/diagnostics", label: "Diagnósticos", icon: Stethoscope },
+      { to: "/admin/migration", label: "Migração VPS", icon: Server },
+      { to: "/admin/docs", label: "Documentação", icon: BookOpen },
+    ],
+  },
+];
+
+function AdminNav({ path, onLogout }: { path: string; onLogout: () => void }) {
+  return (
+    <nav className="flex items-center gap-1">
+      <Link
+        to="/admin"
+        activeOptions={{ exact: true }}
+        className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+          path === "/admin"
+            ? "bg-primary/10 text-primary"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        }`}
+      >
+        <LayoutDashboard className="h-4 w-4" />
+        <span className="hidden sm:inline">Dashboard</span>
+      </Link>
+
+      {NAV_GROUPS.map((group) => {
+        const isActive = group.matchPrefixes.some((p) => path === p || path.startsWith(p + "/") || path.startsWith(p));
+        const Icon = group.icon;
+        return (
+          <DropdownMenu key={group.label}>
+            <DropdownMenuTrigger
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors outline-none ${
+                isActive
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="hidden sm:inline">{group.label}</span>
+              <ChevronDown className="h-3 w-3 opacity-70" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                {group.label}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {group.items.map((item) => {
+                const ItemIcon = item.icon;
+                const itemActive = path === item.to || path.startsWith(item.to + "/");
+                return (
+                  <DropdownMenuItem key={item.to} asChild>
+                    <Link
+                      to={item.to}
+                      className={`flex w-full cursor-pointer items-center gap-2 ${
+                        itemActive ? "text-primary" : ""
+                      }`}
+                    >
+                      <ItemIcon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      })}
+
+      <button
+        onClick={onLogout}
+        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <LogOut className="h-4 w-4" />
+        <span className="hidden sm:inline">Sair</span>
+      </button>
+    </nav>
   );
 }
