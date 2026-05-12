@@ -23,6 +23,38 @@ type Instance = {
   profileName?: string;
 };
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function findString(value: unknown, keys: string[], depth = 3): string | undefined {
+  const obj = asRecord(value);
+  if (!obj || depth < 0) return undefined;
+  for (const key of keys) {
+    const direct = obj[key];
+    if (typeof direct === "string" && direct.length > 0) return direct;
+  }
+  for (const nested of Object.values(obj)) {
+    if (nested && typeof nested === "object") {
+      const found = findString(nested, keys, depth - 1);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+function extractArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  const obj = asRecord(value);
+  if (!obj) return [];
+  for (const key of ["instances", "data", "result", "items"]) {
+    if (Array.isArray(obj[key])) return obj[key] as unknown[];
+  }
+  return [];
+}
+
 function pickStatus(raw: unknown): string {
   if (!raw || typeof raw !== "object") return "disconnected";
   const obj = raw as Record<string, unknown>;
@@ -40,11 +72,19 @@ function pickStatus(raw: unknown): string {
 }
 
 function extractInstancePayload(raw: unknown): Instance & Record<string, unknown> {
-  if (!raw || typeof raw !== "object") return {};
-  const obj = raw as Record<string, unknown>;
-  const instance = obj.instance && typeof obj.instance === "object" ? obj.instance : obj;
+  const obj = asRecord(raw);
+  if (!obj) return {};
+  const data = asRecord(obj.data);
+  const result = asRecord(obj.result);
+  const instance = asRecord(obj.instance) ?? asRecord(data?.instance) ?? data ?? result ?? obj;
   return {
     ...(instance as Instance & Record<string, unknown>),
+    id: findString(raw, ["id", "instance_id", "instanceId"]),
+    token: findString(raw, ["token", "instance_token", "instanceToken"]),
+    qrcode: findString(raw, ["qrcode", "qrCode", "QRCode", "qr", "base64", "base64Qr"]),
+    paircode: findString(raw, ["paircode", "pairCode", "pairingCode", "code"]),
+    owner: findString(raw, ["owner", "ownerJid", "owner_jid"]),
+    profileName: findString(raw, ["profileName", "profile_name", "pushName", "name"]),
     connected: obj.connected,
     loggedIn: obj.loggedIn,
     jid: obj.jid,
