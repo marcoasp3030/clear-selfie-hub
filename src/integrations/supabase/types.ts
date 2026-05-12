@@ -89,6 +89,42 @@ export type Database = {
         }
         Relationships: []
       }
+      message_attempts: {
+        Row: {
+          channel: string
+          created_at: string
+          error: string | null
+          id: string
+          metadata: Json | null
+          phone: string
+          provider: string | null
+          provider_message_id: string | null
+          status: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          metadata?: Json | null
+          phone: string
+          provider?: string | null
+          provider_message_id?: string | null
+          status: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          metadata?: Json | null
+          phone?: string
+          provider?: string | null
+          provider_message_id?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       phone_verifications: {
         Row: {
           attempts: number
