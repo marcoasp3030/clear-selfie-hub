@@ -178,7 +178,12 @@ function WhatsAppPage() {
     setCreating(true);
     try {
       const accessToken = await requireAdminAccessToken();
-      await fnCreate({ data: { accessToken, name: name.trim() } });
+      const res = await fnCreate({ data: { accessToken, name: name.trim() } });
+      const created = (res.instance ?? null) as SavedInstance | null;
+      if (created) {
+        setInstance(created);
+        setStatus(created.status ?? "disconnected");
+      }
       toast.success("Instância criada.");
       await reload();
     } catch (err) {
