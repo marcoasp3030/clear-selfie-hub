@@ -14,6 +14,8 @@ type UazFetchOptions = {
   instanceToken?: string;
 };
 
+import { logUazapiEvent } from "./uazapiDebug.server";
+
 function getBaseUrl() {
   const raw = process.env.UAZAPI_BASE_URL;
   if (!raw) {
@@ -51,6 +53,7 @@ export async function uazFetch<T = unknown>(
   }
 
   let res: Response;
+  const start = Date.now();
   try {
     res = await fetch(url, {
       method: opts.method ?? "GET",
@@ -59,6 +62,16 @@ export async function uazFetch<T = unknown>(
     });
   } catch (err) {
     console.error("uazapi network error:", err);
+    logUazapiEvent({
+      level: "error",
+      action: "request",
+      method: opts.method ?? "GET",
+      path,
+      ms: Date.now() - start,
+      ok: false,
+      requestBody: opts.body,
+      error: err instanceof Error ? err.message : String(err),
+    });
     throw new Response("Não foi possível conectar ao servidor uazapi.", {
       status: 502,
     });
@@ -85,8 +98,32 @@ export async function uazFetch<T = unknown>(
       (typeof data === "string" ? data : null) ||
       `HTTP ${res.status}`;
     console.error(`uazapi ${path} -> ${res.status}: ${message}`);
+    logUazapiEvent({
+      level: "error",
+      action: "request",
+      method: opts.method ?? "GET",
+      path,
+      status: res.status,
+      ms: Date.now() - start,
+      ok: false,
+      requestBody: opts.body,
+      responsePreview: data,
+      error: message,
+    });
     throw new Response(`uazapi: ${message}`, { status: res.status });
   }
+
+  logUazapiEvent({
+    level: "info",
+    action: "request",
+    method: opts.method ?? "GET",
+    path,
+    status: res.status,
+    ms: Date.now() - start,
+    ok: true,
+    requestBody: opts.body,
+    responsePreview: data,
+  });
 
   return data as T;
 }
