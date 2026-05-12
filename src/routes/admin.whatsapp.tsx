@@ -10,6 +10,10 @@ import {
   disconnectInstance,
   deleteInstance,
 } from "@/server/uazapi.functions";
+import {
+  getUazapiConfig,
+  saveUazapiConfig,
+} from "@/server/uazapiDiagnostics.functions";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +30,8 @@ import {
   CheckCircle2,
   RefreshCw,
   Smartphone,
+  Settings,
+  Save,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/whatsapp")({
