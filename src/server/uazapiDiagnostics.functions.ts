@@ -164,8 +164,9 @@ export const pingUazapi = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     await assertAdminAccess(data.accessToken);
-    const baseUrl = process.env.UAZAPI_BASE_URL;
-    const adminToken = process.env.UAZAPI_ADMIN_TOKEN;
+    const cfg = await resolveUazapiConfig();
+    const baseUrl = cfg.baseUrl;
+    const adminToken = cfg.adminToken;
     if (!baseUrl) {
       return {
         ok: false,
@@ -219,7 +220,7 @@ export const sendTestWhatsApp = createServerFn({ method: "POST" })
     }> => {
       await assertAdminAccess(data.accessToken);
 
-      const baseUrl = process.env.UAZAPI_BASE_URL;
+      const baseUrl = (await resolveUazapiConfig()).baseUrl;
       if (!baseUrl) {
         return {
           success: false,
