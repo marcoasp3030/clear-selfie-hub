@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { listRegistrations } from "@/server/admin.functions";
+import { listDevices } from "@/server/devices.functions";
 import type { Tables } from "@/integrations/supabase/types";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import {
   MapPin,
   Smartphone,
   Eye,
+  Store,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/registrations/")({
@@ -29,12 +31,28 @@ const PAGE_SIZE = 25;
 
 function RegistrationsList() {
   const fetchList = useServerFn(listRegistrations);
+  const fetchDevices = useServerFn(listDevices);
   const [rows, setRows] = useState<Registration[]>([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [deviceMap, setDeviceMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const accessToken = await requireAdminAccessToken();
+        const res = await fetchDevices({ data: { accessToken } });
+        const map: Record<string, string> = {};
+        for (const d of res.devices) map[d.id] = d.name;
+        setDeviceMap(map);
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [fetchDevices]);
 
   // Debounce search input
   useEffect(() => {
@@ -114,6 +132,7 @@ function RegistrationsList() {
                   <tr>
                     <th className="px-4 py-3 text-left">Nome</th>
                     <th className="px-4 py-3 text-left">Celular</th>
+                    <th className="px-4 py-3 text-left">Loja / Equipamento</th>
                     <th className="px-4 py-3 text-left">Localização</th>
                     <th className="px-4 py-3 text-left">Dispositivo</th>
                     <th className="px-4 py-3 text-left">Data</th>
@@ -127,6 +146,16 @@ function RegistrationsList() {
                         {r.first_name} {r.last_name}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{r.phone}</td>
+                      <td className="px-4 py-3">
+                        {r.device_id && deviceMap[r.device_id] ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                            <Store className="h-3 w-3" />
+                            {deviceMap[r.device_id]}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">— sem origem</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {formatLocation(r)}
                       </td>
@@ -171,6 +200,11 @@ function RegistrationsList() {
                   </div>
                   <p className="text-sm text-muted-foreground">{r.phone}</p>
                   <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {r.device_id && deviceMap[r.device_id] && (
+                      <span className="inline-flex items-center gap-1 font-medium text-primary">
+                        <Store className="h-3 w-3" /> {deviceMap[r.device_id]}
+                      </span>
+                    )}
                     <span className="inline-flex items-center gap-1">
                       <MapPin className="h-3 w-3" /> {formatLocation(r)}
                     </span>
