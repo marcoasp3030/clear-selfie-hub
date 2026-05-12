@@ -386,8 +386,7 @@ export const deleteInstance = createServerFn({ method: "POST" })
       try {
         await uazFetch("/instance", {
           method: "DELETE",
-          admin: true,
-          body: { token: row.instance_token },
+          instanceToken: row.instance_token,
         });
       } catch (err) {
         console.warn("uazapi delete instance failed (continuing):", err);
