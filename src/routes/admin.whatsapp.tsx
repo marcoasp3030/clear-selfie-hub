@@ -281,6 +281,13 @@ function WhatsAppPage() {
           >
             → Abrir diagnóstico (env, conectividade, instância)
           </Link>
+          <span className="mx-2 text-muted-foreground">·</span>
+          <Link
+            to="/admin/whatsapp/logs"
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            → Ver logs das chamadas uazapi
+          </Link>
         </div>
       </div>
 
