@@ -4,7 +4,7 @@ import { assertAdminAccess } from "./admin.server";
 import { getLatestInstance, getActiveInstanceTokenOrNull } from "./uazapiRepo.server";
 import { getDataBackend } from "./registrationsRepo.server";
 import { logMessageAttempt } from "./messageAttemptsRepo.server";
-import { getUazapiLogEvents, logUazapiEvent } from "./uazapiDebug.server";
+import { getUazapiLogEvents, logUazapiEvent, clearUazapiLogEvents } from "./uazapiDebug.server";
 
 const accessTokenSchema = z.string().trim().min(1);
 
@@ -313,3 +313,22 @@ export const sendTestWhatsApp = createServerFn({ method: "POST" })
       return { success, status, ms, url, requestBody: body, responseBody, error };
     },
   );
+
+export const getUazapiLogs = createServerFn({ method: "POST" })
+  .inputValidator((input: { accessToken: string }) =>
+    z.object({ accessToken: accessTokenSchema }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    await assertAdminAccess(data.accessToken);
+    return { logs: getUazapiLogEvents(), at: new Date().toISOString() };
+  });
+
+export const clearUazapiLogs = createServerFn({ method: "POST" })
+  .inputValidator((input: { accessToken: string }) =>
+    z.object({ accessToken: accessTokenSchema }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    await assertAdminAccess(data.accessToken);
+    clearUazapiLogEvents();
+    return { success: true };
+  });
