@@ -8,7 +8,10 @@ import {
 
 async function normalizeServerFnError(err: unknown): Promise<Error> {
   if (err instanceof Response) {
-    const message = await err.clone().text().catch(() => "Erro no servidor.");
+    const message = await err
+      .clone()
+      .text()
+      .catch(() => "Erro no servidor.");
     return new Error(message || `Erro HTTP ${err.status}`);
   }
   if (err instanceof Error) return err;
@@ -22,7 +25,7 @@ export const sendPhoneVerification = createServerFn({ method: "POST" })
         phone: z.string().trim().min(10).max(20),
         channel: z.enum(["whatsapp", "sms"]).optional(),
       })
-      .parse(input)
+      .parse(input),
   )
   .handler(async ({ data }) => {
     try {
@@ -37,9 +40,12 @@ export const verifyPhoneCode = createServerFn({ method: "POST" })
     z
       .object({
         phone: z.string().trim().min(10).max(20),
-        code: z.string().trim().regex(/^\d{6}$/, "Código deve ter 6 dígitos"),
+        code: z
+          .string()
+          .trim()
+          .regex(/^\d{6}$/, "Código deve ter 6 dígitos"),
       })
-      .parse(input)
+      .parse(input),
   )
   .handler(async ({ data }) => {
     try {
@@ -51,7 +57,7 @@ export const verifyPhoneCode = createServerFn({ method: "POST" })
 
 export const pollPhoneVerification = createServerFn({ method: "POST" })
   .inputValidator((input: { phone: string }) =>
-    z.object({ phone: z.string().trim().min(10).max(20) }).parse(input)
+    z.object({ phone: z.string().trim().min(10).max(20) }).parse(input),
   )
   .handler(async ({ data }) => {
     return pollPhoneVerificationData(data);

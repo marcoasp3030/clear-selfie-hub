@@ -68,9 +68,9 @@ docker compose up -d --build
 No painel do seu registrador (onde está `nutricarbrasil.com.br`), crie um
 registro **A**:
 
-| Tipo | Nome     | Valor              | TTL  |
-|------|----------|--------------------|------|
-| A    | facial   | IP_PUBLICO_DA_VPS  | 3600 |
+| Tipo | Nome   | Valor             | TTL  |
+| ---- | ------ | ----------------- | ---- |
+| A    | facial | IP_PUBLICO_DA_VPS | 3600 |
 
 Aguarde a propagação (verifique em https://dnschecker.org buscando
 `facial.nutricarbrasil.com.br`).

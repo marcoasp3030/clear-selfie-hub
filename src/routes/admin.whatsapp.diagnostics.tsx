@@ -5,22 +5,13 @@ import { toast } from "sonner";
 import { getUazapiDiagnostics } from "@/server/uazapiDiagnostics.functions";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, RefreshCw, Stethoscope, CheckCircle2, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/admin/whatsapp/diagnostics")({
   head: () => ({
-    meta: [
-      { title: "Diagnóstico WhatsApp · Admin" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Diagnóstico WhatsApp · Admin" }, { name: "robots", content: "noindex" }],
   }),
   component: WhatsAppDiagnosticsPage,
 });
@@ -168,7 +159,11 @@ function WhatsAppDiagnosticsPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusPill
                       ok={data.probe.ok}
-                      label={data.probe.ok ? `OK (${data.probe.status})` : `Falhou (${data.probe.status || "rede"})`}
+                      label={
+                        data.probe.ok
+                          ? `OK (${data.probe.status})`
+                          : `Falhou (${data.probe.status || "rede"})`
+                      }
                     />
                     <span className="text-muted-foreground">{data.probe.ms} ms</span>
                     <code className="text-xs text-muted-foreground">{data.probe.url}</code>
