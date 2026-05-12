@@ -12,6 +12,7 @@ import {
   markVerifiedById,
 } from "./phoneRepo.server";
 import { getActiveInstanceTokenOrNull } from "./uazapiRepo.server";
+import { logMessageAttempt } from "./messageAttemptsRepo.server";
 
 const RESEND_COOLDOWN_SECONDS = 30;
 const CODE_TTL_SECONDS = 5 * 60; // 5 minutes
@@ -181,8 +182,27 @@ export async function sendPhoneVerificationData(input: {
       `Expira em 5 minutos. Nao compartilhe com ninguem.`;
     try {
       await sendTwilioSms(`+${phone}`, smsBody);
+      await logMessageAttempt({
+        channel: "sms",
+        provider: "twilio",
+        phone,
+        status: "sent",
+      });
     } catch (err) {
       console.error("twilio send failed:", err);
+      const errMsg =
+        err instanceof Response
+          ? await err.clone().text().catch(() => `HTTP ${err.status}`)
+          : err instanceof Error
+            ? err.message
+            : String(err);
+      await logMessageAttempt({
+        channel: "sms",
+        provider: "twilio",
+        phone,
+        status: "failed",
+        error: errMsg,
+      });
       await deleteUnverifiedByPhone(phone);
       if (err instanceof Response) throw err;
       throw new Response(
@@ -213,6 +233,7 @@ export async function sendPhoneVerificationData(input: {
     `O código expira em 5 minutos. Nunca compartilhe com terceiros.`;
 
   let sent = false;
+  let lastError: string | null = null;
   try {
     await uazFetch("/send/menu", {
       method: "POST",
@@ -228,6 +249,12 @@ export async function sendPhoneVerificationData(input: {
     sent = true;
   } catch (err) {
     console.warn("uazapi /send/menu failed, falling back to /send/text:", err);
+    lastError =
+      err instanceof Response
+        ? await err.clone().text().catch(() => `HTTP ${err.status}`)
+        : err instanceof Error
+          ? err.message
+          : String(err);
   }
 
   if (!sent) {
@@ -245,12 +272,26 @@ export async function sendPhoneVerificationData(input: {
         },
       });
       sent = true;
+      lastError = null;
     } catch (err) {
       console.error("uazapi send/text failed:", err);
+      lastError =
+        err instanceof Response
+          ? await err.clone().text().catch(() => `HTTP ${err.status}`)
+          : err instanceof Error
+            ? err.message
+            : String(err);
     }
   }
 
   if (!sent) {
+    await logMessageAttempt({
+      channel: "whatsapp",
+      provider: "uazapi",
+      phone,
+      status: "failed",
+      error: lastError,
+    });
     // Best-effort cleanup so the user can retry quickly
     await deleteUnverifiedByPhone(phone);
     throw new Response(
@@ -258,6 +299,13 @@ export async function sendPhoneVerificationData(input: {
       { status: 502 }
     );
   }
+
+  await logMessageAttempt({
+    channel: "whatsapp",
+    provider: "uazapi",
+    phone,
+    status: "sent",
+  });
 
   return {
     success: true as const,
