@@ -50,15 +50,7 @@ export const getUazapiDiagnostics = createServerFn({ method: "POST" })
   .inputValidator((input: { accessToken: string }) =>
     z.object({ accessToken: accessTokenSchema }).parse(input),
   )
-  .handler(async ({ data }): Promise<{
-    success: boolean;
-    status: number;
-    ms: number;
-    url: string | null;
-    requestBody: unknown;
-    responseBody: string | null;
-    error: string | null;
-  }> => {
+  .handler(async ({ data }) => {
     await assertAdminAccess(data.accessToken);
 
     const env = {
@@ -158,7 +150,15 @@ export const sendTestWhatsApp = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<{
+    success: boolean;
+    status: number;
+    ms: number;
+    url: string | null;
+    requestBody: { number: string; text: string; linkPreview: boolean } | null;
+    responseBody: string | null;
+    error: string | null;
+  }> => {
     await assertAdminAccess(data.accessToken);
 
     const baseUrl = process.env.UAZAPI_BASE_URL;
@@ -167,9 +167,9 @@ export const sendTestWhatsApp = createServerFn({ method: "POST" })
         success: false,
         status: 0,
         ms: 0,
-        url: null as string | null,
-        requestBody: null as unknown,
-        responseBody: null as string | null,
+        url: null,
+        requestBody: null,
+        responseBody: null,
         error: "UAZAPI_BASE_URL não configurado",
       };
     }
