@@ -454,6 +454,42 @@ function WhatsAppDiagnosticsPage() {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle>Logs uazapi do processo</CardTitle>
+              <CardDescription>
+                Últimas chamadas feitas por criação, conexão, status, teste e probe.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              {!data.logs.length ? (
+                <p className="text-muted-foreground">Nenhum log capturado neste processo ainda.</p>
+              ) : (
+                <div className="space-y-2">
+                  {data.logs.slice(0, 12).map((log) => (
+                    <div key={log.id} className="rounded-md border border-border bg-muted/30 p-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusPill ok={log.ok !== false && log.level !== "error"} label={log.level.toUpperCase()} />
+                        <span className="font-mono text-xs">{log.method ?? "—"} {log.path ?? log.action}</span>
+                        {typeof log.status === "number" && <span className="text-xs text-muted-foreground">HTTP {log.status}</span>}
+                        {typeof log.ms === "number" && <span className="text-xs text-muted-foreground">{log.ms} ms</span>}
+                        <span className="ml-auto text-xs text-muted-foreground">{new Date(log.at).toLocaleString("pt-BR")}</span>
+                      </div>
+                      {log.error && (
+                        <pre className="mt-2 overflow-auto rounded border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">{log.error}</pre>
+                      )}
+                      {(log.requestBody || log.responsePreview) && (
+                        <pre className="mt-2 overflow-auto rounded bg-background p-2 text-xs">
+                          {JSON.stringify({ requestBody: log.requestBody, responsePreview: log.responsePreview }, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <p className="text-xs text-muted-foreground">
             Verificado em {new Date(data.checkedAt).toLocaleString("pt-BR")}
           </p>
