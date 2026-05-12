@@ -188,6 +188,9 @@ services:
       PUBLIC_BASE_URL: https://facial.nutricarbrasil.com.br
       UAZAPI_BASE_URL: \${UAZAPI_BASE_URL}
       UAZAPI_ADMIN_TOKEN: \${UAZAPI_ADMIN_TOKEN}
+      TWILIO_ACCOUNT_SID: \${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: \${TWILIO_AUTH_TOKEN}
+      TWILIO_FROM_NUMBER: \${TWILIO_FROM_NUMBER}
       # Mantenha enquanto o cutover nao terminar:
       SUPABASE_URL: \${SUPABASE_URL}
       SUPABASE_PUBLISHABLE_KEY: \${SUPABASE_PUBLISHABLE_KEY}
@@ -208,6 +211,9 @@ SESSION_SECRET=gere-com-openssl-rand-base64-48
 PUBLIC_BASE_URL=https://facial.nutricarbrasil.com.br
 UAZAPI_BASE_URL=https://sua-instancia.uazapi.com
 UAZAPI_ADMIN_TOKEN=seu-admin-token
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=seu-auth-token
+TWILIO_FROM_NUMBER=+5511999999999
 # Mantidos durante o cutover:
 SUPABASE_URL=https://hffbxygfvdkvtrjtxrba.supabase.co
 SUPABASE_PUBLISHABLE_KEY=...
