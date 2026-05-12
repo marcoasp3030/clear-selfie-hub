@@ -13,7 +13,11 @@ import { supabaseAdmin } from "./supabaseAdmin.server";
 
 export type Backend = "pg" | "supabase";
 export function getDataBackend(): Backend {
-  return process.env.DATABASE_URL ? "pg" : "supabase";
+  const url = process.env.DATABASE_URL?.trim();
+  // Só usa Postgres direto se DATABASE_URL parecer uma URL postgres válida.
+  // Evita cair em "pg" quando a env tem lixo (ex.: "base"), o que gerava
+  // ENOTFOUND no preview do Lovable Cloud.
+  return url && /^postgres(ql)?:\/\//i.test(url) ? "pg" : "supabase";
 }
 
 export type RegistrationRow = {
