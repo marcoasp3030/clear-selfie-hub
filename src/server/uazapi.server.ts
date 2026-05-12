@@ -69,6 +69,7 @@ export async function uazFetch<T = unknown>(path: string, opts: UazFetchOptions 
   let res: Response;
   const start = Date.now();
   let authMode: "header" | "query" = "header";
+  let finalUrl = url;
   try {
     res = await makeRequest("header");
     if (res.status === 401 || res.status === 403) {
@@ -78,11 +79,13 @@ export async function uazFetch<T = unknown>(path: string, opts: UazFetchOptions 
         .catch(() => "");
       if (/missing token|invalid token|unauthorized|forbidden|admintoken|token/i.test(preview)) {
         authMode = "query";
+        finalUrl = `${url}${url.includes("?") ? "&" : "?"}${opts.admin ? "admintoken" : "token"}=***`;
         logUazapiEvent({
           level: "warn",
           action: "request-auth-fallback",
           method: opts.method ?? "GET",
           path,
+          url: finalUrl,
           status: res.status,
           ms: Date.now() - start,
           ok: false,
@@ -98,6 +101,7 @@ export async function uazFetch<T = unknown>(path: string, opts: UazFetchOptions 
       action: "request",
       method: opts.method ?? "GET",
       path,
+      url: finalUrl,
       ms: Date.now() - start,
       ok: false,
       requestBody: opts.body,
@@ -134,6 +138,7 @@ export async function uazFetch<T = unknown>(path: string, opts: UazFetchOptions 
       action: "request",
       method: opts.method ?? "GET",
       path,
+      url: finalUrl,
       status: res.status,
       ms: Date.now() - start,
       ok: false,
@@ -149,6 +154,7 @@ export async function uazFetch<T = unknown>(path: string, opts: UazFetchOptions 
     action: "request",
     method: opts.method ?? "GET",
     path,
+    url: finalUrl,
     status: res.status,
     ms: Date.now() - start,
     ok: true,
