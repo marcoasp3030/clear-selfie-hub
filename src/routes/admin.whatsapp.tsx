@@ -309,6 +309,9 @@ function WhatsAppPage() {
 
       {/* No instance yet */}
       {!instance && (
+        <UazapiConfigCard />
+      )}
+      {!instance && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
