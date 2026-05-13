@@ -837,6 +837,8 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                           <Input
                             id="otp"
                             inputMode="numeric"
+                            autoComplete="one-time-code"
+                            name="otp"
                             value={code}
                             onChange={(e) =>
                               setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
