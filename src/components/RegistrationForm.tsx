@@ -108,6 +108,9 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
   const [resendIn, setResendIn] = useState(0);
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [channel, setChannel] = useState<"whatsapp" | "sms">("whatsapp");
+  // Code detected on the clipboard after the user comes back from WhatsApp.
+  // null = no code detected; "" = clipboard unreadable (show generic button).
+  const [clipboardCode, setClipboardCode] = useState<string | null>(null);
 
   const isPhoneVerified =
     verificationStatus === "verified" && verifiedPhone === phone;
@@ -152,6 +155,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
       setVerifiedPhone("");
       setCode("");
       setVerifyError(null);
+      setClipboardCode(null);
     }
   }, [phone, verifiedPhone]);
 
@@ -188,6 +192,51 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
 
     return () => ac.abort();
   }, [verificationStatus, channel]);
+
+  // WhatsApp: when the user returns to the tab (e.g. after tapping
+  // "📋 Copiar código" inside WhatsApp), peek at the clipboard. If it
+  // contains a 6-digit code, show a one-tap "Colar 123456" button.
+  // If the browser doesn't allow silent reads, we still show a generic
+  // "Colar código" button — the click itself is the user gesture and
+  // unlocks navigator.clipboard.readText().
+  useEffect(() => {
+    if (channel !== "whatsapp") return;
+    if (verificationStatus !== "sent" && verificationStatus !== "verifying") return;
+    if (typeof document === "undefined") return;
+
+    const tryReadClipboard = async () => {
+      if (code.length === 6) return;
+      // Silent attempt — many browsers reject without a user gesture.
+      try {
+        const text = await navigator.clipboard?.readText?.();
+        if (!text) {
+          setClipboardCode((prev) => (prev === null ? "" : prev));
+          return;
+        }
+        const m = text.match(/\b(\d{6})\b/);
+        if (m) {
+          setClipboardCode(m[1]);
+        } else {
+          setClipboardCode("");
+        }
+      } catch {
+        // Permission denied / unsupported — fall back to the generic button
+        setClipboardCode((prev) => (prev === null ? "" : prev));
+      }
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void tryReadClipboard();
+    };
+    // Prime on mount too in case the user already has the code copied.
+    void tryReadClipboard();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [verificationStatus, channel, code.length]);
 
   const handleSendCode = async () => {
     setVerifyError(null);
