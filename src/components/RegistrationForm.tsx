@@ -427,23 +427,40 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
               </div>
             )}
             {syncStatus.state === "success" && (
-              <div className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <div>
-                  <p className="font-semibold">Cadastrado no equipamento</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    ID no aparelho:{" "}
-                    <span className="font-mono">{syncStatus.deviceUserId}</span>
-                  </p>
+              <div className="space-y-3">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <div>
+                    <p className="font-semibold">
+                      {syncStatus.devices.length > 1
+                        ? `Cadastrado em ${syncStatus.devices.length} equipamentos`
+                        : "Cadastrado no equipamento"}
+                    </p>
+                    {syncStatus.devices.length <= 1 && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        ID no aparelho:{" "}
+                        <span className="font-mono">{syncStatus.deviceUserId}</span>
+                      </p>
+                    )}
+                  </div>
                 </div>
+                {syncStatus.devices.length > 1 && (
+                  <DeviceSyncList devices={syncStatus.devices} />
+                )}
               </div>
             )}
             {syncStatus.state === "error" && (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <p className="font-semibold">
                   Falha ao cadastrar no equipamento
                 </p>
                 <p className="text-xs leading-relaxed">{syncStatus.message}</p>
+                {syncStatus.devices.length > 0 && (
+                  <DeviceSyncList devices={syncStatus.devices} />
+                )}
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Equipamentos pendentes serão sincronizados automaticamente assim que voltarem a responder.
+                </p>
               </div>
             )}
           </div>
