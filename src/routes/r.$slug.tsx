@@ -14,46 +14,9 @@ export const Route = createFileRoute("/r/$slug")({
   },
   head: ({ loaderData }) => ({
     meta: [
-      {
-        title: loaderData?.device
-          ? `Nutricar Brasil · ${loaderData.device.name}`
-          : "Nutricar Brasil",
-      },
-      {
-        name: "description",
-        content: loaderData?.device
-          ? `Cadastro oficial Nutricar Brasil — ${loaderData.device.name}. Rápido, simples e seguro.`
-          : "Cadastro oficial Nutricar Brasil — rápido, simples e seguro.",
-      },
-      {
-        property: "og:title",
-        content: loaderData?.device
-          ? `Nutricar Brasil · ${loaderData.device.name}`
-          : "Nutricar Brasil",
-      },
-      {
-        property: "og:description",
-        content: loaderData?.device
-          ? `Cadastro oficial Nutricar Brasil — ${loaderData.device.name}.`
-          : "Cadastro oficial Nutricar Brasil — rápido, simples e seguro.",
-      },
-      { property: "og:site_name", content: "Nutricar Brasil" },
-      { property: "og:type", content: "website" },
-      {
-        name: "twitter:title",
-        content: loaderData?.device
-          ? `Nutricar Brasil · ${loaderData.device.name}`
-          : "Nutricar Brasil",
-      },
-      {
-        name: "twitter:description",
-        content: loaderData?.device
-          ? `Cadastro oficial Nutricar Brasil — ${loaderData.device.name}.`
-          : "Cadastro oficial Nutricar Brasil — rápido, simples e seguro.",
-      },
-      { name: "twitter:card", content: "summary" },
+      { title: "" },
       { name: "theme-color", content: "#92b61b" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   notFoundComponent: NotFoundDevice,
