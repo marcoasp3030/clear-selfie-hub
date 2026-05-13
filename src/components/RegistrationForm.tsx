@@ -155,6 +155,40 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
     }
   }, [phone, verifiedPhone]);
 
+  // Android Chrome: WebOTP API auto-fills the code from SMS.
+  // iOS Safari uses the input's autoComplete="one-time-code" attribute natively.
+  useEffect(() => {
+    if (verificationStatus !== "sent" && verificationStatus !== "verifying") return;
+    if (channel !== "sms") return;
+    if (typeof window === "undefined") return;
+    const w = window as unknown as {
+      OTPCredential?: unknown;
+      AbortController: typeof AbortController;
+    };
+    if (!("OTPCredential" in w)) return;
+
+    const ac = new w.AbortController();
+    (
+      navigator.credentials as unknown as {
+        get: (opts: {
+          otp: { transport: string[] };
+          signal: AbortSignal;
+        }) => Promise<{ code: string } | null>;
+      }
+    )
+      .get({ otp: { transport: ["sms"] }, signal: ac.signal })
+      .then((otp) => {
+        if (!otp?.code) return;
+        const digits = otp.code.replace(/\D/g, "").slice(0, 6);
+        setCode(digits);
+      })
+      .catch(() => {
+        /* user dismissed or unsupported — silent */
+      });
+
+    return () => ac.abort();
+  }, [verificationStatus, channel]);
+
   const handleSendCode = async () => {
     setVerifyError(null);
     if (!isValidMobile(phone)) {
