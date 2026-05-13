@@ -339,9 +339,8 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
             "Falha ao gravar o cadastro no banco. Verifique a conexão do servidor com o banco de dados.",
           );
         } else {
-          toast.error(
-            `Não foi possível enviar (${response.error ?? "erro desconhecido"}).`,
-          );
+          const errCode = (response as { error?: string }).error ?? "erro desconhecido";
+          toast.error(`Não foi possível enviar (${errCode}).`);
         }
         console.error("[registration] submit failed:", response);
         return;
