@@ -737,17 +737,13 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                 {!isPhoneVerified ? (
                   <div className="mt-2 rounded-xl border border-emerald-500/30 bg-emerald-50/60 p-3 dark:border-emerald-400/30 dark:bg-emerald-950/20">
                     <div className="flex items-start gap-2">
-                      {channel === "sms" ? (
-                        <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      ) : (
-                        <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      )}
+                      <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">
-                          Verifique seu número
+                          Como deseja receber o código?
                         </p>
                         <p className="mt-0.5 text-[11px] leading-relaxed text-emerald-900/80 dark:text-emerald-200/80">
-                          Escolha como receber o código de 6 dígitos.
+                          Escolha uma das opções abaixo para receber 6 dígitos.
                         </p>
                       </div>
                     </div>
@@ -756,48 +752,41 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                       <div className="mt-3 grid grid-cols-2 gap-2">
                         <button
                           type="button"
-                          onClick={() => setChannel("whatsapp")}
-                          className={`flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-medium transition ${
-                            channel === "whatsapp"
-                              ? "border-emerald-600 bg-emerald-600 text-white"
-                              : "border-emerald-500/30 bg-white/70 text-emerald-900 hover:bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-100"
-                          }`}
+                          onClick={() => {
+                            setChannel("whatsapp");
+                            if (isValidMobile(phone) && !submitting) handleSendCode();
+                          }}
+                          disabled={!isValidMobile(phone) || submitting}
+                          className="group flex h-auto flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-emerald-600 bg-emerald-600 px-3 py-4 text-white shadow-md transition-all hover:bg-emerald-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          <MessageCircle className="h-3.5 w-3.5" />
-                          WhatsApp
+                          <MessageCircle className="h-6 w-6" />
+                          <span className="text-sm font-semibold">WhatsApp</span>
+                          <span className="text-[10px] font-normal opacity-90">
+                            Recomendado
+                          </span>
                         </button>
                         <button
                           type="button"
-                          onClick={() => setChannel("sms")}
-                          className={`flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-medium transition ${
-                            channel === "sms"
-                              ? "border-emerald-600 bg-emerald-600 text-white"
-                              : "border-emerald-500/30 bg-white/70 text-emerald-900 hover:bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-100"
-                          }`}
+                          onClick={() => {
+                            setChannel("sms");
+                            if (isValidMobile(phone) && !submitting) handleSendCode();
+                          }}
+                          disabled={!isValidMobile(phone) || submitting}
+                          className="group flex h-auto flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-emerald-500/40 bg-white px-3 py-4 text-emerald-900 shadow-sm transition-all hover:border-emerald-600 hover:bg-emerald-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-950/40 dark:text-emerald-100 dark:hover:bg-emerald-950/60"
                         >
-                          <Smartphone className="h-3.5 w-3.5" />
-                          SMS
+                          <Smartphone className="h-6 w-6" />
+                          <span className="text-sm font-semibold">SMS</span>
+                          <span className="text-[10px] font-normal opacity-80">
+                            Mensagem de texto
+                          </span>
                         </button>
                       </div>
                     )}
 
-                    {verificationStatus === "idle" && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={handleSendCode}
-                        disabled={!isValidMobile(phone) || submitting}
-                        className="mt-3 h-10 w-full rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
-                      >
-                        {channel === "sms" ? (
-                          <Smartphone className="mr-1.5 h-4 w-4" />
-                        ) : (
-                          <MessageCircle className="mr-1.5 h-4 w-4" />
-                        )}
-                        {channel === "sms"
-                          ? "Enviar código por SMS"
-                          : "Enviar código no WhatsApp"}
-                      </Button>
+                    {verificationStatus === "idle" && !isValidMobile(phone) && (
+                      <p className="mt-2 text-center text-[11px] text-emerald-900/70 dark:text-emerald-200/70">
+                        Informe um celular válido para liberar o envio.
+                      </p>
                     )}
 
                     {verificationStatus === "sending" && (
