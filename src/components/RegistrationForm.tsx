@@ -989,7 +989,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                         </div>
                         <button
                           type="button"
-                          onClick={handleSendCode}
+                          onClick={() => handleSendCode()}
                           disabled={resendIn > 0 || submitting}
                           className="text-[11px] font-medium text-emerald-700 hover:underline disabled:cursor-not-allowed disabled:text-emerald-700/50 dark:text-emerald-300"
                         >
