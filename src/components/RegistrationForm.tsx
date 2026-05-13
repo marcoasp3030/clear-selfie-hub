@@ -239,7 +239,8 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
     };
   }, [verificationStatus, channel, code.length]);
 
-  const handleSendCode = async () => {
+  const handleSendCode = async (overrideChannel?: "whatsapp" | "sms") => {
+    const useChannel = overrideChannel ?? channel;
     setVerifyError(null);
     if (!isValidMobile(phone)) {
       setErrors((prev) => ({ ...prev, phone: "Informe um celular válido com DDD" }));
@@ -247,7 +248,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
     }
     setVerificationStatus("sending");
     try {
-      const res = await sendVerification({ data: { phone, channel } });
+      const res = await sendVerification({ data: { phone, channel: useChannel } });
       if (!res.success) {
         setVerificationStatus("idle");
         setVerifyError(res.message);
@@ -257,7 +258,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
       setVerificationStatus("sent");
       setResendIn(res.cooldownSeconds ?? 30);
       toast.success(
-        channel === "sms" ? "Código enviado por SMS." : "Código enviado no WhatsApp."
+        useChannel === "sms" ? "Código enviado por SMS." : "Código enviado no WhatsApp."
       );
     } catch (err) {
       const msg =
@@ -864,7 +865,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                           type="button"
                           onClick={() => {
                             setChannel("whatsapp");
-                            if (isValidMobile(phone) && !submitting) handleSendCode();
+                            if (isValidMobile(phone) && !submitting) handleSendCode("whatsapp");
                           }}
                           disabled={!isValidMobile(phone) || submitting}
                           className="group flex h-auto flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-emerald-600 bg-emerald-600 px-3 py-4 text-white shadow-md transition-all hover:bg-emerald-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
@@ -879,7 +880,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                           type="button"
                           onClick={() => {
                             setChannel("sms");
-                            if (isValidMobile(phone) && !submitting) handleSendCode();
+                            if (isValidMobile(phone) && !submitting) handleSendCode("sms");
                           }}
                           disabled={!isValidMobile(phone) || submitting}
                           className="group flex h-auto flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-emerald-500/40 bg-white px-3 py-4 text-emerald-900 shadow-sm transition-all hover:border-emerald-600 hover:bg-emerald-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-950/40 dark:text-emerald-100 dark:hover:bg-emerald-950/60"
@@ -988,7 +989,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                         </div>
                         <button
                           type="button"
-                          onClick={handleSendCode}
+                          onClick={() => handleSendCode()}
                           disabled={resendIn > 0 || submitting}
                           className="text-[11px] font-medium text-emerald-700 hover:underline disabled:cursor-not-allowed disabled:text-emerald-700/50 dark:text-emerald-300"
                         >
