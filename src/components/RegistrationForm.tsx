@@ -324,11 +324,26 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
             lastName: result.data.lastName,
           });
           toast.error(
-            "Este dispositivo já realizou um cadastro neste equipamento."
+            "Este dispositivo já realizou um cadastro neste equipamento.",
+          );
+        } else if (response.error === "phone_not_verified") {
+          toast.error(
+            "Celular não verificado. Refaça a verificação por SMS/WhatsApp.",
+          );
+        } else if (response.error === "check_failed") {
+          toast.error(
+            "Falha ao consultar o banco de dados. Tente novamente em alguns segundos.",
+          );
+        } else if (response.error === "insert_failed") {
+          toast.error(
+            "Falha ao gravar o cadastro no banco. Verifique a conexão do servidor com o banco de dados.",
           );
         } else {
-          toast.error("Não foi possível enviar. Tente novamente.");
+          toast.error(
+            `Não foi possível enviar (${response.error ?? "erro desconhecido"}).`,
+          );
         }
+        console.error("[registration] submit failed:", response);
         return;
       }
 
