@@ -937,6 +937,20 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
                         <Label htmlFor="otp" className="text-xs font-medium">
                           Código recebido {channel === "sms" ? "por SMS" : "no WhatsApp"}
                         </Label>
+                        {channel === "whatsapp" &&
+                          clipboardCode !== null &&
+                          code.length !== 6 && (
+                            <button
+                              type="button"
+                              onClick={pasteCodeFromClipboard}
+                              className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-emerald-600 bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:bg-emerald-700 active:scale-[0.98] duration-300 animate-in fade-in slide-in-from-top-1"
+                            >
+                              <ClipboardPaste className="h-4 w-4" />
+                              {clipboardCode
+                                ? `Colar código ${clipboardCode}`
+                                : "Colar código copiado"}
+                            </button>
+                          )}
                         <div className="flex gap-2">
                           <Input
                             id="otp"
