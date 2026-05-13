@@ -16,6 +16,8 @@ import {
   MessageCircle,
   ShieldCheck,
   Smartphone,
+  Cpu,
+  XCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
@@ -78,8 +80,16 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
   } | null>(null);
   const [syncStatus, setSyncStatus] = useState<
     | { state: "pending" }
-    | { state: "success"; deviceUserId: number }
-    | { state: "error"; message: string }
+    | {
+        state: "success";
+        deviceUserId: number;
+        devices: Array<{ name: string; ok: boolean; userId?: number; error?: string }>;
+      }
+    | {
+        state: "error";
+        message: string;
+        devices: Array<{ name: string; ok: boolean; userId?: number; error?: string }>;
+      }
     | null
   >(null);
   const submitRegistration = useServerFn(createRegistration);
@@ -202,7 +212,23 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
     }
     setErrors({});
     setStep(1);
+    // sobe pro topo do passo 2 pra não começar no meio do formulário
+    if (typeof window !== "undefined") {
+      requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+    }
   };
+
+  // Quando uma foto é capturada, limpa o erro e dá um leve scroll
+  // pro botão "Continuar" ficar visível — sem auto-avançar (o usuário
+  // ainda pode querer refazer a foto).
+  useEffect(() => {
+    if (step !== 0 || !photo) return;
+    setErrors((prev) => {
+      if (!prev.photo) return prev;
+      const { photo: _omit, ...rest } = prev;
+      return rest;
+    });
+  }, [photo, step]);
 
   const submit = async () => {
     setErrors({});
@@ -319,9 +345,14 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
             setSyncStatus({
               state: "success",
               deviceUserId: syncRes.deviceUserId,
+              devices: syncRes.devices ?? [],
             });
           } else {
-            setSyncStatus({ state: "error", message: syncRes.error });
+            setSyncStatus({
+              state: "error",
+              message: syncRes.error,
+              devices: syncRes.devices ?? [],
+            });
           }
         } catch (err) {
           console.warn("Control iD sync failed:", err);
@@ -329,6 +360,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
             state: "error",
             message:
               "Não foi possível confirmar o cadastro no equipamento. Um administrador poderá reenviar.",
+            devices: [],
           });
         }
       } else {
