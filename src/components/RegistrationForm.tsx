@@ -417,11 +417,11 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
           Tudo certo
         </div>
         <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
-          Cadastro recebido!
+          Cadastro efetuado com sucesso!
         </h2>
         <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
-          Obrigado, <span className="font-medium text-foreground">{firstName}</span>.
-          Entraremos em contato pelo celular informado em breve.
+          Obrigado, <span className="font-medium text-foreground">{firstName}</span>!
+          Boas compras. 🛒
         </p>
 
         {syncStatus && (
