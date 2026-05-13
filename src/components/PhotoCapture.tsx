@@ -623,18 +623,28 @@ export function PhotoCapture({ value, onChange, deviceId = null }: PhotoCaptureP
           {previewUrl ? (
             <img src={previewUrl} alt="Pré-visualização" className="h-full w-full object-cover" />
           ) : (
-            <div className="pointer-events-none flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center text-muted-foreground">
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-primary/15 text-primary">
+            <button
+              type="button"
+              onClick={startCamera}
+              disabled={starting || insecure}
+              aria-label="Abrir câmera para tirar a foto"
+              className="group flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center text-muted-foreground transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-primary/15 text-primary transition-transform group-hover:scale-105 group-active:scale-95">
                 <span className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
-                <Camera className="relative h-9 w-9" />
+                {starting ? (
+                  <Loader2 className="relative h-9 w-9 animate-spin" />
+                ) : (
+                  <Camera className="relative h-9 w-9" />
+                )}
               </div>
               <div>
                 <p className="text-base font-semibold text-foreground">
-                  Pronto para tirar sua foto?
+                  {starting ? "Abrindo câmera..." : "Toque para tirar sua foto"}
                 </p>
                 <p className="mt-1 text-xs">A foto será capturada automaticamente</p>
               </div>
-            </div>
+            </button>
           )}
 
           {previewUrl && (
