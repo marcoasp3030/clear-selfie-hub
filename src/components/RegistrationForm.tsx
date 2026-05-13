@@ -18,6 +18,7 @@ import {
   Smartphone,
   Cpu,
   XCircle,
+  ClipboardPaste,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
@@ -291,6 +292,26 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
         err instanceof Error ? err.message : "Não foi possível validar o código.";
       setVerificationStatus("sent");
       setVerifyError(msg);
+    }
+  };
+
+  // One-tap paste: read clipboard (a click satisfies the user-gesture
+  // requirement on every browser), extract a 6-digit code and fill the input.
+  const pasteCodeFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard?.readText?.();
+      const m = text?.match(/\b(\d{6})\b/);
+      if (!m) {
+        toast.error("Nenhum código de 6 dígitos na área de transferência.");
+        setClipboardCode("");
+        return;
+      }
+      setCode(m[1]);
+      setClipboardCode(null);
+      toast.success("Código colado!");
+    } catch {
+      toast.error("Não foi possível ler a área de transferência.");
+      setClipboardCode("");
     }
   };
 
