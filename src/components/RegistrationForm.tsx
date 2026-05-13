@@ -164,6 +164,12 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
     setVerificationStatus("sending");
     try {
       const res = await sendVerification({ data: { phone, channel } });
+      if (!res.success) {
+        setVerificationStatus("idle");
+        setVerifyError(res.message);
+        toast.error(res.message);
+        return;
+      }
       setVerificationStatus("sent");
       setResendIn(res.cooldownSeconds ?? 30);
       toast.success(
