@@ -29,11 +29,20 @@ async function downloadPhotoBase64(
  * and the admin retry endpoint. Updates the registration row with the result.
  */
 async function runSync(registrationId: string): Promise<
-  { success: true; deviceUserId: number } | { success: false; error: string }
+  | {
+      success: true;
+      deviceUserId: number;
+      devices: Array<{ name: string; ok: boolean; userId?: number; error?: string }>;
+    }
+  | {
+      success: false;
+      error: string;
+      devices: Array<{ name: string; ok: boolean; userId?: number; error?: string }>;
+    }
 > {
   const reg = await getRegistrationForSync(registrationId).catch(() => null);
   if (!reg) {
-    return { success: false, error: "Cadastro não encontrado." };
+    return { success: false, error: "Cadastro não encontrado.", devices: [] };
   }
   if (!reg.device_id) {
     const msg = "Cadastro não está vinculado a um equipamento.";
@@ -42,7 +51,7 @@ async function runSync(registrationId: string): Promise<
       device_sync_error: msg,
       device_sync_attempted_at: new Date().toISOString(),
     });
-    return { success: false, error: msg };
+    return { success: false, error: msg, devices: [] };
   }
 
   const device = await findDeviceById(reg.device_id).catch(() => null);
@@ -53,7 +62,7 @@ async function runSync(registrationId: string): Promise<
       device_sync_error: msg,
       device_sync_attempted_at: new Date().toISOString(),
     });
-    return { success: false, error: msg };
+    return { success: false, error: msg, devices: [] };
   }
 
   // Agrupa todos os equipamentos da mesma "loja" (mesmo nome).
@@ -68,36 +77,40 @@ async function runSync(registrationId: string): Promise<
       device_sync_error: photo.error,
       device_sync_attempted_at: new Date().toISOString(),
     });
-    return { success: false, error: photo.error };
+    return { success: false, error: photo.error, devices: [] };
   }
 
   const perDevice: Array<{ name: string; ok: boolean; userId?: number; error?: string }> = [];
-  for (const t of targets) {
-    if (!t.api_login || !t.api_password) {
-      perDevice.push({ name: t.name, ok: false, error: "sem credenciais (login/senha)" });
-      continue;
-    }
-    try {
-      const r = await syncRegistrationToControlId({
-        apiBaseUrl: t.api_base_url,
-        apiLogin: t.api_login,
-        apiPassword: t.api_password,
-        firstName: reg.first_name,
-        lastName: reg.last_name,
-        phone: reg.phone,
-        cpf: reg.cpf ?? "",
-        imageBase64: photo,
-      });
-      if (r.success) perDevice.push({ name: t.name, ok: true, userId: r.deviceUserId });
-      else perDevice.push({ name: t.name, ok: false, error: r.error });
-    } catch (err) {
-      perDevice.push({
-        name: t.name,
-        ok: false,
-        error: err instanceof Error ? err.message : "erro inesperado",
-      });
-    }
-  }
+  // Roda em paralelo: equipamento offline não bloqueia os demais.
+  const results = await Promise.all(
+    targets.map(async (t) => {
+      if (!t.api_login || !t.api_password) {
+        return { name: t.name, ok: false, error: "sem credenciais (login/senha)" };
+      }
+      try {
+        const r = await syncRegistrationToControlId({
+          apiBaseUrl: t.api_base_url,
+          apiLogin: t.api_login,
+          apiPassword: t.api_password,
+          firstName: reg.first_name,
+          lastName: reg.last_name,
+          phone: reg.phone,
+          cpf: reg.cpf ?? "",
+          imageBase64: photo,
+        });
+        return r.success
+          ? { name: t.name, ok: true, userId: r.deviceUserId }
+          : { name: t.name, ok: false, error: r.error };
+      } catch (err) {
+        return {
+          name: t.name,
+          ok: false,
+          error: err instanceof Error ? err.message : "erro inesperado",
+        };
+      }
+    }),
+  );
+  perDevice.push(...results);
 
   const okCount = perDevice.filter((p) => p.ok).length;
   const failed = perDevice.filter((p) => !p.ok);
@@ -112,7 +125,7 @@ async function runSync(registrationId: string): Promise<
         targets.length > 1 ? `Sincronizado em ${okCount} equipamentos` : null,
       device_sync_attempted_at: now,
     });
-    return { success: true, deviceUserId: firstUserId ?? 0 };
+    return { success: true, deviceUserId: firstUserId ?? 0, devices: perDevice };
   }
 
   const summary = `${okCount}/${targets.length} OK. Falhas: ${failed
@@ -124,7 +137,7 @@ async function runSync(registrationId: string): Promise<
     device_sync_error: summary,
     device_sync_attempted_at: now,
   });
-  return { success: false, error: summary };
+  return { success: false, error: summary, devices: perDevice };
 }
 
 /**
