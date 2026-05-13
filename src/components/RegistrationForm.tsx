@@ -580,15 +580,54 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
             <PhotoGuidelines />
           </div>
 
+          {/* Spacer pra não esconder conteúdo atrás da barra fixa no mobile */}
+          <div className="h-20 sm:hidden" aria-hidden />
+
+          {/* Desktop / tablet: botão inline */}
           <Button
             onClick={goPhoto}
             size="lg"
-            className="h-14 w-full text-base font-semibold shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98]"
+            className={`hidden h-14 w-full text-base font-semibold shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98] sm:flex ${
+              photo ? "duration-300 animate-in zoom-in-95" : ""
+            }`}
             disabled={!photo}
           >
-            Continuar
-            <ArrowRight className="ml-1 h-5 w-5" />
+            {photo ? (
+              <>
+                Continuar para os dados
+                <ArrowRight className="ml-1 h-5 w-5" />
+              </>
+            ) : (
+              <>
+                <Camera className="mr-2 h-5 w-5" />
+                Tire uma foto para continuar
+              </>
+            )}
           </Button>
+
+          {/* Mobile: botão fixo no rodapé pra ficar sempre acessível */}
+          <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur sm:hidden">
+            <Button
+              onClick={goPhoto}
+              size="lg"
+              className={`h-12 w-full text-base font-semibold shadow-lg shadow-primary/25 transition-all active:scale-[0.98] ${
+                photo ? "ring-2 ring-primary/40 ring-offset-2 ring-offset-background" : ""
+              }`}
+              disabled={!photo}
+            >
+              {photo ? (
+                <>
+                  Continuar
+                  <ArrowRight className="ml-1 h-5 w-5" />
+                </>
+              ) : (
+                <>
+                  <Camera className="mr-2 h-5 w-5" />
+                  Tire uma foto
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       )}
 
@@ -922,5 +961,39 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
         </div>
       )}
     </div>
+  );
+}
+
+function DeviceSyncList({
+  devices,
+}: {
+  devices: Array<{ name: string; ok: boolean; userId?: number; error?: string }>;
+}) {
+  return (
+    <ul className="space-y-1.5">
+      {devices.map((d, i) => (
+        <li
+          key={`${d.name}-${i}`}
+          className="flex items-center justify-between gap-3 rounded-md border border-border/40 bg-background/60 px-3 py-2 text-foreground"
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <Cpu className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="truncate text-xs font-medium">{d.name}</span>
+          </div>
+          {d.ok ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="h-3 w-3" /> ok
+            </span>
+          ) : (
+            <span
+              title={d.error}
+              className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+            >
+              <XCircle className="h-3 w-3" /> pendente
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
