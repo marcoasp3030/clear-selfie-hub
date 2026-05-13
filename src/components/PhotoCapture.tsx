@@ -1191,29 +1191,12 @@ function CameraFullscreen({
 
         if (committed !== statusRef.current) setStatus(committed);
 
-        // Auto-capture: trigger countdown after staying "perfect" for ~700ms.
-        // If the face stops being "perfect" at any moment (including during
-        // the countdown), abort and require a fresh perfect hold.
-        const now = performance.now();
-        if (captureTakenRef.current) {
-          perfectSinceRef.current = null;
+        // Captura manual: o usuário precisa tocar no botão para tirar a foto.
+        // Mantemos apenas o feedback visual do enquadramento (oval verde).
+        perfectSinceRef.current = null;
+        if (countdownStartedRef.current) {
           countdownStartedRef.current = false;
           setCountdown(null);
-        } else if (committed === "perfect") {
-          if (perfectSinceRef.current === null) perfectSinceRef.current = now;
-          // Snappier auto-capture: only ~150ms of stable "perfect" hold
-          // before firing. We start the countdown at 1 so the capture
-          // happens on the very next tick — no extra 1s wait on "2".
-          if (!countdownStartedRef.current && now - perfectSinceRef.current > 150) {
-            countdownStartedRef.current = true;
-            setCountdown(1);
-          }
-        } else {
-          perfectSinceRef.current = null;
-          if (countdownStartedRef.current) {
-            countdownStartedRef.current = false;
-            setCountdown(null);
-          }
         }
       } catch {
         // ignore
@@ -1459,7 +1442,7 @@ function CameraFullscreen({
           <p className="text-center text-xs text-white/70">
             {countdown !== null
               ? "Mantenha-se firme..."
-              : "Quando o rosto estiver enquadrado, a foto será tirada automaticamente"}
+              : "Quando o oval ficar verde, toque no botão para tirar a foto"}
           </p>
         )}
       </div>
@@ -1472,7 +1455,7 @@ function CameraFullscreen({
           </div>
           <h2 className="text-2xl font-bold">Vamos tirar sua foto</h2>
           <p className="mt-3 max-w-xs text-sm text-white/80">
-            Encaixe seu rosto no oval. Quando ficar verde, a foto será tirada automaticamente.
+            Encaixe seu rosto no oval. Quando ficar verde, toque no botão para tirar a foto.
           </p>
 
           <div className="mt-8 grid w-full max-w-xs gap-3 text-left text-sm">
