@@ -6,16 +6,16 @@ import {
   verifyPhoneCodeData,
 } from "./phone.server";
 
-async function normalizeServerFnError(err: unknown): Promise<Error> {
+async function extractErrorMessage(err: unknown): Promise<string> {
   if (err instanceof Response) {
     const message = await err
       .clone()
       .text()
-      .catch(() => "Erro no servidor.");
-    return new Error(message || `Erro HTTP ${err.status}`);
+      .catch(() => "");
+    return message || `Erro HTTP ${err.status}`;
   }
-  if (err instanceof Error) return err;
-  return new Error(String(err));
+  if (err instanceof Error) return err.message;
+  return String(err);
 }
 
 export const sendPhoneVerification = createServerFn({ method: "POST" })
@@ -31,7 +31,15 @@ export const sendPhoneVerification = createServerFn({ method: "POST" })
     try {
       return await sendPhoneVerificationData(data);
     } catch (err) {
-      throw await normalizeServerFnError(err);
+      // Return a structured failure so the client can toast a friendly message
+      // without triggering the dev overlay / RUNTIME_ERROR blank screen.
+      const message = await extractErrorMessage(err);
+      console.error("[sendPhoneVerification] failed:", message);
+      return {
+        success: false as const,
+        error: "send_failed" as const,
+        message,
+      };
     }
   });
 
@@ -51,7 +59,13 @@ export const verifyPhoneCode = createServerFn({ method: "POST" })
     try {
       return await verifyPhoneCodeData(data);
     } catch (err) {
-      throw await normalizeServerFnError(err);
+      const message = await extractErrorMessage(err);
+      console.error("[verifyPhoneCode] failed:", message);
+      return {
+        success: false as const,
+        error: "verify_failed" as const,
+        message,
+      };
     }
   });
 
