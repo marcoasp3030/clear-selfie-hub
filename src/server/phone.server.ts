@@ -177,9 +177,20 @@ export async function sendPhoneVerificationData(input: {
 
   // ----- SMS (Twilio) branch -----
   if (channel === "sms") {
+    // The trailing line `@<host> #<code>` is the WebOTP API "origin-bound"
+    // format used by Android Chrome to auto-fill the OTP field. iOS Safari
+    // ignores it but still detects the code from the human-readable line.
+    let webOtpHost = "";
+    try {
+      webOtpHost = getRequestHeader("host") ?? "";
+    } catch {
+      webOtpHost = "";
+    }
+    const webOtpLine = webOtpHost ? `\n\n@${webOtpHost} #${code}` : "";
     const smsBody =
       `Seu codigo Nutricar Brasil: ${code}\n` +
-      `Expira em 5 minutos. Nao compartilhe com ninguem.`;
+      `Expira em 5 minutos. Nao compartilhe com ninguem.` +
+      webOtpLine;
     try {
       await sendTwilioSms(`+${phone}`, smsBody);
       await logMessageAttempt({
