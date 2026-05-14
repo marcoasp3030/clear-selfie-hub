@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -54,6 +55,7 @@ function DevicesPage() {
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [cpfValidationRequired, setCpfValidationRequired] = useState(false);
   type Endpoint = { apiBaseUrl: string; apiLogin: string; apiPassword: string };
   const emptyEndpoint = (): Endpoint => ({ apiBaseUrl: "", apiLogin: "", apiPassword: "" });
   const [endpoints, setEndpoints] = useState<Endpoint[]>([emptyEndpoint()]);
@@ -112,6 +114,7 @@ function DevicesPage() {
             apiBaseUrl: ep.apiBaseUrl.trim(),
             apiLogin: ep.apiLogin.trim(),
             apiPassword: ep.apiPassword,
+            cpfValidationRequired,
           },
         });
         if (res.success) okCount++;
@@ -136,6 +139,7 @@ function DevicesPage() {
       }
       setName("");
       setSlug("");
+      setCpfValidationRequired(false);
       setEndpoints([emptyEndpoint()]);
       setOpenCreate(false);
       reload();
