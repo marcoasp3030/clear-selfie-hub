@@ -528,6 +528,116 @@ function DevicesPage() {
           })}
         </div>
       )}
+
+      {/* Edit dialog */}
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent>
+          <form onSubmit={handleEdit}>
+            <DialogHeader>
+              <DialogTitle>Editar equipamento</DialogTitle>
+              <DialogDescription>
+                Atualize os dados do equipamento. Deixe a senha em branco para manter
+                a senha atual.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="my-5 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-name">Nome da loja / equipamento</Label>
+                <Input
+                  id="edit-name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  required
+                  minLength={2}
+                  maxLength={120}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-slug">Slug da URL</Label>
+                <Input
+                  id="edit-slug"
+                  value={editSlug}
+                  onChange={(e) => setEditSlug(e.target.value.toLowerCase())}
+                  pattern="[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?"
+                  required
+                  maxLength={60}
+                />
+                <p className="text-xs text-muted-foreground">
+                  URL pública: <span className="font-mono">/r/{editSlug || "<slug>"}</span>
+                </p>
+              </div>
+
+              <div className="flex items-start gap-3 rounded-md border bg-muted/30 p-3">
+                <Checkbox
+                  id="edit-cpf-validation"
+                  checked={editCpfValidation}
+                  onCheckedChange={(v) => setEditCpfValidation(v === true)}
+                  className="mt-0.5"
+                />
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="edit-cpf-validation"
+                    className="cursor-pointer text-sm font-medium"
+                  >
+                    Exigir validação de CPF na Receita Federal
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Quando ativo, o usuário precisará informar a data de nascimento e
+                    o CPF será validado na Receita antes do cadastro.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-url">URL base da API</Label>
+                <Input
+                  id="edit-url"
+                  type="url"
+                  value={editApiBaseUrl}
+                  onChange={(e) => setEditApiBaseUrl(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-login">Login (admin)</Label>
+                  <Input
+                    id="edit-login"
+                    value={editApiLogin}
+                    onChange={(e) => setEditApiLogin(e.target.value)}
+                    required
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-password">Senha</Label>
+                  <Input
+                    id="edit-password"
+                    type="password"
+                    placeholder="(deixe em branco para manter)"
+                    value={editApiPassword}
+                    onChange={(e) => setEditApiPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditing(null)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={editSubmitting}>
+                {editSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Salvar alterações
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
