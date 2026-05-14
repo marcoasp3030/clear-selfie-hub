@@ -39,6 +39,7 @@ const createSchema = z.object({
     .refine((u) => /^https?:\/\//i.test(u), "URL deve começar com http:// ou https://"),
   apiLogin: z.string().trim().min(1).max(120),
   apiPassword: z.string().trim().min(1).max(255),
+  cpfValidationRequired: z.boolean().optional().default(false),
 });
 
 export type { DeviceRow };
@@ -71,6 +72,7 @@ export const createDevice = createServerFn({ method: "POST" })
       api_login: data.apiLogin,
       api_password: data.apiPassword,
       created_by: userId,
+      cpf_validation_required: data.cpfValidationRequired ?? false,
     });
     if (!inserted) {
       return { success: false as const, error: "insert_failed" as const };

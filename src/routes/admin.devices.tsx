@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,7 @@ import {
   Cpu,
   ExternalLink,
   X,
+  ShieldCheck,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/devices")({
@@ -54,6 +56,7 @@ function DevicesPage() {
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [cpfValidationRequired, setCpfValidationRequired] = useState(false);
   type Endpoint = { apiBaseUrl: string; apiLogin: string; apiPassword: string };
   const emptyEndpoint = (): Endpoint => ({ apiBaseUrl: "", apiLogin: "", apiPassword: "" });
   const [endpoints, setEndpoints] = useState<Endpoint[]>([emptyEndpoint()]);
@@ -112,6 +115,7 @@ function DevicesPage() {
             apiBaseUrl: ep.apiBaseUrl.trim(),
             apiLogin: ep.apiLogin.trim(),
             apiPassword: ep.apiPassword,
+            cpfValidationRequired,
           },
         });
         if (res.success) okCount++;
@@ -136,6 +140,7 @@ function DevicesPage() {
       }
       setName("");
       setSlug("");
+      setCpfValidationRequired(false);
       setEndpoints([emptyEndpoint()]);
       setOpenCreate(false);
       reload();
@@ -252,6 +257,25 @@ function DevicesPage() {
                       <> · equipamentos extras receberão sufixo automático (ex.: <span className="font-mono">{slug}-2</span>)</>
                     )}
                   </p>
+                </div>
+
+                <div className="flex items-start gap-3 rounded-md border bg-muted/30 p-3">
+                  <Checkbox
+                    id="dev-cpf-validation"
+                    checked={cpfValidationRequired}
+                    onCheckedChange={(v) => setCpfValidationRequired(v === true)}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="dev-cpf-validation" className="cursor-pointer text-sm font-medium">
+                      Exigir validação de CPF na Receita Federal
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Quando ativo, o usuário precisará informar a data de nascimento e o
+                      sistema validará o CPF junto à Receita Federal antes de finalizar o
+                      cadastro. Aplica-se a todos os equipamentos cadastrados aqui.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="space-y-3 rounded-md border bg-muted/30 p-3">
@@ -374,6 +398,11 @@ function DevicesPage() {
                       <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
                         {d.api_base_url}
                       </p>
+                      {d.cpf_validation_required && (
+                        <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                          <ShieldCheck className="h-3 w-3" /> Valida CPF na Receita
+                        </span>
+                      )}
                     </div>
                     <Button
                       type="button"
