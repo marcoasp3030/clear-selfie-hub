@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { getSintegrawsToken } from "@/server/sintegrawsSettings.functions";
+import { getSintegrawsToken } from "@/server/sintegrawsSettings.server";
 
 const inputSchema = z.object({
   cpf: z
