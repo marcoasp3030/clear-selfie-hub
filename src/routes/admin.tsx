@@ -33,6 +33,7 @@ import {
   ChevronDown,
   Wrench,
   RefreshCw,
+  ShieldCheck,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -218,10 +219,16 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Sistema",
     icon: Wrench,
-    matchPrefixes: ["/admin/diagnostics", "/admin/migration", "/admin/docs"],
+    matchPrefixes: [
+      "/admin/diagnostics",
+      "/admin/migration",
+      "/admin/docs",
+      "/admin/sintegraws",
+    ],
     items: [
       { to: "/admin/diagnostics", label: "Diagnósticos", icon: Stethoscope },
       { to: "/admin/migration", label: "Migração VPS", icon: Server },
+      { to: "/admin/sintegraws", label: "Validação CPF (SintegraWS)", icon: ShieldCheck },
       { to: "/admin/docs", label: "Documentação", icon: BookOpen },
     ],
   },
