@@ -397,6 +397,11 @@ function DevicesPage() {
                       <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
                         {d.api_base_url}
                       </p>
+                      {d.cpf_validation_required && (
+                        <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                          <ShieldCheck className="h-3 w-3" /> Valida CPF na Receita
+                        </span>
+                      )}
                     </div>
                     <Button
                       type="button"
