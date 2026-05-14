@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSintegrawsToken } from "@/server/sintegrawsSettings.server";
+import { callSintegrawsCpf } from "./sintegrawsCpf.server";
 
 const inputSchema = z.object({
   cpf: z
@@ -13,14 +14,6 @@ const inputSchema = z.object({
     .trim()
     .regex(/^\d{8}$/, "Data inválida"),
 });
-
-type ApiResponse = {
-  code?: string;
-  status?: string;
-  message?: string;
-  nome?: string;
-  data_nascimento?: string;
-};
 
 export const validateCpfWithReceita = createServerFn({ method: "POST" })
   .inputValidator((input) => inputSchema.parse(input))
@@ -35,69 +28,17 @@ export const validateCpfWithReceita = createServerFn({ method: "POST" })
       };
     }
 
-    const url = new URL("https://www.sintegraws.com.br/api/v1/execute-api.php");
-    url.searchParams.set("token", token);
-    url.searchParams.set("cpf", data.cpf);
-    url.searchParams.set("data-nascimento", data.birthDate);
-    url.searchParams.set("plugin", "CPF");
-
-    let res: Response;
-    try {
-      res = await fetch(url.toString(), {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "User-Agent":
-            "Mozilla/5.0 (compatible; NutricarFacial/1.0; +https://facial.nutricarbrasil.com.br)",
-        },
-      });
-    } catch (err) {
-      console.error("[cpf-validation] network error:", err);
+    const result = await callSintegrawsCpf(token, data.cpf, data.birthDate);
+    if (!result.ok) {
+      console.error("[cpf-validation] SintegraWS error:", result.kind, result.status);
       return {
         success: false as const,
-        error: "network_error" as const,
-        message: "Não foi possível contatar a Receita Federal. Tente novamente.",
+        error: result.kind,
+        message: result.message,
       };
     }
 
-    let body: ApiResponse;
-    try {
-      const text = await res.text();
-      if (res.status === 403) {
-        console.error(
-          "[cpf-validation] access denied by validation service, status=403, content-type=",
-          res.headers.get("content-type"),
-        );
-        return {
-          success: false as const,
-          error: "access_denied" as const,
-          message:
-            "O serviço de validação recusou a consulta (HTTP 403). Verifique se o token SintegraWS está ativo, com saldo e liberado para uso pelo servidor.",
-        };
-      }
-      try {
-        body = JSON.parse(text) as ApiResponse;
-      } catch {
-        console.error(
-          "[cpf-validation] invalid JSON, status=",
-          res.status,
-          "body=",
-          text.slice(0, 500),
-        );
-        return {
-          success: false as const,
-          error: "invalid_response" as const,
-          message: `Resposta inválida do serviço de validação (HTTP ${res.status}).`,
-        };
-      }
-    } catch (err) {
-      console.error("[cpf-validation] read error:", err);
-      return {
-        success: false as const,
-        error: "invalid_response" as const,
-        message: "Resposta inválida do serviço de validação.",
-      };
-    }
+    const body = result.body;
 
     const code = String(body.code ?? "");
     if (code === "0") {
