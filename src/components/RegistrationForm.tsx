@@ -32,12 +32,13 @@ import {
   pollPhoneVerification,
 } from "@/server/phone.functions";
 import { syncRegistration } from "@/server/controlid.functions";
+import { validateCpfWithReceita } from "@/lib/cpfValidation.functions";
 import { getDeviceFingerprint } from "@/lib/fingerprint";
 import { collectClientDeviceInfo } from "@/lib/deviceInfo";
 import { PhotoCapture } from "./PhotoCapture";
 import { PhotoGuidelines } from "./PhotoGuidelines";
 
-const schema = z.object({
+const baseSchema = z.object({
   firstName: z.string().trim().min(2, "Informe seu nome").max(100, "Nome muito longo"),
   lastName: z
     .string()
@@ -54,6 +55,30 @@ const schema = z.object({
     .refine((v) => isValidCpf(v), "CPF inválido"),
 });
 
+function isValidBirthDateBR(v: string): boolean {
+  const m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return false;
+  const day = parseInt(m[1], 10);
+  const month = parseInt(m[2], 10);
+  const year = parseInt(m[3], 10);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const currentYear = new Date().getFullYear();
+  if (year < 1900 || year > currentYear) return false;
+  const d = new Date(year, month - 1, day);
+  return (
+    d.getFullYear() === year &&
+    d.getMonth() === month - 1 &&
+    d.getDate() === day
+  );
+}
+
+function maskBirthDate(value: string): string {
+  const d = value.replace(/\D/g, "").slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+}
+
 type Step = 0 | 1 | 2;
 
 const STEPS = [
@@ -63,14 +88,19 @@ const STEPS = [
 
 interface RegistrationFormProps {
   deviceId?: string;
+  cpfValidationRequired?: boolean;
 }
 
-export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
+export function RegistrationForm({
+  deviceId,
+  cpfValidationRequired = false,
+}: RegistrationFormProps = {}) {
   const [step, setStep] = useState<Step>(0);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [cpf, setCpf] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -96,6 +126,7 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
   const submitRegistration = useServerFn(createRegistration);
   const triggerSync = useServerFn(syncRegistration);
   const checkExisting = useServerFn(checkExistingRegistration);
+  const validateCpf = useServerFn(validateCpfWithReceita);
   const sendVerification = useServerFn(sendPhoneVerification);
   const verifyCode = useServerFn(verifyPhoneCode);
   const pollVerification = useServerFn(pollPhoneVerification);
