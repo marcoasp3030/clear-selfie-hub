@@ -1228,51 +1228,26 @@ export function RegistrationForm({
                 )}
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="cpf" className="text-sm font-medium">
-                  CPF
-                </Label>
-                <Input
-                  id="cpf"
-                  inputMode="numeric"
-                  value={cpf}
-                  onChange={(e) => {
-                    setCpf(maskCpf(e.target.value));
-                    if (duplicateInfo) setDuplicateInfo(null);
-                  }}
-                  placeholder="000.000.000-00"
-                  autoComplete="off"
-                  disabled={submitting}
-                  className="h-12 rounded-xl border-border/70 text-base transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0"
-                />
-                {errors.cpf && (
-                  <p className="text-xs font-medium text-destructive">{errors.cpf}</p>
-                )}
-              </div>
-
-              {cpfValidationRequired && (
+              {!cpfValidationRequired && (
                 <div className="space-y-1.5">
-                  <Label htmlFor="birthDate" className="text-sm font-medium">
-                    Data de nascimento
+                  <Label htmlFor="cpf" className="text-sm font-medium">
+                    CPF
                   </Label>
                   <Input
-                    id="birthDate"
+                    id="cpf"
                     inputMode="numeric"
-                    value={birthDate}
-                    onChange={(e) => setBirthDate(maskBirthDate(e.target.value))}
-                    placeholder="dd/mm/aaaa"
-                    autoComplete="bday"
+                    value={cpf}
+                    onChange={(e) => {
+                      setCpf(maskCpf(e.target.value));
+                      if (duplicateInfo) setDuplicateInfo(null);
+                    }}
+                    placeholder="000.000.000-00"
+                    autoComplete="off"
                     disabled={submitting}
                     className="h-12 rounded-xl border-border/70 text-base transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0"
                   />
-                  {errors.birthDate ? (
-                    <p className="text-xs font-medium text-destructive">
-                      {errors.birthDate}
-                    </p>
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground">
-                      Necessária para validar o CPF na Receita Federal.
-                    </p>
+                  {errors.cpf && (
+                    <p className="text-xs font-medium text-destructive">{errors.cpf}</p>
                   )}
                 </div>
               )}
@@ -1314,7 +1289,12 @@ export function RegistrationForm({
               onClick={submit}
               size="lg"
               className="h-14 flex-1 rounded-xl text-base font-semibold shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98]"
-              disabled={submitting || !!duplicateInfo || !isPhoneVerified}
+              disabled={
+                submitting ||
+                !!duplicateInfo ||
+                !isPhoneVerified ||
+                (cpfValidationRequired && !cpfValidated)
+              }
             >
               {submitting ? (
                 <>
