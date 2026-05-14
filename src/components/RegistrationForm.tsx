@@ -383,7 +383,21 @@ export function RegistrationForm({
   const submit = async () => {
     setErrors({});
     setDuplicateInfo(null);
-    const result = schema.safeParse({ firstName, lastName, phone, cpf });
+    const fullSchema = cpfValidationRequired
+      ? baseSchema.extend({
+          birthDate: z
+            .string()
+            .trim()
+            .refine((v) => isValidBirthDateBR(v), "Informe uma data válida (dd/mm/aaaa)"),
+        })
+      : baseSchema;
+    const result = fullSchema.safeParse({
+      firstName,
+      lastName,
+      phone,
+      cpf,
+      ...(cpfValidationRequired ? { birthDate } : {}),
+    });
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
       for (const issue of result.error.issues) {
@@ -409,6 +423,26 @@ export function RegistrationForm({
       const deviceInfo = collectClientDeviceInfo();
       const cpfDigits = onlyDigits(result.data.cpf);
       const phoneDigits = onlyDigits(result.data.phone);
+
+      // Validação de CPF na Receita (quando o equipamento exige)
+      if (cpfValidationRequired) {
+        const birthDigits = onlyDigits(birthDate); // ddmmaaaa
+        const validation = await validateCpf({
+          data: { cpf: cpfDigits, birthDate: birthDigits },
+        });
+        if (!validation.success) {
+          if (validation.error === "code_9") {
+            setErrors((prev) => ({
+              ...prev,
+              birthDate: "Data de nascimento não confere com o CPF.",
+            }));
+          } else if (validation.error === "code_1" || validation.error === "code_2") {
+            setErrors((prev) => ({ ...prev, cpf: validation.message }));
+          }
+          toast.error(validation.message);
+          return;
+        }
+      }
 
       // Pre-check: warn the user if CPF / phone / device is already registered
       const existing = await checkExisting({
