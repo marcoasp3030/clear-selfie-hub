@@ -183,3 +183,101 @@ export async function deleteDevice(id: string): Promise<{ error?: string }> {
   if (error) return { error: error.message };
   return {};
 }
+
+export type UpdateDeviceInput = {
+  id: string;
+  name: string;
+  slug: string;
+  api_base_url: string;
+  api_login: string;
+  // null = keep current password unchanged
+  api_password: string | null;
+  cpf_validation_required: boolean;
+};
+
+export async function updateDevice(
+  input: UpdateDeviceInput,
+): Promise<DeviceRow | null> {
+  if (getDataBackend() === "pg") {
+    if (input.api_password === null) {
+      const { rows } = await db.query<DeviceRow>(
+        `UPDATE devices
+            SET name = $2, slug = $3, api_base_url = $4, api_login = $5,
+                cpf_validation_required = $6
+          WHERE id = $1
+          RETURNING id::text, name, slug, api_base_url, api_login,
+                    created_at::text AS created_at, cpf_validation_required`,
+        [
+          input.id,
+          input.name,
+          input.slug,
+          input.api_base_url,
+          input.api_login,
+          input.cpf_validation_required,
+        ],
+      );
+      return rows[0] ?? null;
+    }
+    const { rows } = await db.query<DeviceRow>(
+      `UPDATE devices
+          SET name = $2, slug = $3, api_base_url = $4, api_login = $5,
+              api_password = $6, cpf_validation_required = $7
+        WHERE id = $1
+        RETURNING id::text, name, slug, api_base_url, api_login,
+                  created_at::text AS created_at, cpf_validation_required`,
+      [
+        input.id,
+        input.name,
+        input.slug,
+        input.api_base_url,
+        input.api_login,
+        input.api_password,
+        input.cpf_validation_required,
+      ],
+    );
+    return rows[0] ?? null;
+  }
+  const patch: {
+    name: string;
+    slug: string;
+    api_base_url: string;
+    api_login: string;
+    cpf_validation_required: boolean;
+    api_password?: string;
+  } = {
+    name: input.name,
+    slug: input.slug,
+    api_base_url: input.api_base_url,
+    api_login: input.api_login,
+    cpf_validation_required: input.cpf_validation_required,
+  };
+  if (input.api_password !== null) patch.api_password = input.api_password;
+  const { data, error } = await supabaseAdmin
+    .from("devices")
+    .update(patch)
+    .eq("id", input.id)
+    .select(DEVICE_COLS)
+    .single();
+  if (error || !data) return null;
+  return data as DeviceRow;
+}
+
+export async function slugExistsExcept(
+  slug: string,
+  excludeId: string,
+): Promise<boolean> {
+  if (getDataBackend() === "pg") {
+    const { rows } = await db.query<{ ok: boolean }>(
+      `SELECT EXISTS(SELECT 1 FROM devices WHERE slug = $1 AND id <> $2) AS ok`,
+      [slug, excludeId],
+    );
+    return Boolean(rows[0]?.ok);
+  }
+  const { data } = await supabaseAdmin
+    .from("devices")
+    .select("id")
+    .eq("slug", slug)
+    .neq("id", excludeId)
+    .maybeSingle();
+  return Boolean(data);
+}

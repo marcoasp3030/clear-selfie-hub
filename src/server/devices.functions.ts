@@ -7,6 +7,8 @@ import {
   insertDevice,
   listDevices as listDevicesRows,
   slugExists,
+  slugExistsExcept,
+  updateDevice as updateDeviceRow,
   type DeviceRow,
 } from "./devicesRepo.server";
 import { listDevicesByName } from "./devicesRepo.server";
@@ -89,6 +91,51 @@ export const deleteDevice = createServerFn({ method: "POST" })
     const res = await deleteDeviceRow(data.id);
     if (res.error) return { success: false as const, error: res.error };
     return { success: true as const };
+  });
+
+const updateSchema = z.object({
+  accessToken: accessTokenSchema,
+  id: z.string().uuid(),
+  name: z.string().trim().min(2).max(120),
+  slug: z.string().trim().min(2).max(60),
+  apiBaseUrl: z
+    .string()
+    .trim()
+    .min(8)
+    .max(255)
+    .url("URL inválida")
+    .refine((u) => /^https?:\/\//i.test(u), "URL deve começar com http:// ou https://"),
+  apiLogin: z.string().trim().min(1).max(120),
+  // empty string = keep current password
+  apiPassword: z.string().max(255),
+  cpfValidationRequired: z.boolean().optional().default(false),
+});
+
+export const updateDevice = createServerFn({ method: "POST" })
+  .inputValidator((input) => updateSchema.parse(input))
+  .handler(async ({ data }) => {
+    await assertAdminAccess(data.accessToken);
+
+    let slug = data.slug.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "");
+    if (!slugRegex.test(slug)) {
+      return { success: false as const, error: "invalid_slug" as const };
+    }
+    if (await slugExistsExcept(slug, data.id)) {
+      return { success: false as const, error: "duplicate_slug" as const };
+    }
+    const updated = await updateDeviceRow({
+      id: data.id,
+      name: data.name,
+      slug,
+      api_base_url: data.apiBaseUrl.replace(/\/+$/, ""),
+      api_login: data.apiLogin,
+      api_password: data.apiPassword.length > 0 ? data.apiPassword : null,
+      cpf_validation_required: data.cpfValidationRequired ?? false,
+    });
+    if (!updated) {
+      return { success: false as const, error: "update_failed" as const };
+    }
+    return { success: true as const, device: updated };
   });
 
 // Public lookup by slug — used by the public registration page.

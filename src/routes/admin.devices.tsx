@@ -6,6 +6,7 @@ import {
   listDevices,
   createDevice,
   deleteDevice,
+  updateDevice,
   type DeviceRow,
 } from "@/server/devices.functions";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
@@ -33,6 +34,7 @@ import {
   ExternalLink,
   X,
   ShieldCheck,
+  Pencil,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/devices")({
@@ -46,6 +48,7 @@ function DevicesPage() {
   const list = useServerFn(listDevices);
   const create = useServerFn(createDevice);
   const remove = useServerFn(deleteDevice);
+  const update = useServerFn(updateDevice);
 
   const [devices, setDevices] = useState<DeviceRow[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,6 +56,61 @@ function DevicesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+
+  // Edit dialog state
+  const [editing, setEditing] = useState<DeviceRow | null>(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editSlug, setEditSlug] = useState("");
+  const [editApiBaseUrl, setEditApiBaseUrl] = useState("");
+  const [editApiLogin, setEditApiLogin] = useState("");
+  const [editApiPassword, setEditApiPassword] = useState("");
+  const [editCpfValidation, setEditCpfValidation] = useState(false);
+
+  function openEdit(d: DeviceRow) {
+    setEditing(d);
+    setEditName(d.name);
+    setEditSlug(d.slug);
+    setEditApiBaseUrl(d.api_base_url);
+    setEditApiLogin(d.api_login ?? "");
+    setEditApiPassword("");
+    setEditCpfValidation(d.cpf_validation_required);
+  }
+
+  async function handleEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editing || editSubmitting) return;
+    setEditSubmitting(true);
+    try {
+      const accessToken = await requireAdminAccessToken();
+      const res = await update({
+        data: {
+          accessToken,
+          id: editing.id,
+          name: editName.trim(),
+          slug: editSlug.trim().toLowerCase(),
+          apiBaseUrl: editApiBaseUrl.trim(),
+          apiLogin: editApiLogin.trim(),
+          apiPassword: editApiPassword,
+          cpfValidationRequired: editCpfValidation,
+        },
+      });
+      if (!res.success) {
+        if (res.error === "duplicate_slug") toast.error("Slug já está em uso");
+        else if (res.error === "invalid_slug") toast.error("Slug inválido");
+        else toast.error("Falha ao salvar alterações");
+        return;
+      }
+      toast.success("Equipamento atualizado");
+      setEditing(null);
+      reload();
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro inesperado");
+    } finally {
+      setEditSubmitting(false);
+    }
+  }
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -418,6 +476,15 @@ function DevicesPage() {
                         <Trash2 className="h-4 w-4" />
                       )}
                     </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEdit(d)}
+                      aria-label="Editar"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -461,6 +528,116 @@ function DevicesPage() {
           })}
         </div>
       )}
+
+      {/* Edit dialog */}
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent>
+          <form onSubmit={handleEdit}>
+            <DialogHeader>
+              <DialogTitle>Editar equipamento</DialogTitle>
+              <DialogDescription>
+                Atualize os dados do equipamento. Deixe a senha em branco para manter
+                a senha atual.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="my-5 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-name">Nome da loja / equipamento</Label>
+                <Input
+                  id="edit-name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  required
+                  minLength={2}
+                  maxLength={120}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-slug">Slug da URL</Label>
+                <Input
+                  id="edit-slug"
+                  value={editSlug}
+                  onChange={(e) => setEditSlug(e.target.value.toLowerCase())}
+                  pattern="[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?"
+                  required
+                  maxLength={60}
+                />
+                <p className="text-xs text-muted-foreground">
+                  URL pública: <span className="font-mono">/r/{editSlug || "<slug>"}</span>
+                </p>
+              </div>
+
+              <div className="flex items-start gap-3 rounded-md border bg-muted/30 p-3">
+                <Checkbox
+                  id="edit-cpf-validation"
+                  checked={editCpfValidation}
+                  onCheckedChange={(v) => setEditCpfValidation(v === true)}
+                  className="mt-0.5"
+                />
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="edit-cpf-validation"
+                    className="cursor-pointer text-sm font-medium"
+                  >
+                    Exigir validação de CPF na Receita Federal
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Quando ativo, o usuário precisará informar a data de nascimento e
+                    o CPF será validado na Receita antes do cadastro.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-url">URL base da API</Label>
+                <Input
+                  id="edit-url"
+                  type="url"
+                  value={editApiBaseUrl}
+                  onChange={(e) => setEditApiBaseUrl(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-login">Login (admin)</Label>
+                  <Input
+                    id="edit-login"
+                    value={editApiLogin}
+                    onChange={(e) => setEditApiLogin(e.target.value)}
+                    required
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-password">Senha</Label>
+                  <Input
+                    id="edit-password"
+                    type="password"
+                    placeholder="(deixe em branco para manter)"
+                    value={editApiPassword}
+                    onChange={(e) => setEditApiPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditing(null)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={editSubmitting}>
+                {editSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Salvar alterações
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
