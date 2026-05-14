@@ -237,7 +237,14 @@ export async function updateDevice(
     );
     return rows[0] ?? null;
   }
-  const patch: Record<string, unknown> = {
+  const patch: {
+    name: string;
+    slug: string;
+    api_base_url: string;
+    api_login: string;
+    cpf_validation_required: boolean;
+    api_password?: string;
+  } = {
     name: input.name,
     slug: input.slug,
     api_base_url: input.api_base_url,
