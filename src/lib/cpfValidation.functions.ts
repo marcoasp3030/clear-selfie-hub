@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { getSintegrawsToken } from "@/server/sintegrawsSettings.functions";
 
 const inputSchema = z.object({
   cpf: z
@@ -24,7 +25,7 @@ type ApiResponse = {
 export const validateCpfWithReceita = createServerFn({ method: "POST" })
   .inputValidator((input) => inputSchema.parse(input))
   .handler(async ({ data }) => {
-    const token = process.env.SINTEGRAWS_TOKEN;
+    const token = await getSintegrawsToken();
     if (!token) {
       console.error("[cpf-validation] SINTEGRAWS_TOKEN not configured");
       return {
