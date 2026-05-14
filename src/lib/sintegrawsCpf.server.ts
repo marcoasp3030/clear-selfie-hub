@@ -52,7 +52,9 @@ export async function callSintegrawsCpf(
     res = await fetch(url.toString(), {
       method: "GET",
       headers: {
-        Accept: "application/json",
+        // Mimic PHP cURL defaults — alguns WAFs bloqueiam fetch sem User-Agent
+        "User-Agent": "curl/8.4.0",
+        Accept: "*/*",
       },
     });
   } catch (err) {
