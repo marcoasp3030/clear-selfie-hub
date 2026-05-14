@@ -82,6 +82,7 @@ export type Database = {
           api_base_url: string
           api_login: string | null
           api_password: string | null
+          cpf_validation_required: boolean
           created_at: string
           created_by: string | null
           id: string
@@ -92,6 +93,7 @@ export type Database = {
           api_base_url: string
           api_login?: string | null
           api_password?: string | null
+          cpf_validation_required?: boolean
           created_at?: string
           created_by?: string | null
           id?: string
@@ -102,6 +104,7 @@ export type Database = {
           api_base_url?: string
           api_login?: string | null
           api_password?: string | null
+          cpf_validation_required?: boolean
           created_at?: string
           created_by?: string | null
           id?: string

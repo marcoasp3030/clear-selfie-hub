@@ -1,0 +1,1 @@
+ALTER TABLE public.devices ADD COLUMN IF NOT EXISTS cpf_validation_required boolean NOT NULL DEFAULT false;
