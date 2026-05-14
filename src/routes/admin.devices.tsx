@@ -476,6 +476,15 @@ function DevicesPage() {
                         <Trash2 className="h-4 w-4" />
                       )}
                     </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEdit(d)}
+                      aria-label="Editar"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
