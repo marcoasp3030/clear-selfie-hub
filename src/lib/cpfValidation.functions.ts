@@ -2,9 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 const inputSchema = z.object({
-  cpf: z.string().trim().regex(/^\d{11}$/, "CPF inválido"),
+  cpf: z
+    .string()
+    .trim()
+    .regex(/^\d{11}$/, "CPF inválido"),
   // Date in ddmmaaaa format (8 digits).
-  birthDate: z.string().trim().regex(/^\d{8}$/, "Data inválida"),
+  birthDate: z
+    .string()
+    .trim()
+    .regex(/^\d{8}$/, "Data inválida"),
 });
 
 type ApiResponse = {
