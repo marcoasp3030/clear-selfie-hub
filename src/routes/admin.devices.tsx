@@ -258,6 +258,25 @@ function DevicesPage() {
                   </p>
                 </div>
 
+                <div className="flex items-start gap-3 rounded-md border bg-muted/30 p-3">
+                  <Checkbox
+                    id="dev-cpf-validation"
+                    checked={cpfValidationRequired}
+                    onCheckedChange={(v) => setCpfValidationRequired(v === true)}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="dev-cpf-validation" className="cursor-pointer text-sm font-medium">
+                      Exigir validação de CPF na Receita Federal
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Quando ativo, o usuário precisará informar a data de nascimento e o
+                      sistema validará o CPF junto à Receita Federal antes de finalizar o
+                      cadastro. Aplica-se a todos os equipamentos cadastrados aqui.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="space-y-3 rounded-md border bg-muted/30 p-3">
                   <div className="flex items-center justify-between">
                     <div>
