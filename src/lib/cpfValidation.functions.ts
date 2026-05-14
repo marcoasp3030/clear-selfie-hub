@@ -2,9 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 const inputSchema = z.object({
-  cpf: z.string().trim().regex(/^\d{11}$/, "CPF inválido"),
+  cpf: z
+    .string()
+    .trim()
+    .regex(/^\d{11}$/, "CPF inválido"),
   // Date in ddmmaaaa format (8 digits).
-  birthDate: z.string().trim().regex(/^\d{8}$/, "Data inválida"),
+  birthDate: z
+    .string()
+    .trim()
+    .regex(/^\d{8}$/, "Data inválida"),
 });
 
 type ApiResponse = {
@@ -56,6 +62,18 @@ export const validateCpfWithReceita = createServerFn({ method: "POST" })
     let body: ApiResponse;
     try {
       const text = await res.text();
+      if (res.status === 403) {
+        console.error(
+          "[cpf-validation] access denied by validation service, status=403, content-type=",
+          res.headers.get("content-type"),
+        );
+        return {
+          success: false as const,
+          error: "access_denied" as const,
+          message:
+            "O serviço de validação recusou a consulta (HTTP 403). Verifique se o token SintegraWS está ativo, com saldo e liberado para uso pelo servidor.",
+        };
+      }
       try {
         body = JSON.parse(text) as ApiResponse;
       } catch {
