@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { assertAdminAccess } from "./admin.server";
 import { getSetting, upsertSetting } from "./appSettingsRepo.server";
+import { callSintegrawsCpf } from "@/lib/sintegrawsCpf.server";
 import {
   SINTEGRAWS_TOKEN_KEY,
   getSintegrawsToken,
@@ -78,37 +79,24 @@ export const testSintegrawsToken = createServerFn({ method: "POST" })
         body: null as string | null,
       };
     }
-    const url = new URL("https://www.sintegraws.com.br/api/v1/execute-api.php");
-    url.searchParams.set("token", token);
-    url.searchParams.set("cpf", data.cpf);
-    url.searchParams.set("data-nascimento", data.birthDate);
-    url.searchParams.set("plugin", "CPF");
-    let res: Response;
-    try {
-      res = await fetch(url.toString(), {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "User-Agent":
-            "Mozilla/5.0 (compatible; NutricarFacial/1.0; +https://facial.nutricarbrasil.com.br)",
-        },
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+    const result = await callSintegrawsCpf(token, data.cpf, data.birthDate);
+    if (!result.ok) {
       return {
         success: false as const,
-        status: 0,
-        message: `Falha de rede: ${msg}`,
-        body: null,
+        status: result.status,
+        message: result.message,
+        body: result.raw,
+        blocked: result.kind === "blocked",
       };
     }
-    const text = await res.text();
+
     return {
-      success: res.ok,
-      status: res.status,
-      message: res.ok
+      success: result.status >= 200 && result.status < 300,
+      status: result.status,
+      message: result.status >= 200 && result.status < 300
         ? "Resposta recebida do SintegraWS."
-        : `HTTP ${res.status} retornado pelo SintegraWS.`,
-      body: text.slice(0, 1000),
+        : `HTTP ${result.status} retornado pelo SintegraWS.`,
+      body: result.raw.slice(0, 1000),
+      blocked: false,
     };
   });
