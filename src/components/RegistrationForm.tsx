@@ -101,6 +101,8 @@ export function RegistrationForm({
   const [phone, setPhone] = useState("");
   const [cpf, setCpf] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  const [cpfValidating, setCpfValidating] = useState(false);
+  const [cpfValidated, setCpfValidated] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -146,6 +148,59 @@ export function RegistrationForm({
 
   const isPhoneVerified =
     verificationStatus === "verified" && verifiedPhone === phone;
+
+  // Se o usuário alterar CPF ou data depois de validar, exige nova validação.
+  useEffect(() => {
+    if (cpfValidated) {
+      setCpfValidated(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cpf, birthDate]);
+
+  const handleValidateCpf = async () => {
+    setErrors((prev) => ({ ...prev, cpf: "", birthDate: "" }));
+    if (!isValidCpf(cpf)) {
+      setErrors((prev) => ({ ...prev, cpf: "CPF inválido" }));
+      return;
+    }
+    if (!isValidBirthDateBR(birthDate)) {
+      setErrors((prev) => ({
+        ...prev,
+        birthDate: "Informe uma data válida (dd/mm/aaaa)",
+      }));
+      return;
+    }
+    setCpfValidating(true);
+    try {
+      const res = await validateCpf({
+        data: { cpf: onlyDigits(cpf), birthDate: onlyDigits(birthDate) },
+      });
+      if (!res.success) {
+        if (res.error === "code_9") {
+          setErrors((prev) => ({
+            ...prev,
+            birthDate: "Data de nascimento não confere com o CPF.",
+          }));
+        } else {
+          setErrors((prev) => ({ ...prev, cpf: res.message }));
+        }
+        toast.error(res.message);
+        return;
+      }
+      if (res.nome) {
+        const parts = res.nome.trim().split(/\s+/);
+        setFirstName(parts[0] ?? "");
+        setLastName(parts.slice(1).join(" "));
+      }
+      setCpfValidated(true);
+      toast.success("CPF validado! Confira seus dados.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Não foi possível validar o CPF. Tente novamente.");
+    } finally {
+      setCpfValidating(false);
+    }
+  };
 
   // Resend cooldown ticker
   useEffect(() => {
@@ -416,7 +471,7 @@ export function RegistrationForm({
       const phoneDigits = onlyDigits(result.data.phone);
 
       // Validação de CPF na Receita (quando o equipamento exige)
-      if (cpfValidationRequired) {
+      if (cpfValidationRequired && !cpfValidated) {
         const birthDigits = onlyDigits(birthDate); // ddmmaaaa
         const validation = await validateCpf({
           data: { cpf: cpfDigits, birthDate: birthDigits },
@@ -839,6 +894,100 @@ export function RegistrationForm({
             </div>
 
             <div className="space-y-4">
+              {cpfValidationRequired && (
+                <div className="space-y-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
+                  <div className="flex items-start gap-2">
+                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-foreground">
+                        Validação na Receita Federal
+                      </p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                        Informe seu CPF e data de nascimento. Vamos validar e
+                        preencher seu nome automaticamente.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cpf-top" className="text-sm font-medium">
+                      CPF
+                    </Label>
+                    <Input
+                      id="cpf-top"
+                      inputMode="numeric"
+                      value={cpf}
+                      onChange={(e) => {
+                        setCpf(maskCpf(e.target.value));
+                        if (duplicateInfo) setDuplicateInfo(null);
+                      }}
+                      placeholder="000.000.000-00"
+                      autoComplete="off"
+                      disabled={submitting || cpfValidating || cpfValidated}
+                      className="h-12 rounded-xl border-border/70 text-base"
+                    />
+                    {errors.cpf && (
+                      <p className="text-xs font-medium text-destructive">
+                        {errors.cpf}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="birthDate" className="text-sm font-medium">
+                      Data de nascimento
+                    </Label>
+                    <Input
+                      id="birthDate"
+                      inputMode="numeric"
+                      value={birthDate}
+                      onChange={(e) => setBirthDate(maskBirthDate(e.target.value))}
+                      placeholder="dd/mm/aaaa"
+                      autoComplete="bday"
+                      disabled={submitting || cpfValidating || cpfValidated}
+                      className="h-12 rounded-xl border-border/70 text-base"
+                    />
+                    {errors.birthDate && (
+                      <p className="text-xs font-medium text-destructive">
+                        {errors.birthDate}
+                      </p>
+                    )}
+                  </div>
+
+                  {!cpfValidated ? (
+                    <Button
+                      type="button"
+                      onClick={handleValidateCpf}
+                      size="lg"
+                      className="h-12 w-full rounded-xl text-base font-semibold"
+                      disabled={
+                        submitting ||
+                        cpfValidating ||
+                        !isValidCpf(cpf) ||
+                        !isValidBirthDateBR(birthDate)
+                      }
+                    >
+                      {cpfValidating ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Validando...
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="mr-2 h-5 w-5" />
+                          Validar CPF
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4" />
+                      CPF validado na Receita Federal
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label htmlFor="firstName" className="text-sm font-medium">
                   Nome
@@ -1079,51 +1228,26 @@ export function RegistrationForm({
                 )}
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="cpf" className="text-sm font-medium">
-                  CPF
-                </Label>
-                <Input
-                  id="cpf"
-                  inputMode="numeric"
-                  value={cpf}
-                  onChange={(e) => {
-                    setCpf(maskCpf(e.target.value));
-                    if (duplicateInfo) setDuplicateInfo(null);
-                  }}
-                  placeholder="000.000.000-00"
-                  autoComplete="off"
-                  disabled={submitting}
-                  className="h-12 rounded-xl border-border/70 text-base transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0"
-                />
-                {errors.cpf && (
-                  <p className="text-xs font-medium text-destructive">{errors.cpf}</p>
-                )}
-              </div>
-
-              {cpfValidationRequired && (
+              {!cpfValidationRequired && (
                 <div className="space-y-1.5">
-                  <Label htmlFor="birthDate" className="text-sm font-medium">
-                    Data de nascimento
+                  <Label htmlFor="cpf" className="text-sm font-medium">
+                    CPF
                   </Label>
                   <Input
-                    id="birthDate"
+                    id="cpf"
                     inputMode="numeric"
-                    value={birthDate}
-                    onChange={(e) => setBirthDate(maskBirthDate(e.target.value))}
-                    placeholder="dd/mm/aaaa"
-                    autoComplete="bday"
+                    value={cpf}
+                    onChange={(e) => {
+                      setCpf(maskCpf(e.target.value));
+                      if (duplicateInfo) setDuplicateInfo(null);
+                    }}
+                    placeholder="000.000.000-00"
+                    autoComplete="off"
                     disabled={submitting}
                     className="h-12 rounded-xl border-border/70 text-base transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0"
                   />
-                  {errors.birthDate ? (
-                    <p className="text-xs font-medium text-destructive">
-                      {errors.birthDate}
-                    </p>
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground">
-                      Necessária para validar o CPF na Receita Federal.
-                    </p>
+                  {errors.cpf && (
+                    <p className="text-xs font-medium text-destructive">{errors.cpf}</p>
                   )}
                 </div>
               )}
@@ -1165,7 +1289,12 @@ export function RegistrationForm({
               onClick={submit}
               size="lg"
               className="h-14 flex-1 rounded-xl text-base font-semibold shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98]"
-              disabled={submitting || !!duplicateInfo || !isPhoneVerified}
+              disabled={
+                submitting ||
+                !!duplicateInfo ||
+                !isPhoneVerified ||
+                (cpfValidationRequired && !cpfValidated)
+              }
             >
               {submitting ? (
                 <>
