@@ -329,9 +329,8 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
     }
   };
 
-  // Quando uma foto é capturada, limpa o erro e dá um leve scroll
-  // pro botão "Continuar" ficar visível — sem auto-avançar (o usuário
-  // ainda pode querer refazer a foto).
+  // Quando uma foto é aceita, limpa o erro e avança automaticamente
+  // para a tela "Seus dados" — evita um clique extra em "Continuar".
   useEffect(() => {
     if (step !== 0 || !photo) return;
     setErrors((prev) => {
@@ -339,6 +338,15 @@ export function RegistrationForm({ deviceId }: RegistrationFormProps = {}) {
       const { photo: _omit, ...rest } = prev;
       return rest;
     });
+    const t = setTimeout(() => {
+      setStep(1);
+      if (typeof window !== "undefined") {
+        requestAnimationFrame(() =>
+          window.scrollTo({ top: 0, behavior: "smooth" }),
+        );
+      }
+    }, 350);
+    return () => clearTimeout(t);
   }, [photo, step]);
 
   const submit = async () => {
