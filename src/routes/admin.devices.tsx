@@ -32,6 +32,7 @@ import {
   Cpu,
   ExternalLink,
   X,
+  ShieldCheck,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/devices")({
