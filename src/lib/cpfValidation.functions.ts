@@ -36,7 +36,14 @@ export const validateCpfWithReceita = createServerFn({ method: "POST" })
 
     let res: Response;
     try {
-      res = await fetch(url.toString(), { method: "GET" });
+      res = await fetch(url.toString(), {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "User-Agent":
+            "Mozilla/5.0 (compatible; NutricarFacial/1.0; +https://facial.nutricarbrasil.com.br)",
+        },
+      });
     } catch (err) {
       console.error("[cpf-validation] network error:", err);
       return {
@@ -48,9 +55,24 @@ export const validateCpfWithReceita = createServerFn({ method: "POST" })
 
     let body: ApiResponse;
     try {
-      body = (await res.json()) as ApiResponse;
-    } catch {
-      console.error("[cpf-validation] invalid JSON, status=", res.status);
+      const text = await res.text();
+      try {
+        body = JSON.parse(text) as ApiResponse;
+      } catch {
+        console.error(
+          "[cpf-validation] invalid JSON, status=",
+          res.status,
+          "body=",
+          text.slice(0, 500),
+        );
+        return {
+          success: false as const,
+          error: "invalid_response" as const,
+          message: `Resposta inválida do serviço de validação (HTTP ${res.status}).`,
+        };
+      }
+    } catch (err) {
+      console.error("[cpf-validation] read error:", err);
       return {
         success: false as const,
         error: "invalid_response" as const,
