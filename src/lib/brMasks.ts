@@ -1,7 +1,12 @@
 // Brazilian input masks + validators (CPF, celular).
 
 export function maskPhone(value: string): string {
-  const d = value.replace(/\D/g, "").slice(0, 11);
+  let d = value.replace(/\D/g, "");
+  // Remove código do país (+55 / 55) se o usuário colar com DDI
+  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
+  // Remove 0 inicial (ex: 011 9...)
+  if (d.length === 12 && d.startsWith("0")) d = d.slice(1);
+  d = d.slice(0, 11);
   if (d.length === 0) return "";
   if (d.length <= 2) return `(${d}`;
   if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
