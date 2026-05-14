@@ -94,7 +94,10 @@ function PublicDeviceRegistration() {
 
         <StoreDevicesStatus slug={slug} />
 
-        <RegistrationForm deviceId={device.id} />
+        <RegistrationForm
+          deviceId={device.id}
+          cpfValidationRequired={device.cpf_validation_required}
+        />
       </main>
 
       <footer className="relative pb-8 pt-2 text-center">
