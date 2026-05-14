@@ -6,6 +6,7 @@ import {
   listDevices,
   createDevice,
   deleteDevice,
+  updateDevice,
   type DeviceRow,
 } from "@/server/devices.functions";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
@@ -33,6 +34,7 @@ import {
   ExternalLink,
   X,
   ShieldCheck,
+  Pencil,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/devices")({
@@ -46,6 +48,7 @@ function DevicesPage() {
   const list = useServerFn(listDevices);
   const create = useServerFn(createDevice);
   const remove = useServerFn(deleteDevice);
+  const update = useServerFn(updateDevice);
 
   const [devices, setDevices] = useState<DeviceRow[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,6 +56,61 @@ function DevicesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+
+  // Edit dialog state
+  const [editing, setEditing] = useState<DeviceRow | null>(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editSlug, setEditSlug] = useState("");
+  const [editApiBaseUrl, setEditApiBaseUrl] = useState("");
+  const [editApiLogin, setEditApiLogin] = useState("");
+  const [editApiPassword, setEditApiPassword] = useState("");
+  const [editCpfValidation, setEditCpfValidation] = useState(false);
+
+  function openEdit(d: DeviceRow) {
+    setEditing(d);
+    setEditName(d.name);
+    setEditSlug(d.slug);
+    setEditApiBaseUrl(d.api_base_url);
+    setEditApiLogin(d.api_login ?? "");
+    setEditApiPassword("");
+    setEditCpfValidation(d.cpf_validation_required);
+  }
+
+  async function handleEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editing || editSubmitting) return;
+    setEditSubmitting(true);
+    try {
+      const accessToken = await requireAdminAccessToken();
+      const res = await update({
+        data: {
+          accessToken,
+          id: editing.id,
+          name: editName.trim(),
+          slug: editSlug.trim().toLowerCase(),
+          apiBaseUrl: editApiBaseUrl.trim(),
+          apiLogin: editApiLogin.trim(),
+          apiPassword: editApiPassword,
+          cpfValidationRequired: editCpfValidation,
+        },
+      });
+      if (!res.success) {
+        if (res.error === "duplicate_slug") toast.error("Slug já está em uso");
+        else if (res.error === "invalid_slug") toast.error("Slug inválido");
+        else toast.error("Falha ao salvar alterações");
+        return;
+      }
+      toast.success("Equipamento atualizado");
+      setEditing(null);
+      reload();
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro inesperado");
+    } finally {
+      setEditSubmitting(false);
+    }
+  }
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
