@@ -9,18 +9,19 @@ export type DeviceRow = {
   api_base_url: string;
   api_login: string | null;
   created_at: string;
+  cpf_validation_required: boolean;
 };
 
 export type DeviceFull = DeviceRow & { api_password: string | null };
 
 const DEVICE_COLS =
-  "id, name, slug, api_base_url, api_login, created_at";
+  "id, name, slug, api_base_url, api_login, created_at, cpf_validation_required";
 
 export async function listDevices(): Promise<DeviceRow[]> {
   if (getDataBackend() === "pg") {
     const { rows } = await db.query<DeviceRow>(
       `SELECT id::text, name, slug, api_base_url, api_login,
-              created_at::text AS created_at
+              created_at::text AS created_at, cpf_validation_required
          FROM devices
         ORDER BY created_at DESC`,
     );
@@ -36,21 +37,21 @@ export async function listDevices(): Promise<DeviceRow[]> {
 
 export async function findDeviceBySlug(
   slug: string,
-): Promise<{ id: string; name: string; slug: string } | null> {
+): Promise<{ id: string; name: string; slug: string; cpf_validation_required: boolean } | null> {
   if (getDataBackend() === "pg") {
-    const { rows } = await db.query<{ id: string; name: string; slug: string }>(
-      `SELECT id::text, name, slug FROM devices WHERE slug = $1 LIMIT 1`,
+    const { rows } = await db.query<{ id: string; name: string; slug: string; cpf_validation_required: boolean }>(
+      `SELECT id::text, name, slug, cpf_validation_required FROM devices WHERE slug = $1 LIMIT 1`,
       [slug],
     );
     return rows[0] ?? null;
   }
   const { data, error } = await supabaseAdmin
     .from("devices")
-    .select("id, name, slug")
+    .select("id, name, slug, cpf_validation_required")
     .eq("slug", slug)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return (data as { id: string; name: string; slug: string } | null) ?? null;
+  return (data as { id: string; name: string; slug: string; cpf_validation_required: boolean } | null) ?? null;
 }
 
 export async function findDeviceCredentialsBySlug(
@@ -59,7 +60,7 @@ export async function findDeviceCredentialsBySlug(
   if (getDataBackend() === "pg") {
     const { rows } = await db.query<DeviceFull>(
       `SELECT id::text, name, slug, api_base_url, api_login, api_password,
-              created_at::text AS created_at
+              created_at::text AS created_at, cpf_validation_required
          FROM devices WHERE slug = $1 LIMIT 1`,
       [slug],
     );
@@ -67,7 +68,7 @@ export async function findDeviceCredentialsBySlug(
   }
   const { data, error } = await supabaseAdmin
     .from("devices")
-    .select("id, name, slug, api_base_url, api_login, api_password, created_at")
+    .select("id, name, slug, api_base_url, api_login, api_password, created_at, cpf_validation_required")
     .eq("slug", slug)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -78,7 +79,7 @@ export async function findDeviceById(id: string): Promise<DeviceFull | null> {
   if (getDataBackend() === "pg") {
     const { rows } = await db.query<DeviceFull>(
       `SELECT id::text, name, slug, api_base_url, api_login, api_password,
-              created_at::text AS created_at
+              created_at::text AS created_at, cpf_validation_required
          FROM devices WHERE id = $1 LIMIT 1`,
       [id],
     );
@@ -86,7 +87,7 @@ export async function findDeviceById(id: string): Promise<DeviceFull | null> {
   }
   const { data, error } = await supabaseAdmin
     .from("devices")
-    .select("id, name, slug, api_base_url, api_login, api_password, created_at")
+    .select("id, name, slug, api_base_url, api_login, api_password, created_at, cpf_validation_required")
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -99,7 +100,7 @@ export async function listDevicesByName(name: string): Promise<DeviceFull[]> {
   if (getDataBackend() === "pg") {
     const { rows } = await db.query<DeviceFull>(
       `SELECT id::text, name, slug, api_base_url, api_login, api_password,
-              created_at::text AS created_at
+              created_at::text AS created_at, cpf_validation_required
          FROM devices
         WHERE LOWER(TRIM(name)) = LOWER($1)
         ORDER BY created_at ASC`,
@@ -109,7 +110,7 @@ export async function listDevicesByName(name: string): Promise<DeviceFull[]> {
   }
   const { data, error } = await supabaseAdmin
     .from("devices")
-    .select("id, name, slug, api_base_url, api_login, api_password, created_at")
+    .select("id, name, slug, api_base_url, api_login, api_password, created_at, cpf_validation_required")
     .ilike("name", trimmed);
   if (error) throw new Error(error.message);
   return ((data ?? []) as DeviceFull[]).filter(
@@ -140,6 +141,7 @@ export type InsertDeviceInput = {
   api_login: string;
   api_password: string;
   created_by: string | null;
+  cpf_validation_required: boolean;
 };
 
 export async function insertDevice(
@@ -147,10 +149,10 @@ export async function insertDevice(
 ): Promise<DeviceRow | null> {
   if (getDataBackend() === "pg") {
     const { rows } = await db.query<DeviceRow>(
-      `INSERT INTO devices (name, slug, api_base_url, api_login, api_password, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO devices (name, slug, api_base_url, api_login, api_password, created_by, cpf_validation_required)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id::text, name, slug, api_base_url, api_login,
-                 created_at::text AS created_at`,
+                 created_at::text AS created_at, cpf_validation_required`,
       [
         input.name,
         input.slug,
@@ -158,6 +160,7 @@ export async function insertDevice(
         input.api_login,
         input.api_password,
         input.created_by,
+        input.cpf_validation_required,
       ],
     );
     return rows[0] ?? null;
