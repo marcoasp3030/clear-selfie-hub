@@ -360,8 +360,8 @@ export function RegistrationForm({
     }
   };
 
-  // Quando uma foto é aceita, limpa o erro e avança automaticamente
-  // para a tela "Seus dados" — evita um clique extra em "Continuar".
+  // Quando uma foto é aceita, apenas limpa o erro. O usuário deve revisar
+  // e clicar em "Continuar" para avançar — sem avanço automático.
   useEffect(() => {
     if (step !== 0 || !photo) return;
     setErrors((prev) => {
@@ -369,15 +369,6 @@ export function RegistrationForm({
       const { photo: _omit, ...rest } = prev;
       return rest;
     });
-    const t = setTimeout(() => {
-      setStep(1);
-      if (typeof window !== "undefined") {
-        requestAnimationFrame(() =>
-          window.scrollTo({ top: 0, behavior: "smooth" }),
-        );
-      }
-    }, 350);
-    return () => clearTimeout(t);
   }, [photo, step]);
 
   const submit = async () => {
