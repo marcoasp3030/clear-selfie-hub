@@ -894,6 +894,100 @@ export function RegistrationForm({
             </div>
 
             <div className="space-y-4">
+              {cpfValidationRequired && (
+                <div className="space-y-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
+                  <div className="flex items-start gap-2">
+                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-foreground">
+                        Validação na Receita Federal
+                      </p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                        Informe seu CPF e data de nascimento. Vamos validar e
+                        preencher seu nome automaticamente.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cpf-top" className="text-sm font-medium">
+                      CPF
+                    </Label>
+                    <Input
+                      id="cpf-top"
+                      inputMode="numeric"
+                      value={cpf}
+                      onChange={(e) => {
+                        setCpf(maskCpf(e.target.value));
+                        if (duplicateInfo) setDuplicateInfo(null);
+                      }}
+                      placeholder="000.000.000-00"
+                      autoComplete="off"
+                      disabled={submitting || cpfValidating || cpfValidated}
+                      className="h-12 rounded-xl border-border/70 text-base"
+                    />
+                    {errors.cpf && (
+                      <p className="text-xs font-medium text-destructive">
+                        {errors.cpf}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="birthDate" className="text-sm font-medium">
+                      Data de nascimento
+                    </Label>
+                    <Input
+                      id="birthDate"
+                      inputMode="numeric"
+                      value={birthDate}
+                      onChange={(e) => setBirthDate(maskBirthDate(e.target.value))}
+                      placeholder="dd/mm/aaaa"
+                      autoComplete="bday"
+                      disabled={submitting || cpfValidating || cpfValidated}
+                      className="h-12 rounded-xl border-border/70 text-base"
+                    />
+                    {errors.birthDate && (
+                      <p className="text-xs font-medium text-destructive">
+                        {errors.birthDate}
+                      </p>
+                    )}
+                  </div>
+
+                  {!cpfValidated ? (
+                    <Button
+                      type="button"
+                      onClick={handleValidateCpf}
+                      size="lg"
+                      className="h-12 w-full rounded-xl text-base font-semibold"
+                      disabled={
+                        submitting ||
+                        cpfValidating ||
+                        !isValidCpf(cpf) ||
+                        !isValidBirthDateBR(birthDate)
+                      }
+                    >
+                      {cpfValidating ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Validando...
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="mr-2 h-5 w-5" />
+                          Validar CPF
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4" />
+                      CPF validado na Receita Federal
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label htmlFor="firstName" className="text-sm font-medium">
                   Nome
