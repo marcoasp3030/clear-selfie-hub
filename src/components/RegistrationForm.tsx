@@ -101,6 +101,8 @@ export function RegistrationForm({
   const [phone, setPhone] = useState("");
   const [cpf, setCpf] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  const [cpfValidating, setCpfValidating] = useState(false);
+  const [cpfValidated, setCpfValidated] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -146,6 +148,59 @@ export function RegistrationForm({
 
   const isPhoneVerified =
     verificationStatus === "verified" && verifiedPhone === phone;
+
+  // Se o usuário alterar CPF ou data depois de validar, exige nova validação.
+  useEffect(() => {
+    if (cpfValidated) {
+      setCpfValidated(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cpf, birthDate]);
+
+  const handleValidateCpf = async () => {
+    setErrors((prev) => ({ ...prev, cpf: "", birthDate: "" }));
+    if (!isValidCpf(cpf)) {
+      setErrors((prev) => ({ ...prev, cpf: "CPF inválido" }));
+      return;
+    }
+    if (!isValidBirthDateBR(birthDate)) {
+      setErrors((prev) => ({
+        ...prev,
+        birthDate: "Informe uma data válida (dd/mm/aaaa)",
+      }));
+      return;
+    }
+    setCpfValidating(true);
+    try {
+      const res = await validateCpf({
+        data: { cpf: onlyDigits(cpf), birthDate: onlyDigits(birthDate) },
+      });
+      if (!res.success) {
+        if (res.error === "code_9") {
+          setErrors((prev) => ({
+            ...prev,
+            birthDate: "Data de nascimento não confere com o CPF.",
+          }));
+        } else {
+          setErrors((prev) => ({ ...prev, cpf: res.message }));
+        }
+        toast.error(res.message);
+        return;
+      }
+      if (res.nome) {
+        const parts = res.nome.trim().split(/\s+/);
+        setFirstName(parts[0] ?? "");
+        setLastName(parts.slice(1).join(" "));
+      }
+      setCpfValidated(true);
+      toast.success("CPF validado! Confira seus dados.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Não foi possível validar o CPF. Tente novamente.");
+    } finally {
+      setCpfValidating(false);
+    }
+  };
 
   // Resend cooldown ticker
   useEffect(() => {
@@ -416,7 +471,7 @@ export function RegistrationForm({
       const phoneDigits = onlyDigits(result.data.phone);
 
       // Validação de CPF na Receita (quando o equipamento exige)
-      if (cpfValidationRequired) {
+      if (cpfValidationRequired && !cpfValidated) {
         const birthDigits = onlyDigits(birthDate); // ddmmaaaa
         const validation = await validateCpf({
           data: { cpf: cpfDigits, birthDate: birthDigits },
