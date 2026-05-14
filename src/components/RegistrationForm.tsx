@@ -1109,6 +1109,33 @@ export function RegistrationForm({
                   <p className="text-xs font-medium text-destructive">{errors.cpf}</p>
                 )}
               </div>
+
+              {cpfValidationRequired && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="birthDate" className="text-sm font-medium">
+                    Data de nascimento
+                  </Label>
+                  <Input
+                    id="birthDate"
+                    inputMode="numeric"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(maskBirthDate(e.target.value))}
+                    placeholder="dd/mm/aaaa"
+                    autoComplete="bday"
+                    disabled={submitting}
+                    className="h-12 rounded-xl border-border/70 text-base transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0"
+                  />
+                  {errors.birthDate ? (
+                    <p className="text-xs font-medium text-destructive">
+                      {errors.birthDate}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">
+                      Necessária para validar o CPF na Receita Federal.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
