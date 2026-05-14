@@ -2,8 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { assertAdminAccess } from "./admin.server";
 import { getSetting, upsertSetting } from "./appSettingsRepo.server";
-
-export const SINTEGRAWS_TOKEN_KEY = "sintegraws.token";
+import {
+  SINTEGRAWS_TOKEN_KEY,
+  getSintegrawsToken,
+} from "./sintegrawsSettings.server";
 
 const accessTokenSchema = z.string().trim().min(1);
 
@@ -12,13 +14,6 @@ function maskToken(value: string | null): string | null {
   const v = value.trim();
   if (v.length <= 6) return "••••";
   return `${v.slice(0, 4)}••••${v.slice(-4)}`;
-}
-
-export async function getSintegrawsToken(): Promise<string | null> {
-  const fromDb = await getSetting(SINTEGRAWS_TOKEN_KEY);
-  if (fromDb && fromDb.trim()) return fromDb.trim();
-  const fromEnv = process.env.SINTEGRAWS_TOKEN;
-  return fromEnv && fromEnv.trim() ? fromEnv.trim() : null;
 }
 
 export const getSintegrawsSettings = createServerFn({ method: "POST" })
