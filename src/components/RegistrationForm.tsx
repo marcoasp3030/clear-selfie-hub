@@ -141,7 +141,7 @@ export function RegistrationForm({
   const [code, setCode] = useState("");
   const [resendIn, setResendIn] = useState(0);
   const [verifyError, setVerifyError] = useState<string | null>(null);
-  const [channel, setChannel] = useState<"whatsapp" | "sms">("whatsapp");
+  const [channel, setChannel] = useState<"whatsapp" | "sms">("sms");
   // Code detected on the clipboard after the user comes back from WhatsApp.
   // null = no code detected; "" = clipboard unreadable (show generic button).
   const [clipboardCode, setClipboardCode] = useState<string | null>(null);
