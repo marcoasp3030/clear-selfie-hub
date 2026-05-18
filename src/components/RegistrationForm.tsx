@@ -1060,22 +1060,7 @@ export function RegistrationForm({
                     </div>
 
                     {verificationStatus === "idle" && (
-                      <div className="mt-3 grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setChannel("whatsapp");
-                            if (isValidMobile(phone) && !submitting) handleSendCode("whatsapp");
-                          }}
-                          disabled={!isValidMobile(phone) || submitting}
-                          className="group flex h-auto flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-emerald-600 bg-emerald-600 px-3 py-4 text-white shadow-md transition-all hover:bg-emerald-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <MessageCircle className="h-6 w-6" />
-                          <span className="text-sm font-semibold">WhatsApp</span>
-                          <span className="text-[10px] font-normal opacity-90">
-                            Recomendado
-                          </span>
-                        </button>
+                      <div className="mt-3 space-y-2">
                         <button
                           type="button"
                           onClick={() => {
@@ -1083,13 +1068,24 @@ export function RegistrationForm({
                             if (isValidMobile(phone) && !submitting) handleSendCode("sms");
                           }}
                           disabled={!isValidMobile(phone) || submitting}
-                          className="group flex h-auto flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-emerald-500/40 bg-white px-3 py-4 text-emerald-900 shadow-sm transition-all hover:border-emerald-600 hover:bg-emerald-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-950/40 dark:text-emerald-100 dark:hover:bg-emerald-950/60"
+                          className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-emerald-600 bg-emerald-600 px-3 py-4 text-white shadow-md transition-all hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          <Smartphone className="h-6 w-6" />
-                          <span className="text-sm font-semibold">SMS</span>
-                          <span className="text-[10px] font-normal opacity-80">
-                            Mensagem de texto
+                          <Smartphone className="h-5 w-5" />
+                          <span className="text-sm font-semibold">
+                            Receber código por SMS
                           </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setChannel("whatsapp");
+                            if (isValidMobile(phone) && !submitting) handleSendCode("whatsapp");
+                          }}
+                          disabled={!isValidMobile(phone) || submitting}
+                          className="flex w-full items-center justify-center gap-1.5 text-[11px] font-medium text-emerald-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50 dark:text-emerald-300"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" />
+                          Não recebi o SMS — tentar pelo WhatsApp
                         </button>
                       </div>
                     )}
