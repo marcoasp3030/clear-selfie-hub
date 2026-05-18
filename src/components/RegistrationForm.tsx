@@ -547,22 +547,9 @@ export function RegistrationForm({
       });
 
       if (!response.success) {
-        if (response.error === "duplicate_device") {
-          setDuplicateInfo({
-            matchedBy: "device",
-            firstName: result.data.firstName,
-            lastName: result.data.lastName,
-          });
-          toast.error(
-            "Este dispositivo já realizou um cadastro neste equipamento.",
-          );
-        } else if (response.error === "phone_not_verified") {
+        if (response.error === "phone_not_verified") {
           toast.error(
             "Celular não verificado. Refaça a verificação por SMS/WhatsApp.",
-          );
-        } else if (response.error === "check_failed") {
-          toast.error(
-            "Falha ao consultar o banco de dados. Tente novamente em alguns segundos.",
           );
         } else if (response.error === "insert_failed") {
           toast.error(
