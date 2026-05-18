@@ -46,12 +46,14 @@ export const checkExistingRegistration = createServerFn({ method: "POST" })
       const row = await findDuplicateRegistration({
         cpf: data.cpf,
         phone: data.phone,
-        deviceFingerprint: data.deviceFingerprint,
+        // Bloqueio por dispositivo desativado — o mesmo aparelho pode ser
+        // usado para cadastrar mais de uma pessoa, desde que cada uma use
+        // o próprio CPF e celular.
         deviceId: data.deviceId ?? null,
       });
       if (!row) return { exists: false as const };
 
-      let matchedBy: "cpf" | "phone" | "device" = "device";
+      let matchedBy: "cpf" | "phone" = "cpf";
       if (data.cpf && row.cpf === data.cpf) matchedBy = "cpf";
       else if (data.phone && row.phone === data.phone) matchedBy = "phone";
 
@@ -104,20 +106,9 @@ export const createRegistration = createServerFn({ method: "POST" })
     const parsed = parseUserAgent(ua);
     const geo = await lookupGeoFromIp(ip);
 
-    // 2) Duplicata por equipamento
-    try {
-      const existing = await findFingerprintInDevice(
-        data.deviceFingerprint,
-        data.deviceId ?? null,
-      );
-      if (existing) {
-        await deletePhoto(data.photoPath).catch(() => {});
-        return { success: false as const, error: "duplicate_device" as const };
-      }
-    } catch (err) {
-      console.error("Fingerprint check failed:", err);
-      return { success: false as const, error: "check_failed" as const };
-    }
+    // Bloqueio por fingerprint do dispositivo desativado a pedido do cliente.
+    // O mesmo aparelho pode cadastrar várias pessoas; a unicidade é apenas
+    // por CPF e por número de celular.
 
     try {
       const inserted = await insertRegistration({
