@@ -4,7 +4,6 @@ import { z } from "zod";
 import { parseUserAgent, lookupGeoFromIp } from "./deviceParser";
 import {
   findDuplicateRegistration,
-  findFingerprintInDevice,
   hasVerifiedPhone,
   insertRegistration,
 } from "./registrationsRepo.server";
