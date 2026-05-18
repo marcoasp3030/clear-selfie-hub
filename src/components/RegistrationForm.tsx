@@ -1193,6 +1193,40 @@ export function RegistrationForm({
                             ? `Reenviar em ${resendIn}s`
                             : "Reenviar código"}
                         </button>
+                        {channel === "sms" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setChannel("whatsapp");
+                              setCode("");
+                              setVerifyError(null);
+                              if (isValidMobile(phone) && !submitting)
+                                handleSendCode("whatsapp");
+                            }}
+                            disabled={submitting}
+                            className="ml-3 inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50 dark:text-emerald-300"
+                          >
+                            <MessageCircle className="h-3 w-3" />
+                            Não recebeu? Tentar pelo WhatsApp
+                          </button>
+                        )}
+                        {channel === "whatsapp" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setChannel("sms");
+                              setCode("");
+                              setVerifyError(null);
+                              if (isValidMobile(phone) && !submitting)
+                                handleSendCode("sms");
+                            }}
+                            disabled={submitting}
+                            className="ml-3 inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50 dark:text-emerald-300"
+                          >
+                            <Smartphone className="h-3 w-3" />
+                            Voltar para SMS
+                          </button>
+                        )}
                         {verifyError && (
                           <p className="text-xs font-medium text-destructive">
                             {verifyError}
