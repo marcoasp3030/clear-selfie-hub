@@ -42,6 +42,8 @@ const createSchema = z.object({
   apiLogin: z.string().trim().min(1).max(120),
   apiPassword: z.string().trim().min(1).max(255),
   cpfValidationRequired: z.boolean().optional().default(false),
+  cpfHidden: z.boolean().optional().default(false),
+  allowDuplicatePhone: z.boolean().optional().default(false),
 });
 
 export type { DeviceRow };
@@ -75,6 +77,8 @@ export const createDevice = createServerFn({ method: "POST" })
       api_password: data.apiPassword,
       created_by: userId,
       cpf_validation_required: data.cpfValidationRequired ?? false,
+      cpf_hidden: data.cpfHidden ?? false,
+      allow_duplicate_phone: data.allowDuplicatePhone ?? false,
     });
     if (!inserted) {
       return { success: false as const, error: "insert_failed" as const };
@@ -109,6 +113,8 @@ const updateSchema = z.object({
   // empty string = keep current password
   apiPassword: z.string().max(255),
   cpfValidationRequired: z.boolean().optional().default(false),
+  cpfHidden: z.boolean().optional().default(false),
+  allowDuplicatePhone: z.boolean().optional().default(false),
 });
 
 export const updateDevice = createServerFn({ method: "POST" })
@@ -131,6 +137,8 @@ export const updateDevice = createServerFn({ method: "POST" })
       api_login: data.apiLogin,
       api_password: data.apiPassword.length > 0 ? data.apiPassword : null,
       cpf_validation_required: data.cpfValidationRequired ?? false,
+      cpf_hidden: data.cpfHidden ?? false,
+      allow_duplicate_phone: data.allowDuplicatePhone ?? false,
     });
     if (!updated) {
       return { success: false as const, error: "update_failed" as const };
