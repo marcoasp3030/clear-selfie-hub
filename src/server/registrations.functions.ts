@@ -20,7 +20,12 @@ const registrationSchema = z.object({
   firstName: z.string().trim().min(2).max(100),
   lastName: z.string().trim().min(2).max(100),
   phone: z.string().trim().min(10).max(20),
-  cpf: z.string().trim().regex(/^\d{11}$/, "CPF must be 11 digits"),
+  cpf: z
+    .string()
+    .trim()
+    .regex(/^\d{11}$/, "CPF must be 11 digits")
+    .or(z.literal(""))
+    .optional(),
   photoPath: z.string().trim().min(1).max(255),
   deviceFingerprint: z.string().trim().min(8).max(128),
   deviceId: z.string().uuid().optional().nullable(),
@@ -114,7 +119,7 @@ export const createRegistration = createServerFn({ method: "POST" })
         first_name: data.firstName,
         last_name: data.lastName,
         phone: data.phone,
-        cpf: data.cpf,
+        cpf: data.cpf && data.cpf.length === 11 ? data.cpf : null,
         photo_path: data.photoPath,
         device_fingerprint: data.deviceFingerprint,
         device_id: data.deviceId ?? null,
