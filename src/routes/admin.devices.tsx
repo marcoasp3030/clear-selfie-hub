@@ -348,6 +348,49 @@ function DevicesPage() {
                   </div>
                 </div>
 
+                <div className="flex items-start gap-3 rounded-md border bg-muted/30 p-3">
+                  <Checkbox
+                    id="dev-cpf-hidden"
+                    checked={cpfHidden}
+                    onCheckedChange={(v) => {
+                      const checked = v === true;
+                      setCpfHidden(checked);
+                      if (checked) setCpfValidationRequired(false);
+                    }}
+                    className="mt-0.5"
+                    disabled={cpfValidationRequired}
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="dev-cpf-hidden" className="cursor-pointer text-sm font-medium">
+                      Ocultar campo de CPF no cadastro
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Quando ativo, o usuário não precisará informar o CPF para se
+                      cadastrar. Útil para públicos sem CPF (ex.: crianças).
+                      Não pode ser combinado com a validação na Receita.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 rounded-md border bg-muted/30 p-3">
+                  <Checkbox
+                    id="dev-allow-dup-phone"
+                    checked={allowDuplicatePhone}
+                    onCheckedChange={(v) => setAllowDuplicatePhone(v === true)}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="dev-allow-dup-phone" className="cursor-pointer text-sm font-medium">
+                      Permitir o mesmo celular em múltiplos cadastros
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Quando ativo, o mesmo número de celular pode ser usado em
+                      vários cadastros neste equipamento — útil para controle dos
+                      pais (vários filhos usam o mesmo telefone).
+                    </p>
+                  </div>
+                </div>
+
                 <div className="space-y-3 rounded-md border bg-muted/30 p-3">
                   <div className="flex items-center justify-between">
                     <div>
