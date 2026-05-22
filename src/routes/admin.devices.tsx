@@ -645,6 +645,53 @@ function DevicesPage() {
                 </div>
               </div>
 
+              <div className="flex items-start gap-3 rounded-md border bg-muted/30 p-3">
+                <Checkbox
+                  id="edit-cpf-hidden"
+                  checked={editCpfHidden}
+                  onCheckedChange={(v) => {
+                    const checked = v === true;
+                    setEditCpfHidden(checked);
+                    if (checked) setEditCpfValidation(false);
+                  }}
+                  className="mt-0.5"
+                  disabled={editCpfValidation}
+                />
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="edit-cpf-hidden"
+                    className="cursor-pointer text-sm font-medium"
+                  >
+                    Ocultar campo de CPF no cadastro
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    O usuário não precisará informar o CPF. Útil para públicos
+                    sem CPF (ex.: crianças). Não combina com validação na Receita.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 rounded-md border bg-muted/30 p-3">
+                <Checkbox
+                  id="edit-allow-dup-phone"
+                  checked={editAllowDuplicatePhone}
+                  onCheckedChange={(v) => setEditAllowDuplicatePhone(v === true)}
+                  className="mt-0.5"
+                />
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="edit-allow-dup-phone"
+                    className="cursor-pointer text-sm font-medium"
+                  >
+                    Permitir o mesmo celular em múltiplos cadastros
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Útil para controle dos pais — vários filhos usam o mesmo
+                    telefone neste equipamento.
+                  </p>
+                </div>
+              </div>
+
               <div className="space-y-1.5">
                 <Label htmlFor="edit-url">URL base da API</Label>
                 <Input
