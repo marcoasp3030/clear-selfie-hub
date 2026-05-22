@@ -1262,7 +1262,7 @@ export function RegistrationForm({
                 )}
               </div>
 
-              {!cpfValidationRequired && (
+              {!cpfValidationRequired && !cpfHidden && (
                 <div className="space-y-1.5">
                   <Label htmlFor="cpf" className="text-sm font-medium">
                     CPF
