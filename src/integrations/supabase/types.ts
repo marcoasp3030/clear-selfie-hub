@@ -79,9 +79,11 @@ export type Database = {
       }
       devices: {
         Row: {
+          allow_duplicate_phone: boolean
           api_base_url: string
           api_login: string | null
           api_password: string | null
+          cpf_hidden: boolean
           cpf_validation_required: boolean
           created_at: string
           created_by: string | null
@@ -90,9 +92,11 @@ export type Database = {
           slug: string
         }
         Insert: {
+          allow_duplicate_phone?: boolean
           api_base_url: string
           api_login?: string | null
           api_password?: string | null
+          cpf_hidden?: boolean
           cpf_validation_required?: boolean
           created_at?: string
           created_by?: string | null
@@ -101,9 +105,11 @@ export type Database = {
           slug: string
         }
         Update: {
+          allow_duplicate_phone?: boolean
           api_base_url?: string
           api_login?: string | null
           api_password?: string | null
+          cpf_hidden?: boolean
           cpf_validation_required?: boolean
           created_at?: string
           created_by?: string | null
