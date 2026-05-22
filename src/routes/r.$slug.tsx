@@ -97,6 +97,8 @@ function PublicDeviceRegistration() {
         <RegistrationForm
           deviceId={device.id}
           cpfValidationRequired={device.cpf_validation_required}
+          cpfHidden={device.cpf_hidden}
+          allowDuplicatePhone={device.allow_duplicate_phone}
         />
       </main>
 
