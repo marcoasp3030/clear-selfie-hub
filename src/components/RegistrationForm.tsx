@@ -49,11 +49,14 @@ const baseSchema = z.object({
     .string()
     .trim()
     .refine((v) => isValidMobile(v), "Informe um celular válido com DDD"),
+});
+
+const cpfShape = {
   cpf: z
     .string()
     .trim()
     .refine((v) => isValidCpf(v), "CPF inválido"),
-});
+};
 
 function isValidBirthDateBR(v: string): boolean {
   const m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -89,11 +92,15 @@ const STEPS = [
 interface RegistrationFormProps {
   deviceId?: string;
   cpfValidationRequired?: boolean;
+  cpfHidden?: boolean;
+  allowDuplicatePhone?: boolean;
 }
 
 export function RegistrationForm({
   deviceId,
   cpfValidationRequired = false,
+  cpfHidden = false,
+  allowDuplicatePhone = false,
 }: RegistrationFormProps = {}) {
   const [step, setStep] = useState<Step>(0);
   const [firstName, setFirstName] = useState("");
