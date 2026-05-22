@@ -66,6 +66,8 @@ function DevicesPage() {
   const [editApiLogin, setEditApiLogin] = useState("");
   const [editApiPassword, setEditApiPassword] = useState("");
   const [editCpfValidation, setEditCpfValidation] = useState(false);
+  const [editCpfHidden, setEditCpfHidden] = useState(false);
+  const [editAllowDuplicatePhone, setEditAllowDuplicatePhone] = useState(false);
 
   function openEdit(d: DeviceRow) {
     setEditing(d);
@@ -75,6 +77,8 @@ function DevicesPage() {
     setEditApiLogin(d.api_login ?? "");
     setEditApiPassword("");
     setEditCpfValidation(d.cpf_validation_required);
+    setEditCpfHidden(d.cpf_hidden);
+    setEditAllowDuplicatePhone(d.allow_duplicate_phone);
   }
 
   async function handleEdit(e: FormEvent) {
@@ -93,6 +97,8 @@ function DevicesPage() {
           apiLogin: editApiLogin.trim(),
           apiPassword: editApiPassword,
           cpfValidationRequired: editCpfValidation,
+          cpfHidden: editCpfHidden,
+          allowDuplicatePhone: editAllowDuplicatePhone,
         },
       });
       if (!res.success) {
@@ -115,6 +121,8 @@ function DevicesPage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [cpfValidationRequired, setCpfValidationRequired] = useState(false);
+  const [cpfHidden, setCpfHidden] = useState(false);
+  const [allowDuplicatePhone, setAllowDuplicatePhone] = useState(false);
   type Endpoint = { apiBaseUrl: string; apiLogin: string; apiPassword: string };
   const emptyEndpoint = (): Endpoint => ({ apiBaseUrl: "", apiLogin: "", apiPassword: "" });
   const [endpoints, setEndpoints] = useState<Endpoint[]>([emptyEndpoint()]);
@@ -174,6 +182,8 @@ function DevicesPage() {
             apiLogin: ep.apiLogin.trim(),
             apiPassword: ep.apiPassword,
             cpfValidationRequired,
+            cpfHidden,
+            allowDuplicatePhone,
           },
         });
         if (res.success) okCount++;
@@ -199,6 +209,8 @@ function DevicesPage() {
       setName("");
       setSlug("");
       setCpfValidationRequired(false);
+      setCpfHidden(false);
+      setAllowDuplicatePhone(false);
       setEndpoints([emptyEndpoint()]);
       setOpenCreate(false);
       reload();
