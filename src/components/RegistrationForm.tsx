@@ -436,19 +436,23 @@ export function RegistrationForm({
   const submit = async () => {
     setErrors({});
     setDuplicateInfo(null);
-    const fullSchema = cpfValidationRequired
-      ? baseSchema.extend({
-          birthDate: z
-            .string()
-            .trim()
-            .refine((v) => isValidBirthDateBR(v), "Informe uma data válida (dd/mm/aaaa)"),
-        })
-      : baseSchema;
+    let fullSchema: z.ZodTypeAny = baseSchema;
+    if (!cpfHidden) {
+      fullSchema = (fullSchema as z.AnyZodObject).extend(cpfShape);
+    }
+    if (cpfValidationRequired) {
+      fullSchema = (fullSchema as z.AnyZodObject).extend({
+        birthDate: z
+          .string()
+          .trim()
+          .refine((v) => isValidBirthDateBR(v), "Informe uma data válida (dd/mm/aaaa)"),
+      });
+    }
     const result = fullSchema.safeParse({
       firstName,
       lastName,
       phone,
-      cpf,
+      ...(cpfHidden ? {} : { cpf }),
       ...(cpfValidationRequired ? { birthDate } : {}),
     });
     if (!result.success) {
@@ -460,6 +464,12 @@ export function RegistrationForm({
       setErrors(fieldErrors);
       return;
     }
+    const parsed = result.data as {
+      firstName: string;
+      lastName: string;
+      phone: string;
+      cpf?: string;
+    };
     if (!isPhoneVerified) {
       toast.error("Verifique seu número antes de finalizar.");
       return;
@@ -474,8 +484,8 @@ export function RegistrationForm({
     try {
       const fingerprint = await getDeviceFingerprint();
       const deviceInfo = collectClientDeviceInfo();
-      const cpfDigits = onlyDigits(result.data.cpf);
-      const phoneDigits = onlyDigits(result.data.phone);
+      const cpfDigits = parsed.cpf ? onlyDigits(parsed.cpf) : "";
+      const phoneDigits = onlyDigits(parsed.phone);
 
       // Validação de CPF na Receita (quando o equipamento exige)
       if (cpfValidationRequired && !cpfValidated) {
@@ -500,8 +510,8 @@ export function RegistrationForm({
       // Pre-check: warn the user if CPF / phone / device is already registered
       const existing = await checkExisting({
         data: {
-          cpf: cpfDigits,
-          phone: phoneDigits,
+          ...(cpfDigits ? { cpf: cpfDigits } : {}),
+          ...(allowDuplicatePhone ? {} : { phone: phoneDigits }),
           deviceFingerprint: fingerprint,
           deviceId: deviceId ?? null,
         },
@@ -538,9 +548,9 @@ export function RegistrationForm({
 
       const response = await submitRegistration({
         data: {
-          firstName: result.data.firstName,
-          lastName: result.data.lastName,
-          phone: result.data.phone,
+          firstName: parsed.firstName,
+          lastName: parsed.lastName,
+          phone: parsed.phone,
           cpf: cpfDigits,
           photoPath: path,
           deviceFingerprint: fingerprint,
