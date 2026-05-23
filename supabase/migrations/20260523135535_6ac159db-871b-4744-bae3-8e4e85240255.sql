@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Anyone can submit diagnostics reports" ON public.camera_diagnostics_reports;
