@@ -309,6 +309,78 @@ export async function getStats(): Promise<{ total: number; today: number; week: 
   return { total: a.count ?? 0, today: b.count ?? 0, week: c.count ?? 0 };
 }
 
+export type StoreStats = {
+  device_id: string | null;
+  device_name: string;
+  total: number;
+  today: number;
+};
+
+export async function getStoreStats(): Promise<StoreStats[]> {
+  if (getDataBackend() === "pg") {
+    const { rows } = await db.query<{
+      device_id: string | null;
+      device_name: string | null;
+      total: string;
+      today: string;
+    }>(
+      `SELECT
+         d.id::text AS device_id,
+         COALESCE(d.name, 'Sem Loja') AS device_name,
+         count(r.id)::int AS total,
+         count(r.id) FILTER (WHERE r.created_at >= date_trunc('day', now()))::int AS today
+       FROM registrations r
+       LEFT JOIN devices d ON r.device_id = d.id
+       GROUP BY d.id, d.name
+       ORDER BY total DESC`
+    );
+    return rows.map((r) => ({
+      device_id: r.device_id,
+      device_name: r.device_name ?? "Sem Loja",
+      total: Number(r.total),
+      today: Number(r.today),
+    }));
+  }
+
+  // Supabase
+  const { data: devices } = await supabaseAdmin
+    .from("devices")
+    .select("id, name");
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const { data: counts, error } = await supabaseAdmin
+    .from("registrations")
+    .select("device_id, created_at");
+
+  if (error) throw error;
+
+  const statsMap = new Map<string | null, { total: number; today: number }>();
+
+  counts.forEach((r) => {
+    const devId = r.device_id ? String(r.device_id) : null;
+    const current = statsMap.get(devId) || { total: 0, today: 0 };
+    current.total++;
+    if (new Date(r.created_at) >= now) {
+      current.today++;
+    }
+    statsMap.set(devId, current);
+  });
+
+  const result: StoreStats[] = Array.from(statsMap.entries()).map(([devId, stats]) => {
+    const device = devices?.find((d) => String(d.id) === devId);
+    return {
+      device_id: devId,
+      device_name: device?.name ?? "Sem Loja",
+      ...stats,
+    };
+  });
+
+  return result.sort((a, b) => b.total - a.total);
+}
+
+
 export type RegistrationForSync = {
   id: string;
   first_name: string;
