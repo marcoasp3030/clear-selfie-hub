@@ -133,23 +133,27 @@ function PendingSyncsPage() {
     }
   }
 
-  async function handleBulk() {
-    if (rows.length === 0) return;
+  async function handleBulk(idsToRetry?: string[]) {
+    const targets = idsToRetry || Array.from(selectedIds);
+    if (targets.length === 0) return;
+    
     if (
       !confirm(
-        `Reprocessar ${rows.length} cadastro(s) pendente(s)? O envio é sequencial e pode levar alguns minutos.`,
+        `Reprocessar ${targets.length} cadastro(s) selecionado(s)? O envio é sequencial e pode levar alguns minutos.`,
       )
     )
       return;
+      
     setBulkRunning(true);
     try {
       const accessToken = await requireAdminAccessToken();
       const res = await bulkRetry({
-        data: { accessToken, ids: rows.map((r) => r.id) },
+        data: { accessToken, ids: targets },
       });
       toast.success(
         `Concluído: ${res.success} sincronizado(s), ${res.failed} com erro (de ${res.total}).`,
       );
+      setSelectedIds(new Set());
       await load();
     } catch {
       toast.error("Falha ao reprocessar em massa");
@@ -157,6 +161,30 @@ function PendingSyncsPage() {
       setBulkRunning(false);
     }
   }
+
+  const uniqueErrors = Array.from(new Set(rows.map(r => r.device_sync_error).filter(Boolean))) as string[];
+
+  const filteredRows = rows.filter(r => {
+    const matchesError = errorFilter === "all" || r.device_sync_error === errorFilter;
+    const matchesStatus = statusFilter === "all" || r.device_sync_status === statusFilter;
+    return matchesError && matchesStatus;
+  });
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredRows.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredRows.map(r => r.id)));
+    }
+  };
+
+  const toggleSelectRow = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
 
   const pendingCount = rows.filter((r) => r.device_sync_status === "pending").length;
   const errorCount = rows.filter((r) => r.device_sync_status === "error").length;
