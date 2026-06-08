@@ -202,22 +202,62 @@ function PendingSyncsPage() {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={load} disabled={loading || bulkRunning}>
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Atualizar
           </Button>
           <Button
-            onClick={handleBulk}
-            disabled={loading || bulkRunning || rows.length === 0}
+            onClick={() => handleBulk()}
+            disabled={loading || bulkRunning || selectedIds.size === 0}
           >
             {bulkRunning ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <PlayCircle className="h-4 w-4" />
             )}
-            Reprocessar todos ({rows.length})
+            Reenviar selecionados ({selectedIds.size})
           </Button>
+          <Button
+            variant="secondary"
+            onClick={() => handleBulk(rows.map(r => r.id))}
+            disabled={loading || bulkRunning || rows.length === 0}
+          >
+            Reenviar todos ({rows.length})
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Filtros:</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Status</SelectItem>
+              <SelectItem value="pending">Pendentes</SelectItem>
+              <SelectItem value="error">Com Erro</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={errorFilter} onValueChange={setErrorFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Tipo de Erro" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Erros</SelectItem>
+              {uniqueErrors.map(err => (
+                <SelectItem key={err} value={err}>
+                  {err.length > 40 ? err.substring(0, 40) + "..." : err}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
