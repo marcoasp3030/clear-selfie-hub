@@ -13,5 +13,6 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 const isNodeTarget = process.env.DEPLOY_TARGET === "node";
 
 export default defineConfig({
+  // @ts-ignore - 'cloudflare' might not be in the type definition but is handled by the plugin
   cloudflare: isNodeTarget ? false : undefined,
 });
