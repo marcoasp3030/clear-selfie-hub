@@ -5,8 +5,10 @@ import {
   deleteRegistrationById,
   getPhotoSignedUrlForPath,
   getRegistrationStatsData,
+  getStoreStatsData,
   listRegistrationRows,
 } from "./admin.server";
+
 
 const accessTokenSchema = z.string().trim().min(1);
 
@@ -42,7 +44,16 @@ export const getRegistrationStats = createServerFn({ method: "POST" })
     return getRegistrationStatsData(data.accessToken);
   });
 
+export const getStoreStats = createServerFn({ method: "POST" })
+  .inputValidator((input: { accessToken: string }) =>
+    z.object({ accessToken: accessTokenSchema }).parse(input)
+  )
+  .handler(async ({ data }) => {
+    return getStoreStatsData(data.accessToken);
+  });
+
 export const getPhotoSignedUrl = createServerFn({ method: "POST" })
+
   .inputValidator((input: { accessToken: string; path: string }) =>
     z
       .object({
