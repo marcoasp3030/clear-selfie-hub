@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getRegistrationStats, getStoreStats } from "@/server/admin.functions";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
-import { Users, Calendar, TrendingUp, Loader2, Store } from "lucide-react";
+import { Users, Calendar, TrendingUp, Loader2, Store, ShoppingBag } from "lucide-react";
 
 type Stats = { total: number; today: number; week: number };
 type StoreStat = { device_id: string | null; device_name: string; total: number; today: number };
@@ -58,16 +58,23 @@ function AdminDashboard() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Total"
+          label="Total de Cadastros"
           value={stats?.total}
           loading={loading}
           icon={Users}
           tone="primary"
         />
         <StatCard
-          label="Hoje"
+          label="Lojas Cadastradas"
+          value={storeStats?.filter(s => s.device_id !== null).length}
+          loading={loading}
+          icon={ShoppingBag}
+          tone="secondary"
+        />
+        <StatCard
+          label="Cadastros Hoje"
           value={stats?.today}
           loading={loading}
           icon={Calendar}
