@@ -1,9 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { getRegistrationStats } from "@/server/admin.functions";
+import { getRegistrationStats, getStoreStats } from "@/server/admin.functions";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
-import { Users, Calendar, TrendingUp, Loader2 } from "lucide-react";
+import { Users, Calendar, TrendingUp, Loader2, Store } from "lucide-react";
+
+type Stats = { total: number; today: number; week: number };
+type StoreStat = { device_id: string | null; device_name: string; total: number; today: number };
+
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({
