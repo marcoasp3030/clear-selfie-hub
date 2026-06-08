@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
+import { assertAdminAccess } from "./admin.server";
+import { supabaseAdmin } from "./supabaseAdmin.server";
 
 const accessTokenSchema = z.string().trim().min(1);
 
@@ -13,13 +14,15 @@ export const listUsers = createServerFn({ method: "GET" })
     z.object({ accessToken: accessTokenSchema }).parse(input)
   )
   .handler(async ({ data: { accessToken } }) => {
-    const { data: roles, error: rolesError } = await supabase
+    await assertAdminAccess(accessToken);
+
+    const { data: roles, error: rolesError } = await supabaseAdmin
       .from("user_roles")
       .select("user_id, role");
       
     if (rolesError) throw rolesError;
 
-    const { data: profiles, error: profilesError } = await supabase
+    const { data: profiles, error: profilesError } = await supabaseAdmin
       .from("profiles")
       .select("id, full_name, avatar_url, created_at");
 
@@ -43,8 +46,10 @@ export const updateUserRole = createServerFn({ method: "POST" })
       role: z.string()
     }).parse(input)
   )
-  .handler(async ({ data: { userId, role } }) => {
-    const { error } = await supabase
+  .handler(async ({ data: { accessToken, userId, role } }) => {
+    await assertAdminAccess(accessToken);
+
+    const { error } = await supabaseAdmin
       .from("user_roles")
       .upsert({ user_id: userId, role: role as any }, { onConflict: "user_id" });
 
@@ -62,15 +67,17 @@ export const deleteUser = createServerFn({ method: "POST" })
       userId: z.string().uuid()
     }).parse(input)
   )
-  .handler(async ({ data: { userId } }) => {
-    const { error: roleError } = await supabase
+  .handler(async ({ data: { accessToken, userId } }) => {
+    await assertAdminAccess(accessToken);
+
+    const { error: roleError } = await supabaseAdmin
       .from("user_roles")
       .delete()
       .eq("user_id", userId);
       
     if (roleError) throw roleError;
 
-    const { error: profileError } = await supabase
+    const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .delete()
       .eq("id", userId);
