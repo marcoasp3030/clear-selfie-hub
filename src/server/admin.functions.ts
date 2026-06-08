@@ -5,8 +5,10 @@ import {
   deleteRegistrationById,
   getPhotoSignedUrlForPath,
   getRegistrationStatsData,
+  getStoreStatsData,
   listRegistrationRows,
 } from "./admin.server";
+
 
 const accessTokenSchema = z.string().trim().min(1);
 
