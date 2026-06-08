@@ -143,7 +143,19 @@ export async function getRegistrationStatsData(accessToken: string) {
   }
 }
 
+export async function getStoreStatsData(accessToken: string) {
+  await assertAdminAccess(accessToken);
+  try {
+    const { getStoreStats } = await import("./registrationsRepo.server");
+    return await getStoreStats();
+  } catch (err) {
+    console.error("Store stats failed:", err);
+    throw new Response("Internal error", { status: 500 });
+  }
+}
+
 export async function getPhotoSignedUrlForPath(accessToken: string, path: string) {
+
   await assertAdminAccess(accessToken);
   try {
     const url = await getPhotoAccessUrl(path);
