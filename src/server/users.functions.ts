@@ -2,20 +2,18 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
+const accessTokenSchema = z.string().trim().min(1);
+
 /**
  * Lists all users with their roles and profiles.
  * Only accessible by admins.
  */
 export const listUsers = createServerFn({ method: "GET" })
-  .validator(z.object({ accessToken: z.string() }))
+  .validator((input: { accessToken: string }) => 
+    z.object({ accessToken: accessTokenSchema }).parse(input)
+  )
   .handler(async ({ data: { accessToken } }) => {
     // In a real scenario, we should verify the accessToken or the session on the server.
-    // For now, we rely on the client providing the token and the DB RLS policies.
-    
-    // Note: To list all users from auth.users, we need the service_role key 
-    // or use a custom function/view in public schema that exposes them.
-    // Since we can't easily use service_role here without environmental variables 
-    // and direct fetch, we'll query the public tables.
     
     const { data: roles, error: rolesError } = await supabase
       .from("user_roles")
@@ -41,11 +39,13 @@ export const listUsers = createServerFn({ method: "GET" })
  * Only accessible by admins.
  */
 export const updateUserRole = createServerFn({ method: "POST" })
-  .validator(z.object({
-    accessToken: z.string(),
-    userId: z.string(),
-    role: z.enum(["admin", "employee", "user"])
-  }))
+  .validator((input: { accessToken: string; userId: string; role: string }) => 
+    z.object({
+      accessToken: accessTokenSchema,
+      userId: z.string().uuid(),
+      role: z.enum(["admin", "employee", "user"])
+    }).parse(input)
+  )
   .handler(async ({ data: { userId, role } }) => {
     // Upsert the role in user_roles
     const { error } = await supabase
@@ -61,10 +61,12 @@ export const updateUserRole = createServerFn({ method: "POST" })
  * Usually requires service_role or a specific edge function.
  */
 export const deleteUser = createServerFn({ method: "POST" })
-  .validator(z.object({
-    accessToken: z.string(),
-    userId: z.string()
-  }))
+  .validator((input: { accessToken: string; userId: string }) => 
+    z.object({
+      accessToken: accessTokenSchema,
+      userId: z.string().uuid()
+    }).parse(input)
+  )
   .handler(async ({ data: { userId } }) => {
     // We can't delete from auth.users easily without service_role.
     // We can delete the role and profile though.
