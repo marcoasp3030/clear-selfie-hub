@@ -224,8 +224,10 @@ const NAV_GROUPS: NavGroup[] = [
       "/admin/migration",
       "/admin/docs",
       "/admin/sintegraws",
+      "/admin/users",
     ],
     items: [
+      { to: "/admin/users", label: "Usuários / Permissões", icon: ShieldCheck },
       { to: "/admin/diagnostics", label: "Diagnósticos", icon: Stethoscope },
       { to: "/admin/migration", label: "Migração VPS", icon: Server },
       { to: "/admin/sintegraws", label: "Validação CPF (SintegraWS)", icon: ShieldCheck },

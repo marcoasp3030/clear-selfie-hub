@@ -14,6 +14,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as RSlugRouteImport } from './routes/r.$slug'
 import { Route as AdminWhatsappRouteImport } from './routes/admin.whatsapp'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTwilioRouteImport } from './routes/admin.twilio'
 import { Route as AdminSintegrawsRouteImport } from './routes/admin.sintegraws'
 import { Route as AdminRegisteredDevicesRouteImport } from './routes/admin.registered-devices'
@@ -57,6 +58,11 @@ const RSlugRoute = RSlugRouteImport.update({
 const AdminWhatsappRoute = AdminWhatsappRouteImport.update({
   id: '/whatsapp',
   path: '/whatsapp',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminTwilioRoute = AdminTwilioRouteImport.update({
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/admin/registered-devices': typeof AdminRegisteredDevicesRoute
   '/admin/sintegraws': typeof AdminSintegrawsRoute
   '/admin/twilio': typeof AdminTwilioRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin/whatsapp': typeof AdminWhatsappRouteWithChildren
   '/r/$slug': typeof RSlugRoute
   '/admin/': typeof AdminIndexRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/admin/registered-devices': typeof AdminRegisteredDevicesRoute
   '/admin/sintegraws': typeof AdminSintegrawsRoute
   '/admin/twilio': typeof AdminTwilioRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin/whatsapp': typeof AdminWhatsappRouteWithChildren
   '/r/$slug': typeof RSlugRoute
   '/admin': typeof AdminIndexRoute
@@ -221,6 +229,7 @@ export interface FileRoutesById {
   '/admin/registered-devices': typeof AdminRegisteredDevicesRoute
   '/admin/sintegraws': typeof AdminSintegrawsRoute
   '/admin/twilio': typeof AdminTwilioRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin/whatsapp': typeof AdminWhatsappRouteWithChildren
   '/r/$slug': typeof RSlugRoute
   '/admin/': typeof AdminIndexRoute
@@ -249,6 +258,7 @@ export interface FileRouteTypes {
     | '/admin/registered-devices'
     | '/admin/sintegraws'
     | '/admin/twilio'
+    | '/admin/users'
     | '/admin/whatsapp'
     | '/r/$slug'
     | '/admin/'
@@ -274,6 +284,7 @@ export interface FileRouteTypes {
     | '/admin/registered-devices'
     | '/admin/sintegraws'
     | '/admin/twilio'
+    | '/admin/users'
     | '/admin/whatsapp'
     | '/r/$slug'
     | '/admin'
@@ -300,6 +311,7 @@ export interface FileRouteTypes {
     | '/admin/registered-devices'
     | '/admin/sintegraws'
     | '/admin/twilio'
+    | '/admin/users'
     | '/admin/whatsapp'
     | '/r/$slug'
     | '/admin/'
@@ -359,6 +371,13 @@ declare module '@tanstack/react-router' {
       path: '/whatsapp'
       fullPath: '/admin/whatsapp'
       preLoaderRoute: typeof AdminWhatsappRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/twilio': {
@@ -524,6 +543,7 @@ interface AdminRouteChildren {
   AdminRegisteredDevicesRoute: typeof AdminRegisteredDevicesRoute
   AdminSintegrawsRoute: typeof AdminSintegrawsRoute
   AdminTwilioRoute: typeof AdminTwilioRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   AdminWhatsappRoute: typeof AdminWhatsappRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
   AdminRegistrationsIdRoute: typeof AdminRegistrationsIdRoute
@@ -541,6 +561,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminRegisteredDevicesRoute: AdminRegisteredDevicesRoute,
   AdminSintegrawsRoute: AdminSintegrawsRoute,
   AdminTwilioRoute: AdminTwilioRoute,
+  AdminUsersRoute: AdminUsersRoute,
   AdminWhatsappRoute: AdminWhatsappRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
   AdminRegistrationsIdRoute: AdminRegistrationsIdRoute,
@@ -561,12 +582,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
