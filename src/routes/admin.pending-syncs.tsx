@@ -326,6 +326,45 @@ function PendingSyncsPage() {
         />
       </div>
 
+      {(bulkRunning || bulkProgress.total > 0) && (
+        <div
+          className="rounded-2xl border border-border/60 bg-card p-5"
+          style={{ boxShadow: "var(--shadow-card)" }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <ListChecks className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-semibold text-sm">
+                  {bulkRunning ? "Reenviando em massa..." : "Reenvio concluído"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {bulkProgress.done} de {bulkProgress.total} processado(s) —
+                  <span className="text-emerald-600 font-medium"> {bulkProgress.ok} OK</span> ·
+                  <span className="text-destructive font-medium"> {bulkProgress.fail} falhas</span>
+                </p>
+              </div>
+            </div>
+            {!bulkRunning && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setBulkStatus({});
+                  setBulkProgress({ done: 0, total: 0, ok: 0, fail: 0 });
+                  load();
+                }}
+              >
+                Limpar
+              </Button>
+            )}
+          </div>
+          <Progress
+            value={bulkProgress.total > 0 ? (bulkProgress.done / bulkProgress.total) * 100 : 0}
+          />
+        </div>
+      )}
+
       {loading ? (
         <div className="flex h-64 items-center justify-center">
           <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
@@ -356,6 +395,9 @@ function PendingSyncsPage() {
                     />
                   </th>
                   <th className="px-4 py-3 text-left">Status</th>
+                  {bulkProgress.total > 0 && (
+                    <th className="px-4 py-3 text-left">Progresso</th>
+                  )}
                   <th className="px-4 py-3 text-left">Nome</th>
                   <th className="px-4 py-3 text-left">Loja / Equipamento</th>
                   <th className="px-4 py-3 text-left">Erro</th>
@@ -383,6 +425,11 @@ function PendingSyncsPage() {
                         </span>
                       )}
                     </td>
+                    {bulkProgress.total > 0 && (
+                      <td className="px-4 py-3">
+                        <BulkStatusBadge status={bulkStatus[r.id]} />
+                      </td>
+                    )}
                     <td className="px-4 py-3 font-medium">
                       {r.first_name} {r.last_name}
                       <p className="text-xs text-muted-foreground">{r.phone}</p>
