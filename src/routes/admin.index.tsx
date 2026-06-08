@@ -86,6 +86,61 @@ function AdminDashboard() {
         className="rounded-2xl border border-border/60 bg-card p-6"
         style={{ boxShadow: "var(--shadow-card)" }}
       >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Store className="h-5 w-5 text-primary" />
+            Cadastros por Loja
+          </h2>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/60 text-muted-foreground">
+                  <th className="pb-3 text-left font-medium">Loja</th>
+                  <th className="pb-3 text-center font-medium">Hoje</th>
+                  <th className="pb-3 text-right font-medium">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {storeStats?.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="py-4 text-center text-muted-foreground">
+                      Nenhum cadastro encontrado.
+                    </td>
+                  </tr>
+                ) : (
+                  storeStats?.map((store) => (
+                    <tr key={store.device_id || "null"} className="group hover:bg-muted/50 transition-colors">
+                      <td className="py-3 font-medium text-foreground">
+                        {store.device_name}
+                      </td>
+                      <td className="py-3 text-center">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${store.today > 0 ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"}`}>
+                          {store.today}
+                        </span>
+                      </td>
+                      <td className="py-3 text-right font-semibold">
+                        {store.total}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div
+        className="rounded-2xl border border-border/60 bg-card p-6"
+        style={{ boxShadow: "var(--shadow-card)" }}
+      >
         <h2 className="text-lg font-semibold">Próximos passos</h2>
         <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
           <li>• Acesse <strong className="text-foreground">Cadastros</strong> para listar, buscar, ver detalhes e excluir registros.</li>
@@ -93,6 +148,7 @@ function AdminDashboard() {
           <li>• Fotos são acessadas via URLs assinadas válidas por 1 hora.</li>
         </ul>
       </div>
+
     </div>
   );
 }
