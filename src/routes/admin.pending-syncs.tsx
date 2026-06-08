@@ -524,3 +524,32 @@ function StatCard({
     </Card>
   );
 }
+
+function BulkStatusBadge({ status }: { status?: string }) {
+  if (!status) return <span className="text-xs text-muted-foreground">—</span>;
+  if (status === "queued")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+        <Clock3 className="h-3 w-3" /> Em fila
+      </span>
+    );
+  if (status === "sending")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+        <Loader2 className="h-3 w-3 animate-spin" /> Enviando
+      </span>
+    );
+  if (status === "sent")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+        <CheckCircle2 className="h-3 w-3" /> Reenviado
+      </span>
+    );
+  if (status === "failed")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+        <XCircle className="h-3 w-3" /> Falhou
+      </span>
+    );
+  return <span className="text-xs text-muted-foreground">—</span>;
+}
