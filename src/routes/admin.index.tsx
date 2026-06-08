@@ -30,8 +30,15 @@ function AdminDashboard() {
     (async () => {
       try {
         const accessToken = await requireAdminAccessToken();
-        const s = await fetchStats({ data: { accessToken } });
-        if (mounted) setStats(s);
+        const [s, ss] = await Promise.all([
+          fetchStats({ data: { accessToken } }),
+          fetchStoreStats({ data: { accessToken } }),
+        ]);
+        if (mounted) {
+          setStats(s);
+          setStoreStats(ss);
+        }
+
       } finally {
         if (mounted) setLoading(false);
       }
