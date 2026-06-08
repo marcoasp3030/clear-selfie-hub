@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { listUsers, updateUserRole, deleteUser } from "@/server/users.functions";
+import { listUsers, updateUserRole, deleteUser, createUser } from "@/server/users.functions";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { 
   Table, 
@@ -33,6 +33,24 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/admin/users")({
   component: AdminUsersPage,
@@ -41,10 +59,59 @@ export const Route = createFileRoute("/admin/users")({
 function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+
+  // Form state
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserRole, setNewUserRole] = useState("employee");
   
   const getUsersFn = useServerFn(listUsers);
   const updateRoleFn = useServerFn(updateUserRole);
   const deleteUserFn = useServerFn(deleteUser);
+  const createUserFn = useServerFn(createUser);
+
+  const resetForm = () => {
+    setNewUserName("");
+    setNewUserEmail("");
+    setNewUserPassword("");
+    setNewUserRole("employee");
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserName || !newUserEmail || !newUserPassword) {
+      toast.error("Preencha todos os campos");
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      const accessToken = await requireAdminAccessToken();
+      await createUserFn({ 
+        data: { 
+          accessToken, 
+          fullName: newUserName, 
+          email: newUserEmail, 
+          password: newUserPassword, 
+          role: newUserRole 
+        } 
+      });
+      
+      toast.success("Usuário criado com sucesso");
+      setIsCreateDialogOpen(false);
+      resetForm();
+      loadUsers();
+    } catch (error: any) {
+      console.error("Error creating user:", error);
+      toast.error(error.message || "Erro ao criar usuário");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
 
   const loadUsers = async () => {
     try {
@@ -105,10 +172,81 @@ function AdminUsersPage() {
             Administre quem tem acesso ao painel do sistema.
           </p>
         </div>
-        <Button onClick={() => toast.info("Convide novos usuários através do painel do Supabase por enquanto.")} className="gap-2">
-          <UserPlus className="h-4 w-4" />
-          Novo Usuário
-        </Button>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <UserPlus className="h-4 w-4" />
+              Novo Usuário
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <form onSubmit={handleCreateUser}>
+              <DialogHeader>
+                <DialogTitle>Criar Novo Usuário</DialogTitle>
+                <DialogDescription>
+                  Adicione um novo colaborador ao sistema. Eles poderão fazer login com o e-mail e senha definidos.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Nome Completo</Label>
+                  <Input 
+                    id="name" 
+                    placeholder="João Silva" 
+                    value={newUserName}
+                    onChange={(e) => setNewUserName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="email">E-mail</Label>
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="joao@exemplo.com" 
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="password">Senha</Label>
+                  <Input 
+                    id="password" 
+                    type="password" 
+                    placeholder="******" 
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="role">Perfil de Acesso</Label>
+                  <Select value={newUserRole} onValueChange={setNewUserRole}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um perfil" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Administrador</SelectItem>
+                      <SelectItem value="employee">Funcionário</SelectItem>
+                      <SelectItem value="user">Usuário Comum</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isCreating}>
+                  {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Criar Usuário
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="rounded-md border bg-card">

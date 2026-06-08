@@ -84,5 +84,64 @@ export const deleteUser = createServerFn({ method: "POST" })
 
     if (profileError) throw profileError;
 
+
     return { success: true };
+  });
+
+/**
+ * Creates a new user with a specific role.
+ * Only accessible by admins.
+ */
+export const createUser = createServerFn({ method: "POST" })
+  .inputValidator((input: { 
+    accessToken: string; 
+    email: string; 
+    password: string; 
+    fullName: string; 
+    role: string 
+  }) => 
+    z.object({
+      accessToken: accessTokenSchema,
+      email: z.string().email(),
+      password: z.string().min(6),
+      fullName: z.string().min(2),
+      role: z.enum(["admin", "employee", "user"])
+    }).parse(input)
+  )
+  .handler(async ({ data: { accessToken, email, password, fullName, role } }) => {
+    await assertAdminAccess(accessToken);
+
+    // 1. Create the user in Supabase Auth
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: fullName }
+    });
+
+    if (authError) {
+      console.error("Auth creation error:", authError);
+      throw new Error(authError.message);
+    }
+
+    if (!authUser.user) {
+      throw new Error("Falha ao criar usuário");
+    }
+
+    // 2. Set the user role
+    const { error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .insert({ 
+        user_id: authUser.user.id, 
+        role: role as any 
+      });
+
+    if (roleError) {
+      console.error("Role assignment error:", roleError);
+      // We don't necessarily want to fail completely if only the role failed, 
+      // but usually we do for consistency.
+      throw new Error("Usuário criado, mas falhou ao atribuir perfil: " + roleError.message);
+    }
+
+    return { success: true, userId: authUser.user.id };
   });
