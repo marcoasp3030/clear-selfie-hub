@@ -11,6 +11,14 @@ import { listDevices } from "@/server/devices.functions";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Loader2,
   RefreshCw,
@@ -20,6 +28,8 @@ import {
   Eye,
   Store,
   CheckCircle2,
+  Filter,
+  Search,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/pending-syncs")({
