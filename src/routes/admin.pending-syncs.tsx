@@ -74,6 +74,10 @@ function PendingSyncsPage() {
   const [loading, setLoading] = useState(true);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [bulkRunning, setBulkRunning] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [errorFilter, setErrorFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
 
   const load = useCallback(async () => {
     setLoading(true);
