@@ -11,6 +11,14 @@ import { listDevices } from "@/server/devices.functions";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Loader2,
   RefreshCw,
@@ -20,6 +28,8 @@ import {
   Eye,
   Store,
   CheckCircle2,
+  Filter,
+  Search,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/pending-syncs")({
@@ -64,6 +74,10 @@ function PendingSyncsPage() {
   const [loading, setLoading] = useState(true);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [bulkRunning, setBulkRunning] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [errorFilter, setErrorFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -119,23 +133,27 @@ function PendingSyncsPage() {
     }
   }
 
-  async function handleBulk() {
-    if (rows.length === 0) return;
+  async function handleBulk(idsToRetry?: string[]) {
+    const targets = idsToRetry || Array.from(selectedIds);
+    if (targets.length === 0) return;
+    
     if (
       !confirm(
-        `Reprocessar ${rows.length} cadastro(s) pendente(s)? O envio é sequencial e pode levar alguns minutos.`,
+        `Reprocessar ${targets.length} cadastro(s) selecionado(s)? O envio é sequencial e pode levar alguns minutos.`,
       )
     )
       return;
+      
     setBulkRunning(true);
     try {
       const accessToken = await requireAdminAccessToken();
       const res = await bulkRetry({
-        data: { accessToken, ids: rows.map((r) => r.id) },
+        data: { accessToken, ids: targets },
       });
       toast.success(
         `Concluído: ${res.success} sincronizado(s), ${res.failed} com erro (de ${res.total}).`,
       );
+      setSelectedIds(new Set());
       await load();
     } catch {
       toast.error("Falha ao reprocessar em massa");
@@ -143,6 +161,30 @@ function PendingSyncsPage() {
       setBulkRunning(false);
     }
   }
+
+  const uniqueErrors = Array.from(new Set(rows.map(r => r.device_sync_error).filter(Boolean))) as string[];
+
+  const filteredRows = rows.filter(r => {
+    const matchesError = errorFilter === "all" || r.device_sync_error === errorFilter;
+    const matchesStatus = statusFilter === "all" || r.device_sync_status === statusFilter;
+    return matchesError && matchesStatus;
+  });
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredRows.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredRows.map(r => r.id)));
+    }
+  };
+
+  const toggleSelectRow = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
 
   const pendingCount = rows.filter((r) => r.device_sync_status === "pending").length;
   const errorCount = rows.filter((r) => r.device_sync_status === "error").length;
@@ -160,22 +202,62 @@ function PendingSyncsPage() {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={load} disabled={loading || bulkRunning}>
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Atualizar
           </Button>
           <Button
-            onClick={handleBulk}
-            disabled={loading || bulkRunning || rows.length === 0}
+            onClick={() => handleBulk()}
+            disabled={loading || bulkRunning || selectedIds.size === 0}
           >
             {bulkRunning ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <PlayCircle className="h-4 w-4" />
             )}
-            Reprocessar todos ({rows.length})
+            Reenviar selecionados ({selectedIds.size})
           </Button>
+          <Button
+            variant="secondary"
+            onClick={() => handleBulk(rows.map(r => r.id))}
+            disabled={loading || bulkRunning || rows.length === 0}
+          >
+            Reenviar todos ({rows.length})
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Filtros:</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Status</SelectItem>
+              <SelectItem value="pending">Pendentes</SelectItem>
+              <SelectItem value="error">Com Erro</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={errorFilter} onValueChange={setErrorFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Tipo de Erro" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Erros</SelectItem>
+              {uniqueErrors.map(err => (
+                <SelectItem key={err} value={err}>
+                  {err.length > 40 ? err.substring(0, 40) + "..." : err}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -218,6 +300,12 @@ function PendingSyncsPage() {
             <table className="w-full text-sm">
               <thead className="border-b border-border/60 bg-muted/40 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 <tr>
+                  <th className="px-4 py-3 text-left w-10">
+                    <Checkbox 
+                      checked={selectedIds.size === filteredRows.length && filteredRows.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left">Status</th>
                   <th className="px-4 py-3 text-left">Nome</th>
                   <th className="px-4 py-3 text-left">Loja / Equipamento</th>
@@ -227,8 +315,14 @@ function PendingSyncsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {rows.map((r) => (
+                {filteredRows.map((r) => (
                   <tr key={r.id} className="transition-colors hover:bg-muted/30">
+                    <td className="px-4 py-3">
+                      <Checkbox 
+                        checked={selectedIds.has(r.id)}
+                        onCheckedChange={() => toggleSelectRow(r.id)}
+                      />
+                    </td>
                     <td className="px-4 py-3">
                       {r.device_sync_status === "error" ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
