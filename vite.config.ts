@@ -13,6 +13,18 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 const isNodeTarget = process.env.DEPLOY_TARGET === "node";
 
 export default defineConfig({
-  // @ts-ignore - 'cloudflare' might not be in the type definition but is handled by the plugin
-  cloudflare: isNodeTarget ? false : undefined,
+  // Project convention: server-only code lives under `src/server/` and is
+  // exposed to the client via `createServerFn`. Override Lovable's default
+  // import-protection rule that blocks `**/server/**` from client-reachable
+  // graphs — the server-fn splitter handles the actual server/client split.
+  tanstackStart: {
+    importProtection: {
+      behavior: "error",
+      client: {
+        excludeFiles: ["**/server/**"],
+        specifiers: ["server-only"],
+      },
+    },
+  },
+  nitro: isNodeTarget ? { preset: "node-server" } : undefined,
 });
