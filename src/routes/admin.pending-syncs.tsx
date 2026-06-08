@@ -12,6 +12,7 @@ import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -30,6 +31,8 @@ import {
   CheckCircle2,
   Filter,
   Search,
+  Send,
+  ListChecks,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/pending-syncs")({
@@ -77,6 +80,10 @@ function PendingSyncsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [errorFilter, setErrorFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  // Per-item progress status during a bulk run.
+  // Values: "queued" | "sending" | "sent" | "failed"
+  const [bulkStatus, setBulkStatus] = useState<Record<string, string>>({});
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0, ok: 0, fail: 0 });
 
 
   const load = useCallback(async () => {
@@ -143,18 +150,60 @@ function PendingSyncsPage() {
       )
     )
       return;
-      
+
     setBulkRunning(true);
+    // Inicializa todos como "em fila"
+    const initial: Record<string, string> = {};
+    targets.forEach((id) => (initial[id] = "queued"));
+    setBulkStatus(initial);
+    setBulkProgress({ done: 0, total: targets.length, ok: 0, fail: 0 });
+
+    let ok = 0;
+    let fail = 0;
+
     try {
       const accessToken = await requireAdminAccessToken();
-      const res = await bulkRetry({
-        data: { accessToken, ids: targets },
-      });
+
+      for (let i = 0; i < targets.length; i++) {
+        const id = targets[i];
+        setBulkStatus((prev) => ({ ...prev, [id]: "sending" }));
+
+        try {
+          const res = await retryOne({
+            data: { accessToken, registrationId: id },
+          });
+          if (res.success) {
+            ok++;
+            setBulkStatus((prev) => ({ ...prev, [id]: "sent" }));
+            setRows((prev) => prev.filter((r) => r.id !== id));
+          } else {
+            fail++;
+            setBulkStatus((prev) => ({ ...prev, [id]: "failed" }));
+            setRows((prev) =>
+              prev.map((r) =>
+                r.id === id
+                  ? {
+                      ...r,
+                      device_sync_status: "error",
+                      device_sync_error: res.error,
+                      device_sync_attempted_at: new Date().toISOString(),
+                    }
+                  : r,
+              ),
+            );
+          }
+        } catch {
+          fail++;
+          setBulkStatus((prev) => ({ ...prev, [id]: "failed" }));
+        }
+
+        setBulkProgress({ done: i + 1, total: targets.length, ok, fail });
+      }
+
       toast.success(
-        `Concluído: ${res.success} sincronizado(s), ${res.failed} com erro (de ${res.total}).`,
+        `Concluído: ${ok} reenviado(s), ${fail} com erro (de ${targets.length}).`,
       );
       setSelectedIds(new Set());
-      await load();
     } catch {
       toast.error("Falha ao reprocessar em massa");
     } finally {
@@ -277,6 +326,45 @@ function PendingSyncsPage() {
         />
       </div>
 
+      {(bulkRunning || bulkProgress.total > 0) && (
+        <div
+          className="rounded-2xl border border-border/60 bg-card p-5"
+          style={{ boxShadow: "var(--shadow-card)" }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <ListChecks className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-semibold text-sm">
+                  {bulkRunning ? "Reenviando em massa..." : "Reenvio concluído"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {bulkProgress.done} de {bulkProgress.total} processado(s) —
+                  <span className="text-emerald-600 font-medium"> {bulkProgress.ok} OK</span> ·
+                  <span className="text-destructive font-medium"> {bulkProgress.fail} falhas</span>
+                </p>
+              </div>
+            </div>
+            {!bulkRunning && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setBulkStatus({});
+                  setBulkProgress({ done: 0, total: 0, ok: 0, fail: 0 });
+                  load();
+                }}
+              >
+                Limpar
+              </Button>
+            )}
+          </div>
+          <Progress
+            value={bulkProgress.total > 0 ? (bulkProgress.done / bulkProgress.total) * 100 : 0}
+          />
+        </div>
+      )}
+
       {loading ? (
         <div className="flex h-64 items-center justify-center">
           <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
@@ -307,6 +395,9 @@ function PendingSyncsPage() {
                     />
                   </th>
                   <th className="px-4 py-3 text-left">Status</th>
+                  {bulkProgress.total > 0 && (
+                    <th className="px-4 py-3 text-left">Progresso</th>
+                  )}
                   <th className="px-4 py-3 text-left">Nome</th>
                   <th className="px-4 py-3 text-left">Loja / Equipamento</th>
                   <th className="px-4 py-3 text-left">Erro</th>
@@ -334,6 +425,11 @@ function PendingSyncsPage() {
                         </span>
                       )}
                     </td>
+                    {bulkProgress.total > 0 && (
+                      <td className="px-4 py-3">
+                        <BulkStatusBadge status={bulkStatus[r.id]} />
+                      </td>
+                    )}
                     <td className="px-4 py-3 font-medium">
                       {r.first_name} {r.last_name}
                       <p className="text-xs text-muted-foreground">{r.phone}</p>
@@ -427,4 +523,33 @@ function StatCard({
       </CardContent>
     </Card>
   );
+}
+
+function BulkStatusBadge({ status }: { status?: string }) {
+  if (!status) return <span className="text-xs text-muted-foreground">—</span>;
+  if (status === "queued")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+        <Clock3 className="h-3 w-3" /> Em fila
+      </span>
+    );
+  if (status === "sending")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+        <Loader2 className="h-3 w-3 animate-spin" /> Enviando
+      </span>
+    );
+  if (status === "sent")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+        <CheckCircle2 className="h-3 w-3" /> Reenviado
+      </span>
+    );
+  if (status === "failed")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+        <XCircle className="h-3 w-3" /> Falhou
+      </span>
+    );
+  return <span className="text-xs text-muted-foreground">—</span>;
 }
