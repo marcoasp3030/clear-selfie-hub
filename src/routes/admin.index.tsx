@@ -18,10 +18,11 @@ export const Route = createFileRoute("/admin/")({
 
 function AdminDashboard() {
   const fetchStats = useServerFn(getRegistrationStats);
-  const [stats, setStats] = useState<{ total: number; today: number; week: number } | null>(
-    null
-  );
+  const fetchStoreStats = useServerFn(getStoreStats);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [storeStats, setStoreStats] = useState<StoreStat[] | null>(null);
   const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
     let mounted = true;
