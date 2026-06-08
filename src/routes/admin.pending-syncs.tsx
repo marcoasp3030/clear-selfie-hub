@@ -12,6 +12,7 @@ import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -30,6 +31,8 @@ import {
   CheckCircle2,
   Filter,
   Search,
+  Send,
+  ListChecks,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/pending-syncs")({
@@ -77,6 +80,10 @@ function PendingSyncsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [errorFilter, setErrorFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  // Per-item progress status during a bulk run.
+  // Values: "queued" | "sending" | "sent" | "failed"
+  const [bulkStatus, setBulkStatus] = useState<Record<string, string>>({});
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0, ok: 0, fail: 0 });
 
 
   const load = useCallback(async () => {
@@ -143,18 +150,60 @@ function PendingSyncsPage() {
       )
     )
       return;
-      
+
     setBulkRunning(true);
+    // Inicializa todos como "em fila"
+    const initial: Record<string, string> = {};
+    targets.forEach((id) => (initial[id] = "queued"));
+    setBulkStatus(initial);
+    setBulkProgress({ done: 0, total: targets.length, ok: 0, fail: 0 });
+
+    let ok = 0;
+    let fail = 0;
+
     try {
       const accessToken = await requireAdminAccessToken();
-      const res = await bulkRetry({
-        data: { accessToken, ids: targets },
-      });
+
+      for (let i = 0; i < targets.length; i++) {
+        const id = targets[i];
+        setBulkStatus((prev) => ({ ...prev, [id]: "sending" }));
+
+        try {
+          const res = await retryOne({
+            data: { accessToken, registrationId: id },
+          });
+          if (res.success) {
+            ok++;
+            setBulkStatus((prev) => ({ ...prev, [id]: "sent" }));
+            setRows((prev) => prev.filter((r) => r.id !== id));
+          } else {
+            fail++;
+            setBulkStatus((prev) => ({ ...prev, [id]: "failed" }));
+            setRows((prev) =>
+              prev.map((r) =>
+                r.id === id
+                  ? {
+                      ...r,
+                      device_sync_status: "error",
+                      device_sync_error: res.error,
+                      device_sync_attempted_at: new Date().toISOString(),
+                    }
+                  : r,
+              ),
+            );
+          }
+        } catch {
+          fail++;
+          setBulkStatus((prev) => ({ ...prev, [id]: "failed" }));
+        }
+
+        setBulkProgress({ done: i + 1, total: targets.length, ok, fail });
+      }
+
       toast.success(
-        `Concluído: ${res.success} sincronizado(s), ${res.failed} com erro (de ${res.total}).`,
+        `Concluído: ${ok} reenviado(s), ${fail} com erro (de ${targets.length}).`,
       );
       setSelectedIds(new Set());
-      await load();
     } catch {
       toast.error("Falha ao reprocessar em massa");
     } finally {
