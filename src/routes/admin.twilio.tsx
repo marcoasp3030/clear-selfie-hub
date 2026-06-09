@@ -53,6 +53,23 @@ function AdminTwilioPage() {
     responseBody: string | null;
   } | null>(null);
 
+  const loadBalance = async () => {
+    setLoadingBalance(true);
+    try {
+      const accessToken = await requireAdminAccessToken();
+      const res = await fnGetBalance({ data: { accessToken } });
+      if (res.success) {
+        setBalance({ amount: res.balance, currency: res.currency });
+      } else {
+        setBalance(null);
+      }
+    } catch (err) {
+      console.error("Failed to load balance:", err);
+    } finally {
+      setLoadingBalance(false);
+    }
+  };
+
   const load = async () => {
     setLoading(true);
     try {
@@ -65,6 +82,10 @@ function AdminTwilioPage() {
       setEnvFallback(res.envFallback);
       setAuthToken("");
       setEditingToken(false);
+
+      if (res.accountSid || res.envFallback.sid) {
+        void loadBalance();
+      }
     } catch (err) {
       console.error(err);
       toast.error("Erro ao carregar configurações do Twilio.");
