@@ -52,6 +52,56 @@ export const getTwilioSettings = createServerFn({ method: "POST" })
     };
   });
 
+export const getTwilioBalance = createServerFn({ method: "POST" })
+  .inputValidator((input: { accessToken: string }) =>
+    z.object({ accessToken: accessTokenSchema }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    await assertAdminAccess(data.accessToken);
+    const vals = await getRawSettings([
+      TWILIO_SETTING_KEYS.sid,
+      TWILIO_SETTING_KEYS.token,
+    ]);
+    const sid = vals[TWILIO_SETTING_KEYS.sid] || process.env.TWILIO_ACCOUNT_SID || "";
+    const token = vals[TWILIO_SETTING_KEYS.token] || process.env.TWILIO_AUTH_TOKEN || "";
+
+    if (!sid || !token) {
+      return { success: false as const, error: "Twilio não configurado." };
+    }
+
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${sid.trim()}/Balance.json`;
+    const auth = btoa(`${sid.trim()}:${token.trim()}`);
+
+    try {
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Basic ${auth}`,
+          Accept: "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          return { success: false as const, error: "Recurso de saldo não disponível nesta conta." };
+        }
+        return { success: false as const, error: `Erro API Twilio: HTTP ${res.status}` };
+      }
+
+      const balanceData = (await res.json()) as { balance: string; currency: string };
+      return {
+        success: true as const,
+        balance: parseFloat(balanceData.balance),
+        currency: balanceData.currency,
+      };
+    } catch (err) {
+      console.error("getTwilioBalance failed:", err);
+      return {
+        success: false as const,
+        error: err instanceof Error ? err.message : "Erro ao consultar saldo.",
+      };
+    }
+  });
+
 export const updateTwilioSettings = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
