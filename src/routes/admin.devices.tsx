@@ -84,6 +84,9 @@ function DevicesPage() {
   const [copied, setCopied] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+  const [sortBy, setSortBy] = useState<"name" | "slug" | "api_base_url">("name");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Edit dialog state
   const [editing, setEditing] = useState<DeviceRow | null>(null);
