@@ -328,7 +328,21 @@ function DevicesPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Ordenar:</span>
+            <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+              <SelectTrigger className="h-9 w-[130px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Por Loja</SelectItem>
+                <SelectItem value="slug">Por Slug</SelectItem>
+                <SelectItem value="api_base_url">Por URL</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex items-center rounded-md border bg-muted/50 p-1">
             <Button
               variant={viewMode === "grid" ? "secondary" : "ghost"}
@@ -354,7 +368,10 @@ function DevicesPage() {
             <Input
               placeholder="Filtrar lojas ou URLs..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               className="pl-9"
             />
           </div>
