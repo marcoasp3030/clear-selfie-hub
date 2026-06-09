@@ -238,7 +238,6 @@ function DevicesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Excluir este equipamento? A URL pública deixará de funcionar.")) return;
     setDeletingId(id);
     try {
       const accessToken = await requireAdminAccessToken();
