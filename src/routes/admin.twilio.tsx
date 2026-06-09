@@ -2,15 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, MessageSquareText, Save, RefreshCw, KeyRound, Send, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, MessageSquareText, Save, RefreshCw, KeyRound, Send, CheckCircle2, XCircle, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   getTwilioSettings,
   updateTwilioSettings,
   sendTestSms,
+  getTwilioBalance,
 } from "@/server/twilioSettings.functions";
 import { requireAdminAccessToken } from "@/lib/adminAccessToken";
 
@@ -22,6 +24,7 @@ function AdminTwilioPage() {
   const fnGet = useServerFn(getTwilioSettings);
   const fnUpdate = useServerFn(updateTwilioSettings);
   const fnSendTest = useServerFn(sendTestSms);
+  const fnGetBalance = useServerFn(getTwilioBalance);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,6 +34,8 @@ function AdminTwilioPage() {
   const [editingToken, setEditingToken] = useState(false);
   const [tokenMasked, setTokenMasked] = useState<string | null>(null);
   const [hasToken, setHasToken] = useState(false);
+  const [balance, setBalance] = useState<{ amount: number; currency: string } | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
   const [envFallback, setEnvFallback] = useState({
     sid: false,
     token: false,
@@ -48,6 +53,23 @@ function AdminTwilioPage() {
     responseBody: string | null;
   } | null>(null);
 
+  const loadBalance = async () => {
+    setLoadingBalance(true);
+    try {
+      const accessToken = await requireAdminAccessToken();
+      const res = await fnGetBalance({ data: { accessToken } });
+      if (res.success) {
+        setBalance({ amount: res.balance, currency: res.currency });
+      } else {
+        setBalance(null);
+      }
+    } catch (err) {
+      console.error("Failed to load balance:", err);
+    } finally {
+      setLoadingBalance(false);
+    }
+  };
+
   const load = async () => {
     setLoading(true);
     try {
@@ -60,6 +82,10 @@ function AdminTwilioPage() {
       setEnvFallback(res.envFallback);
       setAuthToken("");
       setEditingToken(false);
+
+      if (res.accountSid || res.envFallback.sid) {
+        void loadBalance();
+      }
     } catch (err) {
       console.error(err);
       toast.error("Erro ao carregar configurações do Twilio.");
@@ -129,6 +155,41 @@ function AdminTwilioPage() {
           <RefreshCw className="mr-2 h-4 w-4" /> Recarregar
         </Button>
       </div>
+      
+      {/* Wallet / Balance Info */}
+      {(balance !== null || loadingBalance) && (
+        <div className="flex items-center justify-between rounded-lg border bg-primary/5 p-4 transition-all">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+              <Wallet className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Saldo Twilio
+              </p>
+              {loadingBalance ? (
+                <Skeleton className="h-6 w-24" />
+              ) : (
+                <p className="text-xl font-bold">
+                  {new Intl.NumberFormat("pt-BR", {
+                    style: "currency",
+                    currency: balance?.currency || "USD",
+                  }).format(balance?.amount || 0)}
+                </p>
+              )}
+            </div>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => void loadBalance()} 
+            disabled={loadingBalance}
+            className="h-8 px-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${loadingBalance ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+      )}
 
       <div className="space-y-5 rounded-lg border bg-card p-6">
         <div className="space-y-2">
