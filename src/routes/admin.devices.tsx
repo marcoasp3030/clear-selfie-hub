@@ -37,6 +37,7 @@ import {
   ShieldCheck,
   Pencil,
   Search,
+  Store,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/devices")({
