@@ -155,6 +155,41 @@ function AdminTwilioPage() {
           <RefreshCw className="mr-2 h-4 w-4" /> Recarregar
         </Button>
       </div>
+      
+      {/* Wallet / Balance Info */}
+      {(balance !== null || loadingBalance) && (
+        <div className="flex items-center justify-between rounded-lg border bg-primary/5 p-4 transition-all">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+              <Wallet className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Saldo Twilio
+              </p>
+              {loadingBalance ? (
+                <Skeleton className="h-6 w-24" />
+              ) : (
+                <p className="text-xl font-bold">
+                  {new Intl.NumberFormat("pt-BR", {
+                    style: "currency",
+                    currency: balance?.currency || "USD",
+                  }).format(balance?.amount || 0)}
+                </p>
+              )}
+            </div>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => void loadBalance()} 
+            disabled={loadingBalance}
+            className="h-8 px-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${loadingBalance ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+      )}
 
       <div className="space-y-5 rounded-lg border bg-card p-6">
         <div className="space-y-2">
