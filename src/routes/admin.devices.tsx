@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,7 @@ import {
   X,
   ShieldCheck,
   Pencil,
+  Search,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/devices")({
@@ -56,6 +58,7 @@ function DevicesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   // Edit dialog state
   const [editing, setEditing] = useState<DeviceRow | null>(null);
@@ -257,28 +260,51 @@ function DevicesPage() {
     }
   }
 
+  const filteredDevices = devices?.filter((d) => {
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (
+      d.name.toLowerCase().includes(s) ||
+      d.slug.toLowerCase().includes(s) ||
+      d.api_base_url.toLowerCase().includes(s)
+    );
+  });
+
+  // Group devices by name (Loja)
+  const groupedDevices = filteredDevices?.reduce((acc, d) => {
+    if (!acc[d.name]) acc[d.name] = [];
+    acc[d.name].push(d);
+    return acc;
+  }, {} as Record<string, DeviceRow[]>);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Lojas / Equipamentos</h1>
-          <p className="text-sm text-muted-foreground">
-            Cada loja/equipamento gera uma URL pública de cadastro exclusiva. Use o
-            nome da loja para identificar a origem dos cadastros.
-            <br />
-            <strong>Múltiplos equipamentos por loja:</strong> cadastre cada equipamento
-            usando exatamente o mesmo <em>Nome da loja</em>. O sistema replica
-            automaticamente cada novo cadastro em todos os equipamentos com o mesmo nome.
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Cada loja/equipamento gera uma URL pública de cadastro exclusiva. O sistema replica
+            automaticamente cada novo cadastro em todos os equipamentos com o mesmo nome de loja.
           </p>
         </div>
 
-        <Dialog open={openCreate} onOpenChange={setOpenCreate}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4" />
-              Novo equipamento
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Filtrar lojas..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Dialog open={openCreate} onOpenChange={setOpenCreate}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4" />
+                Novo
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <form onSubmit={handleCreate}>
               <DialogHeader>
@@ -484,103 +510,131 @@ function DevicesPage() {
         <div className="flex justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
-      ) : !devices || devices.length === 0 ? (
+      ) : !filteredDevices || filteredDevices.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Cpu className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="font-semibold">Nenhum equipamento cadastrado</p>
-              <p className="text-sm text-muted-foreground">
-                Cadastre seu primeiro equipamento para gerar a URL pública de cadastro.
-              </p>
-            </div>
+            <Search className="h-10 w-10 text-muted-foreground/30" />
+            <p className="text-sm text-muted-foreground">Nenhuma loja ou equipamento encontrado para esta busca.</p>
+            <Button variant="link" onClick={() => setSearch("")}>Limpar filtros</Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {devices.map((d) => {
-            const url = publicUrl(d.slug);
-            return (
-              <Card key={d.id}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <CardTitle className="truncate text-base">{d.name}</CardTitle>
-                      <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
-                        {d.api_base_url}
-                      </p>
-                      {d.cpf_validation_required && (
-                        <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                          <ShieldCheck className="h-3 w-3" /> Valida CPF na Receita
-                        </span>
-                      )}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(d.id)}
-                      disabled={deletingId === d.id}
-                      aria-label="Excluir"
-                    >
-                      {deletingId === d.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEdit(d)}
-                      aria-label="Editar"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="rounded-md border bg-muted/40 px-3 py-2">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                      URL pública de cadastro
-                    </p>
-                    <p className="mt-0.5 break-all font-mono text-xs">{url}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => copyUrl(d.slug)}
-                    >
-                      {copied === d.slug ? (
-                        <Check className="h-4 w-4" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                      Copiar link
-                    </Button>
-                    <Button
-                      asChild
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                    >
-                      <a href={url} target="_blank" rel="noreferrer">
-                        <ExternalLink className="h-4 w-4" />
-                        Abrir
-                      </a>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+        <div className="space-y-8">
+          {Object.entries(groupedDevices || {}).map(([storeName, items]) => (
+            <div key={storeName} className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Store className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold tracking-tight">{storeName}</h2>
+                <Badge variant="secondary" className="ml-1">
+                  {items.length} {items.length === 1 ? "equipamento" : "equipamentos"}
+                </Badge>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {items.map((d) => {
+                  const url = publicUrl(d.slug);
+                  return (
+                    <Card key={d.id} className="overflow-hidden transition-all hover:shadow-md">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <CardTitle className="truncate text-sm font-medium">
+                              {d.slug}
+                            </CardTitle>
+                            <p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
+                              {d.api_base_url}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => openEdit(d)}
+                              aria-label="Editar"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => handleDelete(d.id)}
+                              disabled={deletingId === d.id}
+                              aria-label="Excluir"
+                            >
+                              {deletingId === d.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {d.cpf_validation_required && (
+                            <Badge variant="outline" className="h-5 border-primary/30 bg-primary/5 text-[9px] text-primary">
+                              <ShieldCheck className="mr-1 h-3 w-3" /> CPF Receita
+                            </Badge>
+                          )}
+                          {d.cpf_hidden && (
+                            <Badge variant="outline" className="h-5 text-[9px]">
+                              Sem CPF
+                            </Badge>
+                          )}
+                          {d.allow_duplicate_phone && (
+                            <Badge variant="outline" className="h-5 text-[9px]">
+                              Tel. Duplicado
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="rounded-md border bg-muted/30 px-3 py-2">
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                            Link de Cadastro
+                          </p>
+                          <p className="mt-0.5 truncate font-mono text-[10px]">{url}</p>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 flex-1 text-xs"
+                            onClick={() => copyUrl(d.slug)}
+                          >
+                            {copied === d.slug ? (
+                              <Check className="mr-1 h-3 w-3" />
+                            ) : (
+                              <Copy className="mr-1 h-3 w-3" />
+                            )}
+                            Copiar
+                          </Button>
+                          <Button
+                            asChild
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 flex-1 text-xs"
+                          >
+                            <a href={url} target="_blank" rel="noreferrer">
+                              <ExternalLink className="mr-1 h-3 w-3" />
+                              Abrir
+                            </a>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
