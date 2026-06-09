@@ -50,7 +50,17 @@ import {
   Store,
   LayoutGrid,
   List,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/admin/devices")({
   head: () => ({
@@ -74,6 +84,9 @@ function DevicesPage() {
   const [copied, setCopied] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+  const [sortBy, setSortBy] = useState<"name" | "slug" | "api_base_url">("name");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Edit dialog state
   const [editing, setEditing] = useState<DeviceRow | null>(null);
@@ -274,7 +287,14 @@ function DevicesPage() {
     }
   }
 
-  const filteredDevices = devices?.filter((d) => {
+  const sortedDevices = [...(devices || [])].sort((a, b) => {
+    if (sortBy === "name") return a.name.localeCompare(b.name);
+    if (sortBy === "slug") return a.slug.localeCompare(b.slug);
+    if (sortBy === "api_base_url") return a.api_base_url.localeCompare(b.api_base_url);
+    return 0;
+  });
+
+  const filteredDevices = sortedDevices.filter((d) => {
     if (!search) return true;
     const s = search.toLowerCase();
     return (
@@ -284,8 +304,14 @@ function DevicesPage() {
     );
   });
 
+  const totalPages = Math.ceil((filteredDevices?.length || 0) / itemsPerPage);
+  const paginatedDevices = filteredDevices?.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
+
   // Group devices by name (Loja)
-  const groupedDevices = filteredDevices?.reduce((acc, d) => {
+  const groupedDevices = paginatedDevices?.reduce((acc, d) => {
     if (!acc[d.name]) acc[d.name] = [];
     acc[d.name].push(d);
     return acc;
@@ -302,7 +328,21 @@ function DevicesPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Ordenar:</span>
+            <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+              <SelectTrigger className="h-9 w-[130px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Por Loja</SelectItem>
+                <SelectItem value="slug">Por Slug</SelectItem>
+                <SelectItem value="api_base_url">Por URL</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex items-center rounded-md border bg-muted/50 p-1">
             <Button
               variant={viewMode === "grid" ? "secondary" : "ghost"}
@@ -328,7 +368,10 @@ function DevicesPage() {
             <Input
               placeholder="Filtrar lojas ou URLs..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               className="pl-9"
             />
           </div>
@@ -777,6 +820,32 @@ function DevicesPage() {
               )}
             </div>
           ))}
+          
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                Anterior
+              </Button>
+              <div className="text-sm font-medium">
+                Página {currentPage} de {totalPages}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Próximo
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
