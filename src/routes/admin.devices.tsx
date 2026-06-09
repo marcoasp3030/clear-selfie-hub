@@ -575,7 +575,7 @@ function DevicesPage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                              onClick={() => handleDelete(d.id)}
+                              onClick={() => setDeviceToDelete(d)}
                               disabled={deletingId === d.id}
                               aria-label="Excluir"
                             >
