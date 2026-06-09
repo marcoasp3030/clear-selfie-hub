@@ -24,6 +24,7 @@ function AdminTwilioPage() {
   const fnGet = useServerFn(getTwilioSettings);
   const fnUpdate = useServerFn(updateTwilioSettings);
   const fnSendTest = useServerFn(sendTestSms);
+  const fnGetBalance = useServerFn(getTwilioBalance);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -33,6 +34,8 @@ function AdminTwilioPage() {
   const [editingToken, setEditingToken] = useState(false);
   const [tokenMasked, setTokenMasked] = useState<string | null>(null);
   const [hasToken, setHasToken] = useState(false);
+  const [balance, setBalance] = useState<{ amount: number; currency: string } | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
   const [envFallback, setEnvFallback] = useState({
     sid: false,
     token: false,
