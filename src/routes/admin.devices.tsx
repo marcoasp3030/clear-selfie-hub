@@ -287,7 +287,14 @@ function DevicesPage() {
     }
   }
 
-  const filteredDevices = devices?.filter((d) => {
+  const sortedDevices = [...(devices || [])].sort((a, b) => {
+    if (sortBy === "name") return a.name.localeCompare(b.name);
+    if (sortBy === "slug") return a.slug.localeCompare(b.slug);
+    if (sortBy === "api_base_url") return a.api_base_url.localeCompare(b.api_base_url);
+    return 0;
+  });
+
+  const filteredDevices = sortedDevices.filter((d) => {
     if (!search) return true;
     const s = search.toLowerCase();
     return (
@@ -297,8 +304,14 @@ function DevicesPage() {
     );
   });
 
+  const totalPages = Math.ceil((filteredDevices?.length || 0) / itemsPerPage);
+  const paginatedDevices = filteredDevices?.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
+
   // Group devices by name (Loja)
-  const groupedDevices = filteredDevices?.reduce((acc, d) => {
+  const groupedDevices = paginatedDevices?.reduce((acc, d) => {
     if (!acc[d.name]) acc[d.name] = [];
     acc[d.name].push(d);
     return acc;
