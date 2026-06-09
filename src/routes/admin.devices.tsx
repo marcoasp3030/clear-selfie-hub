@@ -26,6 +26,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Loader2,
   Plus,
   Trash2,
@@ -58,6 +68,7 @@ function DevicesPage() {
   const [openCreate, setOpenCreate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deviceToDelete, setDeviceToDelete] = useState<DeviceRow | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
@@ -227,7 +238,6 @@ function DevicesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Excluir este equipamento? A URL pública deixará de funcionar.")) return;
     setDeletingId(id);
     try {
       const accessToken = await requireAdminAccessToken();
@@ -565,7 +575,7 @@ function DevicesPage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                              onClick={() => handleDelete(d.id)}
+                              onClick={() => setDeviceToDelete(d)}
                               disabled={deletingId === d.id}
                               aria-label="Excluir"
                             >
@@ -798,6 +808,31 @@ function DevicesPage() {
           </form>
         </DialogContent>
       </Dialog>
+    <AlertDialog open={!!deviceToDelete} onOpenChange={(open) => !open && setDeviceToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir equipamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o equipamento <strong>{deviceToDelete?.slug}</strong>? 
+              A URL pública deixará de funcionar imediatamente e esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deviceToDelete) {
+                  handleDelete(deviceToDelete.id);
+                  setDeviceToDelete(null);
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
