@@ -48,6 +48,8 @@ import {
   Pencil,
   Search,
   Store,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/devices")({
@@ -71,6 +73,7 @@ function DevicesPage() {
   const [deviceToDelete, setDeviceToDelete] = useState<DeviceRow | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
 
   // Edit dialog state
   const [editing, setEditing] = useState<DeviceRow | null>(null);
@@ -299,11 +302,31 @@ function DevicesPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center rounded-md border bg-muted/50 p-1">
+            <Button
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setViewMode("grid")}
+              title="Visualização em Grade"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "table" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setViewMode("table")}
+              title="Visualização em Lista"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Filtrar lojas..."
+              placeholder="Filtrar lojas ou URLs..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -544,109 +567,214 @@ function DevicesPage() {
                 </Badge>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {items.map((d) => {
-                  const url = publicUrl(d.slug);
-                  return (
-                    <Card key={d.id} className="overflow-hidden transition-all hover:shadow-md">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <CardTitle className="truncate text-sm font-medium">
-                              {d.slug}
-                            </CardTitle>
-                            <p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
-                              {d.api_base_url}
-                            </p>
+              {viewMode === "grid" ? (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {items.map((d) => {
+                    const url = publicUrl(d.slug);
+                    return (
+                      <Card key={d.id} className="overflow-hidden transition-all hover:shadow-md">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <CardTitle className="truncate text-sm font-medium">
+                                {d.slug}
+                              </CardTitle>
+                              <p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
+                                {d.api_base_url}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => openEdit(d)}
+                                aria-label="Editar"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() => setDeviceToDelete(d)}
+                                disabled={deletingId === d.id}
+                                aria-label="Excluir"
+                              >
+                                {deletingId === d.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => openEdit(d)}
-                              aria-label="Editar"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                              onClick={() => setDeviceToDelete(d)}
-                              disabled={deletingId === d.id}
-                              aria-label="Excluir"
-                            >
-                              {deletingId === d.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="flex flex-wrap gap-1.5">
-                          {d.cpf_validation_required && (
-                            <Badge variant="outline" className="h-5 border-primary/30 bg-primary/5 text-[9px] text-primary">
-                              <ShieldCheck className="mr-1 h-3 w-3" /> CPF Receita
-                            </Badge>
-                          )}
-                          {d.cpf_hidden && (
-                            <Badge variant="outline" className="h-5 text-[9px]">
-                              Sem CPF
-                            </Badge>
-                          )}
-                          {d.allow_duplicate_phone && (
-                            <Badge variant="outline" className="h-5 text-[9px]">
-                              Tel. Duplicado
-                            </Badge>
-                          )}
-                        </div>
-
-                        <div className="rounded-md border bg-muted/30 px-3 py-2">
-                          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                            Link de Cadastro
-                          </p>
-                          <p className="mt-0.5 truncate font-mono text-[10px]">{url}</p>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8 flex-1 text-xs"
-                            onClick={() => copyUrl(d.slug)}
-                          >
-                            {copied === d.slug ? (
-                              <Check className="mr-1 h-3 w-3" />
-                            ) : (
-                              <Copy className="mr-1 h-3 w-3" />
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex flex-wrap gap-1.5">
+                            {d.cpf_validation_required && (
+                              <Badge variant="outline" className="h-5 border-primary/30 bg-primary/5 text-[9px] text-primary">
+                                <ShieldCheck className="mr-1 h-3 w-3" /> CPF Receita
+                              </Badge>
                             )}
-                            Copiar
-                          </Button>
-                          <Button
-                            asChild
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8 flex-1 text-xs"
-                          >
-                            <a href={url} target="_blank" rel="noreferrer">
-                              <ExternalLink className="mr-1 h-3 w-3" />
-                              Abrir
-                            </a>
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+                            {d.cpf_hidden && (
+                              <Badge variant="outline" className="h-5 text-[9px]">
+                                Sem CPF
+                              </Badge>
+                            )}
+                            {d.allow_duplicate_phone && (
+                              <Badge variant="outline" className="h-5 text-[9px]">
+                                Tel. Duplicado
+                              </Badge>
+                            )}
+                          </div>
+
+                          <div className="rounded-md border bg-muted/30 px-3 py-2">
+                            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                              Link de Cadastro
+                            </p>
+                            <p className="mt-0.5 truncate font-mono text-[10px]">{url}</p>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 flex-1 text-xs"
+                              onClick={() => copyUrl(d.slug)}
+                            >
+                              {copied === d.slug ? (
+                                <Check className="mr-1 h-3 w-3" />
+                              ) : (
+                                <Copy className="mr-1 h-3 w-3" />
+                              )}
+                              Copiar
+                            </Button>
+                            <Button
+                              asChild
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 flex-1 text-xs"
+                            >
+                              <a href={url} target="_blank" rel="noreferrer">
+                                <ExternalLink className="mr-1 h-3 w-3" />
+                                Abrir
+                              </a>
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-md border bg-card">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="border-b bg-muted/30 text-xs font-medium uppercase text-muted-foreground">
+                        <tr>
+                          <th className="px-4 py-3">Equipamento (Slug)</th>
+                          <th className="px-4 py-3">Configurações</th>
+                          <th className="px-4 py-3">URL Base</th>
+                          <th className="px-4 py-3 text-right">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {items.map((d) => {
+                          const url = publicUrl(d.slug);
+                          return (
+                            <tr key={d.id} className="transition-colors hover:bg-muted/10">
+                              <td className="px-4 py-3">
+                                <div className="font-medium">{d.slug}</div>
+                                <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
+                                  <span className="truncate max-w-[200px]">{url}</span>
+                                  <button 
+                                    onClick={() => copyUrl(d.slug)}
+                                    className="inline-flex h-5 w-5 items-center justify-center rounded-sm hover:bg-muted"
+                                  >
+                                    {copied === d.slug ? (
+                                      <Check className="h-3 w-3 text-green-500" />
+                                    ) : (
+                                      <Copy className="h-3 w-3" />
+                                    )}
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex flex-wrap gap-1">
+                                  {d.cpf_validation_required && (
+                                    <Badge variant="outline" className="h-5 border-primary/30 bg-primary/5 text-[9px] text-primary">
+                                      CPF Receita
+                                    </Badge>
+                                  )}
+                                  {d.cpf_hidden && (
+                                    <Badge variant="outline" className="h-5 text-[9px]">
+                                      Sem CPF
+                                    </Badge>
+                                  )}
+                                  {d.allow_duplicate_phone && (
+                                    <Badge variant="outline" className="h-5 text-[9px]">
+                                      Tel. Duplicado
+                                    </Badge>
+                                  )}
+                                  {!d.cpf_validation_required && !d.cpf_hidden && !d.allow_duplicate_phone && (
+                                    <span className="text-[10px] text-muted-foreground italic">Padrão</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">
+                                {d.api_base_url}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex justify-end gap-1">
+                                  <Button
+                                    asChild
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    title="Abrir URL"
+                                  >
+                                    <a href={url} target="_blank" rel="noreferrer">
+                                      <ExternalLink className="h-4 w-4" />
+                                    </a>
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => openEdit(d)}
+                                    title="Editar"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                    onClick={() => setDeviceToDelete(d)}
+                                    disabled={deletingId === d.id}
+                                    title="Excluir"
+                                  >
+                                    {deletingId === d.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
