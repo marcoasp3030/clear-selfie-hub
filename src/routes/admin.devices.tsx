@@ -305,8 +305,12 @@ function DevicesPage() {
                 Novo
               </Button>
             </DialogTrigger>
-          <DialogContent>
-            <form onSubmit={handleCreate}>
+          </Dialog>
+        </div>
+      </div>
+      <Dialog open={openCreate} onOpenChange={setOpenCreate}>
+        <DialogContent>
+          <form onSubmit={handleCreate}>
               <DialogHeader>
                 <DialogTitle>Cadastrar equipamento</DialogTitle>
                 <DialogDescription>
