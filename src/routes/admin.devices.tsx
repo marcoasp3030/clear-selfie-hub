@@ -808,6 +808,31 @@ function DevicesPage() {
           </form>
         </DialogContent>
       </Dialog>
+    <AlertDialog open={!!deviceToDelete} onOpenChange={(open) => !open && setDeviceToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir equipamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o equipamento <strong>{deviceToDelete?.slug}</strong>? 
+              A URL pública deixará de funcionar imediatamente e esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deviceToDelete) {
+                  handleDelete(deviceToDelete.id);
+                  setDeviceToDelete(null);
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
