@@ -44,8 +44,13 @@ export async function callSintegrawsCpf(
   token: string,
   cpf: string,
   birthDate: string,
+  options?: { timeoutMs?: number },
 ): Promise<SintegrawsCpfResult> {
   const url = buildSintegrawsCpfUrl(token, cpf, birthDate);
+
+  const timeoutMs = options?.timeoutMs ?? 15000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   let res: Response;
   try {
@@ -56,16 +61,24 @@ export async function callSintegrawsCpf(
         "User-Agent": "curl/8.4.0",
         Accept: "*/*",
       },
+      signal: controller.signal,
     });
   } catch (err) {
+    const aborted =
+      (err instanceof Error && err.name === "AbortError") ||
+      controller.signal.aborted;
     const msg = err instanceof Error ? err.message : String(err);
     return {
       ok: false,
       status: 0,
       kind: "network_error",
-      message: `Falha de rede: ${msg}`,
+      message: aborted
+        ? `O serviço de validação de CPF (SintegraWS) não respondeu em ${Math.round(timeoutMs / 1000)}s. Tente novamente.`
+        : `Falha de rede: ${msg}`,
       raw: null,
     };
+  } finally {
+    clearTimeout(timer);
   }
 
   const text = await res.text();
