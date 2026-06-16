@@ -3,16 +3,50 @@ import { z } from "zod";
 import { getSintegrawsToken } from "@/server/sintegrawsSettings.server";
 import { callSintegrawsCpf } from "./sintegrawsCpf.server";
 
+/** CPF check-digit validation (same algorithm used no frontend). */
+function isValidCpfDigits(cpf: string): boolean {
+  if (cpf.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(cpf)) return false;
+  const calc = (len: number) => {
+    let sum = 0;
+    for (let i = 0; i < len; i++) sum += parseInt(cpf[i], 10) * (len + 1 - i);
+    const rest = (sum * 10) % 11;
+    return rest === 10 ? 0 : rest;
+  };
+  return (
+    calc(9) === parseInt(cpf[9], 10) && calc(10) === parseInt(cpf[10], 10)
+  );
+}
+
+/** Validates ddmmaaaa: real calendar day, month 1-12, year 1900..currentYear. */
+function isValidBirthDigits(v: string): boolean {
+  if (!/^\d{8}$/.test(v)) return false;
+  const day = parseInt(v.slice(0, 2), 10);
+  const month = parseInt(v.slice(2, 4), 10);
+  const year = parseInt(v.slice(4, 8), 10);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const currentYear = new Date().getFullYear();
+  if (year < 1900 || year > currentYear) return false;
+  const d = new Date(year, month - 1, day);
+  return (
+    d.getFullYear() === year &&
+    d.getMonth() === month - 1 &&
+    d.getDate() === day
+  );
+}
+
 const inputSchema = z.object({
   cpf: z
     .string()
     .trim()
-    .regex(/^\d{11}$/, "CPF inválido"),
+    .regex(/^\d{11}$/, "CPF deve conter 11 dígitos numéricos (formato 00000000000).")
+    .refine(isValidCpfDigits, "CPF inválido."),
   // Date in ddmmaaaa format (8 digits).
   birthDate: z
     .string()
     .trim()
-    .regex(/^\d{8}$/, "Data inválida"),
+    .regex(/^\d{8}$/, "Data de nascimento deve estar no formato ddmmaaaa.")
+    .refine(isValidBirthDigits, "Data de nascimento inválida."),
 });
 
 export const validateCpfWithReceita = createServerFn({ method: "POST" })
